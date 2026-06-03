@@ -90,9 +90,29 @@ struct APIClient {
         return try await send(req, allow404: false)!
     }
 
-    /// URL для отображения ранее загруженного фото (GET /photos/{storageKey}).
-    func photoURL(storageKey: String) -> URL? {
-        URL(string: "photos/\(storageKey)", relativeTo: apiRoot)
+    /// URL фото. thumbnail=true → лёгкое превью (~144px), иначе full (≤1920).
+    func photoURL(storageKey: String, thumbnail: Bool = false) -> URL? {
+        let path = thumbnail ? "photos/\(storageKey)?size=thumb" : "photos/\(storageKey)"
+        return URL(string: path, relativeTo: apiRoot)
+    }
+
+    /// Скачивает байты фото (для кэша). thumbnail=true → превью.
+    func photoData(storageKey: String, thumbnail: Bool) async throws -> Data {
+        guard let url = photoURL(storageKey: storageKey, thumbnail: thumbnail) else {
+            throw APIError.invalidURL
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw APIError.server(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                                      message: "Не удалось загрузить фото", details: nil)
+            }
+            return data
+        } catch let e as APIError {
+            throw e
+        } catch {
+            throw APIError.transport(error)
+        }
     }
 
     func complete(draftId: UUID, contributorId: UUID) async throws -> CompleteCatalogResponse {

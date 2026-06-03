@@ -88,9 +88,19 @@ Features/     Onboarding · Scan · Draft · Result · Lookup
 - Тесты: AuthServiceTest, AdminServiceTest, AuthControllerTest — всего **134 зелёных**.
 - Проверено вживую против MinIO+Postgres: все сценарии + лок-аут + recovery.
 
+### Блоки 7-9 ✅ — изображения (скорость)
+- **Блок 7 (backend):** при загрузке сервер делает Full (≤1920 по большей стороне)
+  и Thumbnail (~144px), обе в JPEG, кладёт в MinIO. Оригинал НЕ хранится
+  (`ImageProcessor` порт + `ThumbnailatorImageProcessor`). `GET /photos/{key}?size=thumb|full`.
+  Проверено: 4000×3000/796КБ → full 1920×1440/199КБ + thumb 144×108/3.6КБ.
+- **Блок 8 (iOS):** `ImageCompressor` — даунскейл до ≤1920 + JPEG (подбор качества к ≤800КБ)
+  перед отправкой; EXIF captured_at читается из оригинала ДО сжатия.
+- **Блок 9 (iOS):** `ImageStore` (actor) — memory `NSCache` + disk (Caches), ключ SHA256.
+  `CachedImage` (память→диск→сеть, повторно не качает). Плитки каталога — thumbnail;
+  тап → `PhotoViewer` полноэкранно в full (≤FullHD).
+- Тесты: `ThumbnailatorImageProcessorTest` (ресайз/превью/без апскейла) — всего 137 зелёных.
+
 ### TODO (следующие ходы)
 - iOS: экраны Вход/«Создать аккаунт»/«Новый пароль» (recovery), хаптики, Dynamic Island.
 - Блок 5-6: heartbeat-клиент + индикаторы соединения (ONLINE/DEGRADED/OFFLINE).
-- Блок 7-8: серверные thumbnail(~144)/full(≤1920) + сжатие, не хранить >2K.
-- Блок 9: двухуровневый кэш изображений (NSCache + disk).
 - Блок 11-12: контекстное меню источника у касания + шестерёнка «режим фото».

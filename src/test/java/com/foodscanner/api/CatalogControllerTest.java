@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import com.foodscanner.application.port.PhotoStorage;
+import com.foodscanner.application.port.ImageProcessor;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,6 +54,7 @@ class CatalogControllerTest {
     @MockBean CompleteCatalogUseCase          completeCatalog;
     @MockBean FindCatalogEntryByBarcodeUseCase findByBarcode;
     @MockBean PhotoStorage                     photoStorage;
+    @MockBean ImageProcessor                   imageProcessor;
 
     // ──────────────────────────────────────────────
     @Nested

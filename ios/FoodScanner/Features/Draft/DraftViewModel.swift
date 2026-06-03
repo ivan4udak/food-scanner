@@ -1,7 +1,6 @@
 import SwiftUI
 import PhotosUI
 import ImageIO
-import UniformTypeIdentifiers
 
 /// Источник кадра. Выбирается один раз и переиспользуется для всех слотов.
 enum PhotoSource { case camera, library }
@@ -33,30 +32,30 @@ final class DraftViewModel: ObservableObject {
                 draftId: UUID, contributorId: UUID?, api: APIClient) async {
         guard let contributorId else { return }
         images[slot] = image
-        let data = image.jpegData(compressionQuality: 0.9) ?? Data()
+        // Блок 8: сжать до ≤1920 + JPEG перед отправкой.
+        let data = ImageCompressor.compress(image)
         await send(slot: slot, data: data, filename: "camera.jpg", mime: "image/jpeg",
                    capturedAt: Date(),
                    draftId: draftId, contributorId: contributorId, api: api)
     }
 
-    /// Кадр из галереи (исходный файл) → читаем в память, исходный формат сохраняется →
-    /// дату съёмки берём из EXIF → сервер.
+    /// Кадр из галереи: дату съёмки берём из EXIF оригинала, затем сжимаем (Блок 8).
     func upload(item: PhotosPickerItem, for slot: PhotoSlot,
                 draftId: UUID, contributorId: UUID?, api: APIClient) async {
         guard let contributorId else { return }
         uploading.insert(slot)
-        guard let data = try? await item.loadTransferable(type: Data.self) else {
+        guard let raw = try? await item.loadTransferable(type: Data.self),
+              let img = UIImage(data: raw) else {
             uploading.remove(slot)
             error = "Не удалось прочитать фото"
             return
         }
-        if let img = UIImage(data: data) { images[slot] = img }
+        images[slot] = img
 
-        let mime     = Self.mimeType(of: data)
-        let ext      = Self.fileExtension(for: mime)
-        let captured = Self.exifCaptureDate(from: data)
+        let captured = Self.exifCaptureDate(from: raw)   // EXIF до сжатия
+        let data = ImageCompressor.compress(img)          // ≤1920 + JPEG
 
-        await send(slot: slot, data: data, filename: "gallery.\(ext)", mime: mime,
+        await send(slot: slot, data: data, filename: "gallery.jpg", mime: "image/jpeg",
                    capturedAt: captured,
                    draftId: draftId, contributorId: contributorId, api: api)
     }
@@ -98,19 +97,6 @@ final class DraftViewModel: ObservableObject {
         fmt.dateFormat = "yyyy:MM:dd HH:mm:ss"
         fmt.timeZone = .current
         return fmt.date(from: raw)
-    }
-
-    private static func mimeType(of data: Data) -> String {
-        if let src = CGImageSourceCreateWithData(data as CFData, nil),
-           let uti = CGImageSourceGetType(src),
-           let mime = UTType(uti as String)?.preferredMIMEType {
-            return mime
-        }
-        return "image/jpeg"
-    }
-
-    private static func fileExtension(for mime: String) -> String {
-        UTType(mimeType: mime)?.preferredFilenameExtension ?? "jpg"
     }
 
     func complete(draftId: UUID, contributorId: UUID, api: APIClient) async -> Int? {

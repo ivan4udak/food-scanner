@@ -8,6 +8,7 @@ struct LookupView: View {
     @State private var entry: CatalogEntryResponse?
     @State private var loading = true
     @State private var error: String?
+    @State private var opened: CatalogEntryResponse.Photo?
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -33,6 +34,9 @@ struct LookupView: View {
         .navigationTitle("Запись каталога")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .fullScreenCover(item: $opened) { photo in
+            PhotoViewer(photo: photo, api: state.api)
+        }
     }
 
     private func content(_ entry: CatalogEntryResponse) -> some View {
@@ -62,34 +66,27 @@ struct LookupView: View {
 
     private func photoCell(_ photo: CatalogEntryResponse.Photo) -> some View {
         let title = PhotoSlot(rawValue: photo.type)?.title ?? photo.type
-        return ZStack {
-            if let url = state.api.photoURL(storageKey: photo.storageKey) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    case .failure:
-                        placeholder(photo)
-                    default:
-                        ProgressView()
-                    }
+        return Button { opened = photo } label: {
+            ZStack {
+                // Превью (thumbnail ~144) из кэша — быстро.
+                CachedImage(storageKey: photo.storageKey, thumbnail: true, api: state.api) {
+                    placeholder(photo)
                 }
-            } else {
-                placeholder(photo)
+                VStack {
+                    Spacer()
+                    Text(title)
+                        .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial)
+                }
             }
-            VStack {
-                Spacer()
-                Text(title)
-                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial)
-            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.stroke))
         }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(1, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.stroke))
+        .buttonStyle(.plain)
     }
 
     private func placeholder(_ photo: CatalogEntryResponse.Photo) -> some View {
@@ -109,5 +106,35 @@ struct LookupView: View {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
         loading = false
+    }
+}
+
+/// Полноэкранный просмотр в полном качестве (full ≤ FullHD), из кэша.
+private struct PhotoViewer: View {
+    let photo: CatalogEntryResponse.Photo
+    let api: APIClient
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            CachedImage(storageKey: photo.storageKey, thumbnail: false, contentMode: .fit, api: api) {
+                ProgressView().tint(.white)
+            }
+            .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding()
+                    }
+                }
+                Spacer()
+            }
+        }
     }
 }
