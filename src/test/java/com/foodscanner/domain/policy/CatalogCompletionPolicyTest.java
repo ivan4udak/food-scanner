@@ -96,17 +96,15 @@ class CatalogCompletionPolicyTest {
     class FindMissing {
 
         @Test
-        @DisplayName("Возвращает все шесть типов для пустого черновика")
-        void shouldReturnAllFiveForEmptyDraft() {
+        @DisplayName("Возвращает четыре обязательных типа для пустого черновика")
+        void shouldReturnAllRequiredForEmptyDraft() {
             Set<PhotoType> missing = policy.findMissing(emptyDraft());
 
             assertEquals(Set.of(
                 PhotoType.BARCODE,
                 PhotoType.FRONT,
-                PhotoType.BACK,
                 PhotoType.INGREDIENTS,
-                PhotoType.NUTRITION,
-                PhotoType.EXTRA
+                PhotoType.NUTRITION
             ), missing);
         }
 
@@ -126,10 +124,8 @@ class CatalogCompletionPolicyTest {
             Set<PhotoType> missing = policy.findMissing(draft);
 
             assertEquals(Set.of(
-                PhotoType.BACK,
                 PhotoType.INGREDIENTS,
-                PhotoType.NUTRITION,
-                PhotoType.EXTRA
+                PhotoType.NUTRITION
             ), missing);
         }
 

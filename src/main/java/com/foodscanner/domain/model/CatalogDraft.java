@@ -98,6 +98,14 @@ public final class CatalogDraft {
      * Несколько фото одного типа допустимы — контрибьютор мог перефотографировать.
      */
     public void addPhoto(PhotoType type, String storageKey) {
+        addPhoto(type, storageKey, null);
+    }
+
+    /**
+     * Добавляет фото с датой съёмки (capturedAt из метаданных галереи).
+     * capturedAt может быть null (камера / нет EXIF).
+     */
+    public void addPhoto(PhotoType type, String storageKey, Instant capturedAt) {
         if (type == null) {
             throw new IllegalArgumentException("PhotoType must not be null");
         }
@@ -108,7 +116,7 @@ public final class CatalogDraft {
             throw new IllegalStateException(
                 "Cannot add photo to draft with status: " + status);
         }
-        photos.add(new DraftPhoto(this.id, type, storageKey));
+        photos.add(new DraftPhoto(this.id, type, storageKey, capturedAt));
         this.updatedAt = Instant.now();
     }
 

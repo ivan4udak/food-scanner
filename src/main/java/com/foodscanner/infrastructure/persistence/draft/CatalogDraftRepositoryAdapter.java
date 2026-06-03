@@ -48,7 +48,7 @@ public class CatalogDraftRepositoryAdapter implements CatalogDraftRepository {
         List<DraftPhotoJpaEntity> photoEntities = d.getPhotos().stream()
             .map(p -> new DraftPhotoJpaEntity(
                 p.getId(), p.getDraftId(), p.getType().name(),
-                p.getStorageKey(), p.getCreatedAt(), p.getCreatedAt()))
+                p.getStorageKey(), p.getCreatedAt(), p.getCreatedAt(), p.getCapturedAt()))
             .collect(Collectors.toList());
 
         entity.setPhotos(photoEntities);
@@ -60,7 +60,7 @@ public class CatalogDraftRepositoryAdapter implements CatalogDraftRepository {
             .map(p -> new DraftPhoto(
                 p.getId(), p.getDraftId(),
                 PhotoType.valueOf(p.getType()),
-                p.getStorageKey(), p.getCreatedAt()))
+                p.getStorageKey(), p.getCreatedAt(), p.getCapturedAt()))
             .collect(Collectors.toList());
 
         return CatalogDraft.reconstitute(

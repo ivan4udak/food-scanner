@@ -46,17 +46,28 @@ public final class CatalogEntry {
         this.updatedAt     = updatedAt;
     }
 
-    /**
-     * Создаётся только из CatalogCompletionPolicy.
-     * Package-private — внешний код не создаёт CatalogEntry напрямую.
-     *
-     * @param storageKeyByType последний storageKey каждого обязательного типа
-     */
+    /** Без даты съёмки (capturedAt = null для всех фото). */
     public static CatalogEntry create(
             Barcode barcode,
             UUID contributorId,
             UUID draftId,
             Map<PhotoType, String> storageKeyByType) {
+        return create(barcode, contributorId, draftId, storageKeyByType, Map.of());
+    }
+
+    /**
+     * Создаётся только из CatalogCompletionPolicy.
+     * Package-private — внешний код не создаёт CatalogEntry напрямую.
+     *
+     * @param storageKeyByType последний storageKey каждого обязательного типа
+     * @param capturedAtByType дата съёмки по типу (может быть пустой / содержать null)
+     */
+    public static CatalogEntry create(
+            Barcode barcode,
+            UUID contributorId,
+            UUID draftId,
+            Map<PhotoType, String> storageKeyByType,
+            Map<PhotoType, Instant> capturedAtByType) {
         Objects.requireNonNull(barcode,          "barcode must not be null");
         Objects.requireNonNull(contributorId,    "contributorId must not be null");
         Objects.requireNonNull(draftId,          "draftId must not be null");
@@ -65,9 +76,12 @@ public final class CatalogEntry {
         UUID    entryId = UUID.randomUUID();
         Instant now     = Instant.now();
 
+        Map<PhotoType, Instant> capturedAt =
+            capturedAtByType == null ? Map.of() : capturedAtByType;
+
         List<CatalogEntryPhoto> photos = new ArrayList<>();
         storageKeyByType.forEach((type, storageKey) ->
-            photos.add(new CatalogEntryPhoto(entryId, type, storageKey))
+            photos.add(new CatalogEntryPhoto(entryId, type, storageKey, capturedAt.get(type)))
         );
 
         return new CatalogEntry(entryId, barcode, contributorId, draftId, photos, now, now);

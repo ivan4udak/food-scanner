@@ -40,6 +40,14 @@ public class CatalogApiMapper {
             draftId, req.getContributorId(), type, req.getStorageKey());
     }
 
+    /** Multipart-вариант: storageKey уже получен из хранилища, плюс дата съёмки. */
+    public AddDraftPhotoCommand toCommand(java.util.UUID draftId, java.util.UUID contributorId,
+                                          String photoType, String storageKey,
+                                          java.time.Instant capturedAt) {
+        PhotoType type = PhotoType.valueOf(photoType.toUpperCase());
+        return new AddDraftPhotoCommand(draftId, contributorId, type, storageKey, capturedAt);
+    }
+
     public CompleteCatalogCommand toCommand(java.util.UUID draftId,
                                             CompleteCatalogRequest req) {
         return new CompleteCatalogCommand(draftId, req.getContributorId());
@@ -75,7 +83,7 @@ public class CatalogApiMapper {
 
     public CatalogEntryResponse toResponse(FindCatalogEntryResult result) {
         List<CatalogEntryResponse.PhotoDto> photos = result.getPhotos().stream()
-            .map(p -> new CatalogEntryResponse.PhotoDto(p.id(), p.type(), p.storageKey()))
+            .map(p -> new CatalogEntryResponse.PhotoDto(p.id(), p.type(), p.storageKey(), p.capturedAt()))
             .collect(Collectors.toList());
 
         return new CatalogEntryResponse(

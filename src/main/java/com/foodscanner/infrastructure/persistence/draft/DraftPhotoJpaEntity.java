@@ -27,16 +27,21 @@ public class DraftPhotoJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "captured_at")
+    private Instant capturedAt;
+
     protected DraftPhotoJpaEntity() {}
 
     public DraftPhotoJpaEntity(UUID id, UUID draftId, String type,
-                               String storageKey, Instant createdAt, Instant updatedAt) {
+                               String storageKey, Instant createdAt, Instant updatedAt,
+                               Instant capturedAt) {
         this.id         = id;
         this.draftId    = draftId;
         this.type       = type;
         this.storageKey = storageKey;
         this.createdAt  = createdAt;
         this.updatedAt  = updatedAt;
+        this.capturedAt = capturedAt;
     }
 
     public UUID    getId()         { return id; }
@@ -45,4 +50,5 @@ public class DraftPhotoJpaEntity {
     public String  getStorageKey() { return storageKey; }
     public Instant getCreatedAt()  { return createdAt; }
     public Instant getUpdatedAt()  { return updatedAt; }
+    public Instant getCapturedAt() { return capturedAt; }
 }

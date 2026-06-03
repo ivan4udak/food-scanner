@@ -48,7 +48,7 @@ public class CatalogEntryRepositoryAdapter implements CatalogEntryRepository {
         List<CatalogEntryPhotoJpaEntity> photos = e.getPhotos().stream()
             .map(p -> new CatalogEntryPhotoJpaEntity(
                 p.getId(), p.getEntryId(), p.getType().name(),
-                p.getStorageKey(), p.getCreatedAt(), p.getCreatedAt()))
+                p.getStorageKey(), p.getCreatedAt(), p.getCreatedAt(), p.getCapturedAt()))
             .collect(Collectors.toList());
 
         entity.setPhotos(photos);
@@ -60,7 +60,7 @@ public class CatalogEntryRepositoryAdapter implements CatalogEntryRepository {
             .map(p -> new CatalogEntryPhoto(
                 p.getId(), p.getEntryId(),
                 PhotoType.valueOf(p.getType()),
-                p.getStorageKey(), p.getCreatedAt()))
+                p.getStorageKey(), p.getCreatedAt(), p.getCapturedAt()))
             .collect(Collectors.toList());
 
         return CatalogEntry.reconstitute(

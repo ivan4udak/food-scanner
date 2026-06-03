@@ -13,23 +13,27 @@ public class CatalogEntryResponse {
     private Instant      createdAt;
 
     public static class PhotoDto {
-        private UUID   id;
-        private String type;
-        private String storageKey;
+        private UUID    id;
+        private String  type;
+        private String  storageKey;
+        private Instant capturedAt;
 
         public PhotoDto() {}
-        public PhotoDto(UUID id, String type, String storageKey) {
+        public PhotoDto(UUID id, String type, String storageKey, Instant capturedAt) {
             this.id         = id;
             this.type       = type;
             this.storageKey = storageKey;
+            this.capturedAt = capturedAt;
         }
 
-        public UUID   getId()                  { return id; }
-        public String getType()                { return type; }
-        public String getStorageKey()          { return storageKey; }
-        public void   setId(UUID v)            { this.id = v; }
-        public void   setType(String v)        { this.type = v; }
-        public void   setStorageKey(String v)  { this.storageKey = v; }
+        public UUID    getId()                  { return id; }
+        public String  getType()                { return type; }
+        public String  getStorageKey()          { return storageKey; }
+        public Instant getCapturedAt()          { return capturedAt; }
+        public void    setId(UUID v)            { this.id = v; }
+        public void    setType(String v)        { this.type = v; }
+        public void    setStorageKey(String v)  { this.storageKey = v; }
+        public void    setCapturedAt(Instant v) { this.capturedAt = v; }
     }
 
     public CatalogEntryResponse() {}

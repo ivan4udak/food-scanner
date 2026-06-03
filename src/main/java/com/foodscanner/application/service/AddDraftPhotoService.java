@@ -46,7 +46,7 @@ public class AddDraftPhotoService implements AddDraftPhotoUseCase {
                 + command.getContributorId());
         }
 
-        draft.addPhoto(command.getPhotoType(), command.getStorageKey());
+        draft.addPhoto(command.getPhotoType(), command.getStorageKey(), command.getCapturedAt());
         draftRepository.save(draft);
 
         Set<PhotoType> missing      = policy.findMissing(draft);

@@ -3,6 +3,7 @@ package com.foodscanner.domain.policy;
 import com.foodscanner.domain.exception.CatalogNotCompletableException;
 import com.foodscanner.domain.model.*;
 
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -24,16 +25,15 @@ import java.util.stream.Collectors;
 public final class CatalogCompletionPolicy {
 
     /**
-     * Все шесть типов обязательны.
-     * EXTRA — обязательный дополнительный снимок (упаковка сбоку, дно и т.п.).
+     * Четыре обязательных типа: штрихкод, лицевая сторона, состав, пищевая ценность.
+     * BACK и EXTRA — опциональны: можно загрузить дополнительно, но они
+     * не блокируют завершение каталога.
      */
     public static final Set<PhotoType> REQUIRED_TYPES = EnumSet.of(
         PhotoType.BARCODE,
         PhotoType.FRONT,
-        PhotoType.BACK,
         PhotoType.INGREDIENTS,
-        PhotoType.NUTRITION,
-        PhotoType.EXTRA
+        PhotoType.NUTRITION
     );
 
     public boolean canComplete(CatalogDraft draft) {
@@ -42,7 +42,7 @@ public final class CatalogCompletionPolicy {
 
     /**
      * Возвращает недостающие обязательные типы.
-     * Используется для прогресс-бара в UI (0/6 → 6/6).
+     * Используется для прогресс-бара в UI (0/4 → 4/4).
      */
     public Set<PhotoType> findMissing(CatalogDraft draft) {
         Set<PhotoType> present = draft.getPhotos().stream()
@@ -57,7 +57,9 @@ public final class CatalogCompletionPolicy {
     /**
      * Создаёт CatalogEntry из черновика.
      *
-     * При нескольких фото одного типа берётся последнее добавленное.
+     * Сохраняются ВСЕ загруженные фото — и обязательные, и опциональные
+     * (BACK, EXTRA). При нескольких фото одного типа берётся последнее.
+     * capturedAt переносится у выигравшего фото каждого типа.
      * Переводит черновик в COMPLETED.
      *
      * @throws CatalogNotCompletableException если не хватает обязательных фото
@@ -68,19 +70,20 @@ public final class CatalogCompletionPolicy {
             throw new CatalogNotCompletableException(missing);
         }
 
-        Map<PhotoType, String> storageKeyByType = draft.getPhotos().stream()
-            .filter(p -> REQUIRED_TYPES.contains(p.getType()))
-            .collect(Collectors.toMap(
-                DraftPhoto::getType,
-                DraftPhoto::getStorageKey,
-                (existing, replacement) -> replacement
-            ));
+        // HashMap/EnumMap, а не Collectors.toMap — capturedAt может быть null.
+        Map<PhotoType, String>  storageKeyByType = new java.util.EnumMap<>(PhotoType.class);
+        Map<PhotoType, Instant> capturedAtByType = new java.util.EnumMap<>(PhotoType.class);
+        for (DraftPhoto p : draft.getPhotos()) {
+            storageKeyByType.put(p.getType(), p.getStorageKey());
+            capturedAtByType.put(p.getType(), p.getCapturedAt());
+        }
 
         CatalogEntry entry = CatalogEntry.create(
             draft.getBarcode(),
             draft.getContributorId(),
             draft.getId(),
-            storageKeyByType
+            storageKeyByType,
+            capturedAtByType
         );
 
         draft.markCompleted();
