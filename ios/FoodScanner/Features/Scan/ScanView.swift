@@ -48,18 +48,11 @@ struct ScanView: View {
             let side = min(geo.size.width - 80, 280)
             ZStack {
                 if access == .authorized {
-                    // Мягкое затемнение с прозрачным «окном» по центру.
-                    Rectangle()
-                        .fill(Color.black.opacity(0.32))
-                        .reverseMask {
-                            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                                .frame(width: side, height: side)
-                        }
-                        .ignoresSafeArea()
-
-                    RoundedRectangle(cornerRadius: 30, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1.5)
+                    // Минималистичная рамка: четыре угла с загибами. Без анимаций.
+                    ScannerCorners()
+                        .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                         .frame(width: side, height: side)
+                        .shadow(color: .black.opacity(0.45), radius: 4)
                 }
 
                 VStack {
@@ -171,6 +164,37 @@ struct ScanView: View {
                 cameraActive = (access == .authorized)
             }
         }
+    }
+}
+
+/// Четыре угловых уголка с загибами внутрь — поле сканирования.
+private struct ScannerCorners: Shape {
+    var len: CGFloat = 34
+    var radius: CGFloat = 16
+
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        // верхний левый
+        p.move(to: CGPoint(x: r.minX, y: r.minY + len))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY + radius))
+        p.addQuadCurve(to: CGPoint(x: r.minX + radius, y: r.minY), control: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.minX + len, y: r.minY))
+        // верхний правый
+        p.move(to: CGPoint(x: r.maxX - len, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - radius, y: r.minY))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + radius), control: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY + len))
+        // нижний правый
+        p.move(to: CGPoint(x: r.maxX, y: r.maxY - len))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - radius))
+        p.addQuadCurve(to: CGPoint(x: r.maxX - radius, y: r.maxY), control: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX - len, y: r.maxY))
+        // нижний левый
+        p.move(to: CGPoint(x: r.minX + len, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + radius, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - radius), control: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY - len))
+        return p
     }
 }
 
