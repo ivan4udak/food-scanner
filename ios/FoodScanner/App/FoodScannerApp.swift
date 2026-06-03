@@ -3,13 +3,28 @@ import SwiftUI
 @main
 struct FoodScannerApp: App {
     @StateObject private var state = AppState()
+    @StateObject private var connection = ConnectionMonitor()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(state)
+                .environmentObject(connection)
                 .tint(Theme.accent)
                 .preferredColorScheme(.light)
+                .connectionOverlay(connection)
+                .task {
+                    connection.apiProvider = { state.api }
+                    connection.start()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .active:                connection.start()
+                    case .background, .inactive: connection.stop()
+                    @unknown default:            break
+                    }
+                }
         }
     }
 }

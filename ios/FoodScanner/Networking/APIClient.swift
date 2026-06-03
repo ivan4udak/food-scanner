@@ -125,6 +125,20 @@ struct APIClient {
         try await get("entries/\(barcode)", allow404: true)
     }
 
+    /// Heartbeat: true если сервер ответил 2xx за отведённое время.
+    func ping(timeout: TimeInterval = 4) async -> Bool {
+        guard let url = URL(string: "ping", relativeTo: apiRoot) else { return false }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = timeout
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            return (resp as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
+        } catch {
+            return false
+        }
+    }
+
     // MARK: Core
 
     private func post<B: Encodable, R: Decodable>(_ path: String, body: B) async throws -> R {
