@@ -27,6 +27,10 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Режим загрузки фото (камера/галерея). Только в памяти — живёт до конца сессии,
+    /// в UserDefaults НЕ сохраняется (Блоки 11–12).
+    @Published var photoSource: PhotoSource?
+
     var isRegistered: Bool { contributorId != nil }
 
     var api: APIClient {

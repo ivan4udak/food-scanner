@@ -9,10 +9,8 @@ struct DraftView: View {
     @EnvironmentObject private var state: AppState
     @StateObject private var model = DraftViewModel()
 
-    // Источник кадра выбирается один раз и переиспользуется.
-    @State private var source: PhotoSource?
+    // Режим источника живёт в AppState (память сессии). Блоки 11–12.
     @State private var activeSlot: PhotoSlot?
-    @State private var showSourceDialog = false
     @State private var showCamera = false
     @State private var showLibrary = false
     @State private var pickerItem: PhotosPickerItem?
@@ -41,10 +39,21 @@ struct DraftView: View {
         }
         .navigationTitle("Новый продукт")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Как добавить фото?", isPresented: $showSourceDialog, titleVisibility: .visible) {
-            Button("Сделать фото") { choose(.camera) }
-            Button("Загрузить из галереи") { choose(.library) }
-            Button("Отмена", role: .cancel) { activeSlot = nil }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Section("Режим загрузки фото") {
+                        Button { state.photoSource = .camera } label: {
+                            Label("Камера", systemImage: state.photoSource == .camera ? "checkmark" : "camera")
+                        }
+                        Button { state.photoSource = .library } label: {
+                            Label("Галерея", systemImage: state.photoSource == .library ? "checkmark" : "photo.on.rectangle")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraCapture { image in
@@ -82,9 +91,10 @@ struct DraftView: View {
                 ForEach(slots) { slot in
                     PhotoSlotCell(slot: slot,
                                   image: model.images[slot],
-                                  state: model.cellState(for: slot)) {
-                        tap(slot)
-                    }
+                                  state: model.cellState(for: slot),
+                                  hasSource: state.photoSource != nil,
+                                  onChoose: { src in choose(src, for: slot) },
+                                  onOpen:   { openExisting(for: slot) })
                 }
             }
         }
@@ -98,15 +108,12 @@ struct DraftView: View {
                 Text("Штрихкод").font(.caption).foregroundStyle(Theme.textSecondary)
                 Text(barcode).font(.system(.title3, design: .rounded).weight(.bold))
                     .foregroundStyle(Theme.textPrimary)
-                if let source {
-                    Button { showSourceDialog = true } label: {
-                        Label(source == .camera ? "Камера" : "Галерея",
-                              systemImage: source == .camera ? "camera" : "photo.on.rectangle")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Theme.accent)
-                    }
+                if let src = state.photoSource {
+                    Label(src == .camera ? "Режим: камера" : "Режим: галерея",
+                          systemImage: src == .camera ? "camera" : "photo.on.rectangle")
+                        .font(.caption.weight(.medium)).foregroundStyle(Theme.accent)
                 } else {
-                    Text("Снимите обязательные фото продукта")
+                    Text("Нажмите на плитку — выберите способ")
                         .font(.footnote).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -117,17 +124,17 @@ struct DraftView: View {
 
     // MARK: Actions
 
-    private func tap(_ slot: PhotoSlot) {
+    /// Выбор источника из меню у плитки (Блок 11): запоминаем на сессию и открываем.
+    private func choose(_ src: PhotoSource, for slot: PhotoSlot) {
+        state.photoSource = src
         activeSlot = slot
-        if let source {
-            open(source)
-        } else {
-            showSourceDialog = true
-        }
+        open(src)
     }
 
-    private func choose(_ src: PhotoSource) {
-        source = src
+    /// Режим уже задан (Блок 12) — открываем сразу.
+    private func openExisting(for slot: PhotoSlot) {
+        guard let src = state.photoSource else { return }
+        activeSlot = slot
         open(src)
     }
 
@@ -159,7 +166,9 @@ private struct PhotoSlotCell: View {
     let slot: PhotoSlot
     let image: UIImage?
     let state: DraftViewModel.CellState
-    let onTap: () -> Void
+    let hasSource: Bool
+    let onChoose: (PhotoSource) -> Void
+    let onOpen: () -> Void
 
     private var borderColor: Color {
         if state == .uploaded { return Theme.accent.opacity(0.6) }
@@ -167,22 +176,35 @@ private struct PhotoSlotCell: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            ZStack(alignment: .topTrailing) {
-                content
-                badge
+        Group {
+            if hasSource {
+                // Режим задан → открываем источник сразу (Блок 12).
+                Button(action: onOpen) { tile }.buttonStyle(.plain)
+            } else {
+                // Первый выбор → меню прямо у плитки/места касания (Блок 11).
+                Menu {
+                    Button { onChoose(.camera) }  label: { Label("Сделать фото", systemImage: "camera") }
+                    Button { onChoose(.library) } label: { Label("Выбрать из галереи", systemImage: "photo.on.rectangle") }
+                } label: { tile }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
-                    .stroke(borderColor, lineWidth: state == .uploaded ? 2 : 1)
-            )
         }
-        .buttonStyle(.plain)
         .disabled(state == .uploading)
+    }
+
+    private var tile: some View {
+        ZStack(alignment: .topTrailing) {
+            content
+            badge
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
+                .stroke(borderColor, lineWidth: state == .uploaded ? 2 : 1)
+        )
     }
 
     @ViewBuilder private var content: some View {
