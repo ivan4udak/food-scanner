@@ -49,23 +49,54 @@ struct LookupView: View {
                 Text("Фотографии (\(entry.photos.count))")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textSecondary)
 
-                ForEach(entry.photos) { photo in
-                    HStack(spacing: 14) {
-                        Image(systemName: PhotoSlot(rawValue: photo.type)?.systemImage ?? "photo")
-                            .font(.title3).foregroundStyle(Theme.accent)
-                            .frame(width: 44, height: 44)
-                            .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(PhotoSlot(rawValue: photo.type)?.title ?? photo.type)
-                                .font(.subheadline.weight(.medium)).foregroundStyle(Theme.textPrimary)
-                            Text(photo.storageKey).font(.caption).foregroundStyle(Theme.textSecondary)
-                                .lineLimit(1).truncationMode(.middle)
-                        }
-                        Spacer(minLength: 0)
-                    }.card(padding: 14)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 14),
+                                    GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                    ForEach(entry.photos) { photo in
+                        photoCell(photo)
+                    }
                 }
             }
             .padding(Theme.pad)
+        }
+    }
+
+    private func photoCell(_ photo: CatalogEntryResponse.Photo) -> some View {
+        let title = PhotoSlot(rawValue: photo.type)?.title ?? photo.type
+        return ZStack {
+            if let url = state.api.photoURL(storageKey: photo.storageKey) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                    case .failure:
+                        placeholder(photo)
+                    default:
+                        ProgressView()
+                    }
+                }
+            } else {
+                placeholder(photo)
+            }
+            VStack {
+                Spacer()
+                Text(title)
+                    .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.stroke))
+    }
+
+    private func placeholder(_ photo: CatalogEntryResponse.Photo) -> some View {
+        ZStack {
+            Theme.background
+            Image(systemName: PhotoSlot(rawValue: photo.type)?.systemImage ?? "photo")
+                .font(.title).foregroundStyle(Theme.accent)
         }
     }
 
