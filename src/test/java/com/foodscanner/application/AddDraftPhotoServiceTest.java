@@ -64,28 +64,40 @@ class AddDraftPhotoServiceTest {
                 draft.getId(), CONTRIBUTOR_ID, PhotoType.FRONT, "drafts/123/front.jpg"));
 
             assertEquals(1, result.getUploadedCount());
-            assertEquals(6, result.getRequiredCount());
+            assertEquals(4, result.getRequiredCount());
             assertFalse(result.isComplete());
         }
 
         @Test
-        @DisplayName("Возвращает isComplete=true после 6 обязательных фото")
+        @DisplayName("Возвращает isComplete=true после 4 обязательных фото")
         void shouldReturnCompleteAfterAllPhotos() {
             CatalogDraft draft = openDraft();
             draft.addPhoto(PhotoType.BARCODE,     "b.jpg");
             draft.addPhoto(PhotoType.FRONT,       "f.jpg");
-            draft.addPhoto(PhotoType.BACK,        "ba.jpg");
             draft.addPhoto(PhotoType.INGREDIENTS, "i.jpg");
-            draft.addPhoto(PhotoType.NUTRITION,   "n.jpg");
 
             when(draftRepository.findById(draft.getId())).thenReturn(Optional.of(draft));
             when(draftRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             AddDraftPhotoResult result = service.execute(new AddDraftPhotoCommand(
-                draft.getId(), CONTRIBUTOR_ID, PhotoType.EXTRA, "e.jpg"));
+                draft.getId(), CONTRIBUTOR_ID, PhotoType.NUTRITION, "n.jpg"));
 
             assertTrue(result.isComplete());
-            assertEquals(6, result.getUploadedCount());
+            assertEquals(4, result.getUploadedCount());
+        }
+
+        @Test
+        @DisplayName("Опциональный BACK не увеличивает прогресс обязательных")
+        void shouldNotCountOptionalTowardsRequired() {
+            CatalogDraft draft = openDraft();
+            when(draftRepository.findById(draft.getId())).thenReturn(Optional.of(draft));
+            when(draftRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AddDraftPhotoResult result = service.execute(new AddDraftPhotoCommand(
+                draft.getId(), CONTRIBUTOR_ID, PhotoType.BACK, "ba.jpg"));
+
+            assertEquals(0, result.getUploadedCount());
+            assertFalse(result.isComplete());
         }
 
         @Test

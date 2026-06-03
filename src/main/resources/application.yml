@@ -49,6 +49,21 @@ spring:
   mvc:
     throw-exception-if-no-handler-found: false   # обрабатываем через GlobalExceptionHandler
 
+  # ── Загрузка файлов (фото продукта) ──────────────────────────────
+  servlet:
+    multipart:
+      max-file-size:    ${MAX_FILE_SIZE:25MB}
+      max-request-size: ${MAX_REQUEST_SIZE:25MB}
+
+# ── Объектное хранилище фото (MinIO / S3-совместимое) ────────────────
+storage:
+  provider: ${STORAGE_PROVIDER:minio}
+  minio:
+    endpoint:   ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket:     ${MINIO_BUCKET:food-scanner-photos}
+
 # ── Сервер ──────────────────────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8080}

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
  */
 public final class FindCatalogEntryResult {
 
-    public record PhotoInfo(UUID id, String type, String storageKey) {}
+    public record PhotoInfo(UUID id, String type, String storageKey, Instant capturedAt) {}
 
     private final UUID           id;
     private final String         barcode;
@@ -34,7 +34,7 @@ public final class FindCatalogEntryResult {
 
     public static FindCatalogEntryResult from(CatalogEntry entry) {
         List<PhotoInfo> photos = entry.getPhotos().stream()
-            .map(p -> new PhotoInfo(p.getId(), p.getType().name(), p.getStorageKey()))
+            .map(p -> new PhotoInfo(p.getId(), p.getType().name(), p.getStorageKey(), p.getCapturedAt()))
             .collect(Collectors.toList());
         return new FindCatalogEntryResult(
             entry.getId(), entry.getBarcode().getValue(),

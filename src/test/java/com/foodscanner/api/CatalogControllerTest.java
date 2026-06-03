@@ -17,7 +17,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import com.foodscanner.application.port.PhotoStorage;
 
 import java.time.Instant;
 import java.util.List;
@@ -50,6 +52,7 @@ class CatalogControllerTest {
     @MockBean AddDraftPhotoUseCase            addDraftPhoto;
     @MockBean CompleteCatalogUseCase          completeCatalog;
     @MockBean FindCatalogEntryByBarcodeUseCase findByBarcode;
+    @MockBean PhotoStorage                     photoStorage;
 
     // ──────────────────────────────────────────────
     @Nested
@@ -153,54 +156,61 @@ class CatalogControllerTest {
     @DisplayName("POST /api/v1/drafts/{draftId}/photos")
     class AddDraftPhoto {
 
+        private MockMultipartFile photo() {
+            return new MockMultipartFile(
+                "file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        }
+
         @Test
-        @DisplayName("200 с прогрессом после добавления фото")
+        @DisplayName("200 с прогрессом после загрузки фото (multipart)")
         void shouldReturnProgressAfterAdd() throws Exception {
+            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
             when(addDraftPhoto.execute(any()))
-                .thenReturn(new AddDraftPhotoResult(1, 6,
-                    Set.of(com.foodscanner.domain.model.PhotoType.BACK,
-                           com.foodscanner.domain.model.PhotoType.BARCODE,
+                .thenReturn(new AddDraftPhotoResult(1, 4,
+                    Set.of(com.foodscanner.domain.model.PhotoType.BARCODE,
                            com.foodscanner.domain.model.PhotoType.INGREDIENTS,
-                           com.foodscanner.domain.model.PhotoType.NUTRITION,
-                           com.foodscanner.domain.model.PhotoType.EXTRA),
+                           com.foodscanner.domain.model.PhotoType.NUTRITION),
                     false));
 
-            mockMvc.perform(post("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(
-                        new AddDraftPhotoRequest(UUID.randomUUID(), "FRONT", "drafts/f.jpg"))))
+            mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
+                    .file(photo())
+                    .param("contributorId", UUID.randomUUID().toString())
+                    .param("photoType", "FRONT")
+                    .param("capturedAt", "2026-05-01T10:00:00Z"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.uploadedCount").value(1))
-                .andExpect(jsonPath("$.requiredCount").value(6))
+                .andExpect(jsonPath("$.requiredCount").value(4))
                 .andExpect(jsonPath("$.complete").value(false));
         }
 
         @Test
-        @DisplayName("200 complete=true когда все 6 фото загружены")
+        @DisplayName("200 complete=true когда все обязательные загружены")
         void shouldReturnCompleteTrueWhenAllUploaded() throws Exception {
+            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/nutrition/u.jpg");
             when(addDraftPhoto.execute(any()))
-                .thenReturn(new AddDraftPhotoResult(6, 6, Set.of(), true));
+                .thenReturn(new AddDraftPhotoResult(4, 4, Set.of(), true));
 
-            mockMvc.perform(post("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(
-                        new AddDraftPhotoRequest(UUID.randomUUID(), "EXTRA", "drafts/e.jpg"))))
+            mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
+                    .file(photo())
+                    .param("contributorId", UUID.randomUUID().toString())
+                    .param("photoType", "NUTRITION"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.complete").value(true))
-                .andExpect(jsonPath("$.uploadedCount").value(6));
+                .andExpect(jsonPath("$.uploadedCount").value(4));
         }
 
         @Test
         @DisplayName("404 если черновик не найден")
         void shouldReturn404WhenDraftNotFound() throws Exception {
             UUID draftId = UUID.randomUUID();
+            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenThrow(new CatalogDraftNotFoundException(draftId));
 
-            mockMvc.perform(post("/api/v1/drafts/{draftId}/photos", draftId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(
-                        new AddDraftPhotoRequest(UUID.randomUUID(), "FRONT", "f.jpg"))))
+            mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", draftId)
+                    .file(photo())
+                    .param("contributorId", UUID.randomUUID().toString())
+                    .param("photoType", "FRONT"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
         }
@@ -208,13 +218,12 @@ class CatalogControllerTest {
         @Test
         @DisplayName("400 при невалидном PhotoType")
         void shouldReturn400WhenPhotoTypeInvalid() throws Exception {
-            when(addDraftPhoto.execute(any()))
-                .thenThrow(new IllegalArgumentException("No enum constant INVALID_TYPE"));
+            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/u.jpg");
 
-            mockMvc.perform(post("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(
-                        new AddDraftPhotoRequest(UUID.randomUUID(), "INVALID_TYPE", "f.jpg"))))
+            mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
+                    .file(photo())
+                    .param("contributorId", UUID.randomUUID().toString())
+                    .param("photoType", "INVALID_TYPE"))
                 .andExpect(status().isBadRequest());
         }
     }
@@ -287,7 +296,7 @@ class CatalogControllerTest {
                 .thenReturn(new FindCatalogEntryResult(
                     entryId, "4607038310042", contributorId,
                     List.of(new FindCatalogEntryResult.PhotoInfo(
-                        UUID.randomUUID(), "FRONT", "drafts/front.jpg")),
+                        UUID.randomUUID(), "FRONT", "drafts/front.jpg", Instant.now())),
                     Instant.now()));
 
             mockMvc.perform(get("/api/v1/entries/{barcode}", "4607038310042"))

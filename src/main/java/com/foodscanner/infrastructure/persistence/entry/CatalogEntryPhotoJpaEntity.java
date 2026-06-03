@@ -27,16 +27,21 @@ public class CatalogEntryPhotoJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "captured_at")
+    private Instant capturedAt;
+
     protected CatalogEntryPhotoJpaEntity() {}
 
     public CatalogEntryPhotoJpaEntity(UUID id, UUID entryId, String type,
-                                      String storageKey, Instant createdAt, Instant updatedAt) {
+                                      String storageKey, Instant createdAt, Instant updatedAt,
+                                      Instant capturedAt) {
         this.id         = id;
         this.entryId    = entryId;
         this.type       = type;
         this.storageKey = storageKey;
         this.createdAt  = createdAt;
         this.updatedAt  = updatedAt;
+        this.capturedAt = capturedAt;
     }
 
     public UUID    getId()         { return id; }
@@ -44,4 +49,5 @@ public class CatalogEntryPhotoJpaEntity {
     public String  getType()       { return type; }
     public String  getStorageKey() { return storageKey; }
     public Instant getCreatedAt()  { return createdAt; }
+    public Instant getCapturedAt() { return capturedAt; }
 }
