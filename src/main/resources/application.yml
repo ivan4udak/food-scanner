@@ -1,0 +1,121 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Food Scanner — основная конфигурация
+#  Все чувствительные параметры переопределяются через:
+#    - переменные окружения (SPRING_DATASOURCE_URL и т.п.)
+#    - application-prod.yml / application-dev.yml
+#    - JVM-аргументы: -Dserver.port=9090
+# ═══════════════════════════════════════════════════════════════════
+
+spring:
+  application:
+    name: food-scanner
+
+  # ── База данных ──────────────────────────────────────────────────
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/foodscanner}
+    username: ${DB_USER:foodscanner}
+    password: ${DB_PASSWORD:foodscanner}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: FoodScannerPool
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # ── JPA / Hibernate ──────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway управляет схемой
+    open-in-view: false           # отключаем — предотвращает N+1 в контроллерах
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        default_schema: food_catalog
+        format_sql: true
+        use_sql_comments: true
+        # dialect НЕ указываем — Hibernate 6 определяет сам (убирает HHH90000025)
+
+  # ── Flyway ───────────────────────────────────────────────────────
+  flyway:
+    enabled: true
+    schemas: food_catalog
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # ── Сообщения об ошибках ─────────────────────────────────────────
+  mvc:
+    throw-exception-if-no-handler-found: false   # обрабатываем через GlobalExceptionHandler
+
+# ── Сервер ──────────────────────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: ${ERROR_INCLUDE_STACKTRACE:on_param}  # ?trace=true в URL
+    include-exception: ${ERROR_INCLUDE_EXCEPTION:false}
+
+# ── Логирование ──────────────────────────────────────────────────────
+# Уровни: TRACE < DEBUG < INFO < WARN < ERROR
+# Переопределить без перекомпиляции:
+#   export LOG_LEVEL_ROOT=DEBUG
+#   export LOG_LEVEL_APP=TRACE
+#   export LOG_LEVEL_SQL=DEBUG
+#   export LOG_LEVEL_WEB=DEBUG
+#
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:WARN}
+
+    # Приложение
+    com.foodscanner: ${LOG_LEVEL_APP:INFO}
+    com.foodscanner.domain: ${LOG_LEVEL_DOMAIN:INFO}
+    com.foodscanner.application: ${LOG_LEVEL_APPLICATION:INFO}
+    com.foodscanner.infrastructure: ${LOG_LEVEL_INFRA:INFO}
+    com.foodscanner.api: ${LOG_LEVEL_API:INFO}
+
+    # Spring Web — входящие запросы, маппинг роутов
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.springframework.web.servlet.DispatcherServlet: ${LOG_LEVEL_WEB:INFO}
+    org.springframework.web.servlet.mvc.method.annotation: ${LOG_LEVEL_WEB:INFO}
+
+    # SQL запросы (show-sql=true + этот уровень = полные запросы с параметрами)
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL_PARAMS:WARN}    # значения параметров
+    org.hibernate.orm.jdbc.extract: ${LOG_LEVEL_SQL_PARAMS:WARN} # результаты
+
+    # HikariCP — пул соединений
+    com.zaxxer.hikari: ${LOG_LEVEL_HIKARI:WARN}
+    com.zaxxer.hikari.HikariConfig: ${LOG_LEVEL_HIKARI:WARN}
+
+    # Flyway
+    org.flywaydb: ${LOG_LEVEL_FLYWAY:INFO}
+
+    # Spring Data / JPA
+    org.springframework.data: ${LOG_LEVEL_DATA:WARN}
+    org.springframework.orm.jpa: ${LOG_LEVEL_JPA:WARN}
+    org.springframework.transaction: ${LOG_LEVEL_TX:WARN}
+
+  # Формат строки лога
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%5p){} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} : %m%n%wEx"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%t] %-40.40logger{39} : %m%n%wEx"
+
+  # Файл лога (опционально, по умолчанию выключен)
+  file:
+    name: ${LOG_FILE:}              # пусто = только консоль; задай путь чтобы включить
+    max-size: ${LOG_FILE_MAX_SIZE:50MB}
+    max-history: ${LOG_FILE_MAX_HISTORY:30}
+
+# ── Actuator (health-check) ──────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:when-authorized}

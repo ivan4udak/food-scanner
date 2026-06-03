@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Профиль DEV — комфортная разработка
+#  Активировать: --spring.profiles.active=dev
+# ═══════════════════════════════════════════════════════════════════
+
+logging:
+  level:
+    root: INFO
+    com.foodscanner: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: DEBUG
+    org.flywaydb: DEBUG
+
+spring:
+  jpa:
+    show-sql: true
+
+server:
+  error:
+    include-stacktrace: always
+    include-exception: true

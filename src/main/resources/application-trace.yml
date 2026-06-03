@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Профиль TRACE — максимальная детализация
+#  Активировать: --spring.profiles.active=trace
+#  или:          export SPRING_PROFILES_ACTIVE=trace
+#
+#  ВНИМАНИЕ: очень шумный вывод. Только для отладки, никогда на prod.
+# ═══════════════════════════════════════════════════════════════════
+
+logging:
+  level:
+    root: INFO
+    com.foodscanner: TRACE
+
+    # Полный HTTP: заголовки, тело, статус каждого запроса и ответа
+    org.springframework.web: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: TRACE
+    org.springframework.web.servlet.mvc.method.annotation: TRACE
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+
+    # Полный SQL с параметрами
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.orm.jdbc.extract: TRACE
+    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
+
+    # Транзакции
+    org.springframework.transaction: DEBUG
+    org.springframework.orm.jpa: DEBUG
+
+    # JPA / Hibernate internals
+    org.hibernate: INFO
+    org.hibernate.engine.internal.StatefulPersistenceContext: DEBUG
+
+    # HikariCP — жизнь пула соединений
+    com.zaxxer.hikari: DEBUG
+    com.zaxxer.hikari.pool: TRACE
+
+    # Spring Data
+    org.springframework.data.jpa.repository: DEBUG
+
+  # В режиме trace пишем и в файл
+  file:
+    name: logs/food-scanner-trace.log
+
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        generate_statistics: true   # статистика запросов в конце сессии
+
+server:
+  error:
+    include-stacktrace: always
+    include-exception: true
