@@ -4,6 +4,7 @@ import SwiftUI
 struct FoodScannerApp: App {
     @StateObject private var state = AppState()
     @StateObject private var connection = ConnectionMonitor()
+    @StateObject private var busy = BusyController()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -11,8 +12,10 @@ struct FoodScannerApp: App {
             RootView()
                 .environmentObject(state)
                 .environmentObject(connection)
+                .environmentObject(busy)
                 .tint(Theme.accent)
                 .preferredColorScheme(.light)
+                .busyOverlay(busy)
                 .connectionOverlay(connection)
                 .task {
                     connection.apiProvider = { state.api }
@@ -41,11 +44,17 @@ struct RootView: View {
     @EnvironmentObject private var state: AppState
 
     var body: some View {
-        if state.isRegistered {
-            ScanFlowView()
-        } else {
-            RegisterView()
+        ZStack {
+            if state.isRegistered {
+                ScanFlowView()
+                    .transition(.opacity)
+            } else {
+                LoginView()
+                    .transition(.opacity)
+            }
         }
+        // Плавная (без рывков) смена экрана после ответа сервера.
+        .animation(.easeInOut(duration: 0.5), value: state.isRegistered)
     }
 }
 

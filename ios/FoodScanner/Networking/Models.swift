@@ -61,6 +61,13 @@ struct CatalogEntryResponse: Decodable, Identifiable {
     }
 }
 
+struct AuthResponse: Decodable {
+    let status: String
+    let contributorId: UUID?
+    let username: String?
+    let message: String?
+}
+
 struct ServerErrorResponse: Decodable {
     let status: Int
     let error: String

@@ -139,6 +139,71 @@ struct APIClient {
         }
     }
 
+    // MARK: Auth
+
+    func login(username: String, password: String) async throws -> LoginOutcome {
+        let (data, http) = try await postRaw("auth/login",
+                                             ["username": username, "password": password])
+        let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
+        switch http.statusCode {
+        case 200:
+            if auth?.status == "RECOVERY" { return .recovery(auth?.username ?? username) }
+            if let id = auth?.contributorId { return .ok(id, auth?.username ?? username) }
+            throw APIError.empty
+        case 404: return .notFound
+        case 401: return .invalid(auth?.message ?? "Неверный логин или пароль")
+        case 423: return .locked(auth?.message ?? "Аккаунт временно заблокирован")
+        default:
+            throw APIError.server(status: http.statusCode,
+                                  message: auth?.message ?? "Ошибка входа", details: nil)
+        }
+    }
+
+    /// Создание аккаунта. 409 → ContributorAlreadyExists (бросается APIError.server 409).
+    func register(username: String, password: String) async throws -> (UUID, String) {
+        let (data, http) = try await postRaw("auth/register",
+                                             ["username": username, "password": password])
+        let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
+        guard http.statusCode == 201, let id = auth?.contributorId else {
+            throw APIError.server(status: http.statusCode,
+                                  message: http.statusCode == 409 ? "Логин уже занят"
+                                                                  : (auth?.message ?? "Не удалось создать аккаунт"),
+                                  details: nil)
+        }
+        return (id, auth?.username ?? username)
+    }
+
+    /// Установка нового пароля в окне восстановления.
+    func recover(username: String, password: String) async throws -> (UUID, String) {
+        let (data, http) = try await postRaw("auth/recover",
+                                             ["username": username, "password": password])
+        let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
+        guard http.statusCode == 200, let id = auth?.contributorId else {
+            throw APIError.server(status: http.statusCode,
+                                  message: auth?.message ?? "Окно восстановления истекло", details: nil)
+        }
+        return (id, auth?.username ?? username)
+    }
+
+    /// POST JSON, возвращает (data, response) без выброса на не-2xx.
+    private func postRaw(_ path: String, _ fields: [String: String]) async throws -> (Data, HTTPURLResponse) {
+        guard let url = URL(string: path, relativeTo: apiRoot) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.httpBody = try Self.encoder.encode(fields)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            guard let http = response as? HTTPURLResponse else { throw APIError.empty }
+            return (data, http)
+        } catch let e as APIError {
+            throw e
+        } catch {
+            throw APIError.transport(error)
+        }
+    }
+
     // MARK: Core
 
     private func post<B: Encodable, R: Decodable>(_ path: String, body: B) async throws -> R {
@@ -196,4 +261,13 @@ private extension Data {
     mutating func append(_ string: String) {
         if let d = string.data(using: .utf8) { append(d) }
     }
+}
+
+/// Исход попытки входа (Блок 1).
+enum LoginOutcome {
+    case ok(UUID, String)        // вход выполнен
+    case recovery(String)        // режим восстановления (нужен новый пароль)
+    case notFound                // пользователя нет → предложить создать
+    case invalid(String)         // неверный логин/пароль
+    case locked(String)          // аккаунт заблокирован
 }
