@@ -187,35 +187,44 @@ private struct PhotoSlotCell: View {
 
     @ViewBuilder private var content: some View {
         if let image {
-            ZStack(alignment: .bottomLeading) {
+            // Фото вписано в квадрат без деформации (scaledToFill + clip),
+            // поверх — те же иконка/название/подсказка «под стеклом».
+            ZStack {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                LinearGradient(colors: [.clear, .black.opacity(0.55)],
-                               startPoint: .center, endPoint: .bottom)
-                Text(slot.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(10)
+                // Матовое «стекло»: лёгкий скрим для читаемости подписей.
+                Rectangle().fill(.ultraThinMaterial).opacity(0.42)
+                LinearGradient(colors: [.white.opacity(0.18), .clear, .black.opacity(0.22)],
+                               startPoint: .top, endPoint: .bottom)
+                labels(onPhoto: true)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
         } else {
-            VStack(spacing: 8) {
-                Image(systemName: slot.systemImage)
-                    .font(.system(size: 26, weight: .regular))
-                    .foregroundStyle(slot.isRequired ? Theme.accent : Theme.textSecondary)
-                Text(slot.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text(slot.hint)
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            .multilineTextAlignment(.center)
-            .padding(10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            labels(onPhoto: false)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// Иконка + название + подсказка. Над фото — слегка прозрачные («под стеклом»).
+    private func labels(onPhoto: Bool) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: slot.systemImage)
+                .font(.system(size: 26, weight: .regular))
+                .foregroundStyle(onPhoto ? Color.white
+                                         : (slot.isRequired ? Theme.accent : Theme.textSecondary))
+            Text(slot.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(onPhoto ? Color.white : Theme.textPrimary)
+            Text(slot.hint)
+                .font(.caption2)
+                .foregroundStyle(onPhoto ? Color.white.opacity(0.85) : Theme.textSecondary)
+        }
+        .multilineTextAlignment(.center)
+        .padding(10)
+        .opacity(onPhoto ? 0.92 : 1)
+        .shadow(color: onPhoto ? .black.opacity(0.35) : .clear, radius: 3, y: 1)
     }
 
     @ViewBuilder private var badge: some View {

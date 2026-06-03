@@ -52,12 +52,47 @@ struct APIClient {
                                                          contributorId: contributorId))
     }
 
-    func addPhoto(draftId: UUID, contributorId: UUID,
-                  type: String, storageKey: String) async throws -> AddDraftPhotoResponse {
-        try await post("drafts/\(draftId.uuidString)/photos",
-                       body: AddDraftPhotoRequest(contributorId: contributorId,
-                                                  photoType: type,
-                                                  storageKey: storageKey))
+    /// Загружает БИНАРНОЕ фото (multipart). Исходный формат сохраняется как есть.
+    /// capturedAt — дата съёмки из метаданных (для камеры можно передать текущее время или nil).
+    func addPhoto(draftId: UUID, contributorId: UUID, type: String,
+                  imageData: Data, filename: String, mimeType: String,
+                  capturedAt: Date?) async throws -> AddDraftPhotoResponse {
+        guard let url = URL(string: "drafts/\(draftId.uuidString)/photos", relativeTo: apiRoot) else {
+            throw APIError.invalidURL
+        }
+        let boundary = "FSBoundary-\(UUID().uuidString)"
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        var body = Data()
+        func field(_ name: String, _ value: String) {
+            body.append("--\(boundary)\r\n")
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n")
+            body.append("\(value)\r\n")
+        }
+        field("contributorId", contributorId.uuidString)
+        field("photoType", type)
+        if let capturedAt {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime]
+            field("capturedAt", iso.string(from: capturedAt))
+        }
+        body.append("--\(boundary)\r\n")
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n")
+        body.append("Content-Type: \(mimeType)\r\n\r\n")
+        body.append(imageData)
+        body.append("\r\n")
+        body.append("--\(boundary)--\r\n")
+        req.httpBody = body
+
+        return try await send(req, allow404: false)!
+    }
+
+    /// URL для отображения ранее загруженного фото (GET /photos/{storageKey}).
+    func photoURL(storageKey: String) -> URL? {
+        URL(string: "photos/\(storageKey)", relativeTo: apiRoot)
     }
 
     func complete(draftId: UUID, contributorId: UUID) async throws -> CompleteCatalogResponse {
@@ -120,5 +155,11 @@ struct APIClient {
 
     private var apiRoot: URL {
         baseURL.appendingPathComponent("api/v1/")
+    }
+}
+
+private extension Data {
+    mutating func append(_ string: String) {
+        if let d = string.data(using: .utf8) { append(d) }
     }
 }
