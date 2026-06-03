@@ -64,6 +64,17 @@ public class AuthService implements AuthUseCase {
         if (repository.findByUsername(username).isPresent()) {
             throw new ContributorAlreadyExistsException(username);
         }
+
+        // Миграция: если есть legacy-аккаунт с таким ником и без логина/пароля —
+        // задаём ему логин+пароль вместо создания дубля (иначе конфликт uq nickname).
+        Optional<Contributor> legacy = repository.findByNickname(username);
+        if (legacy.isPresent() && legacy.get().isLegacyWithoutCredentials()) {
+            Contributor c = legacy.get();
+            c.claimCredentials(username, hasher.hash(command.getPassword()));
+            repository.save(c);
+            return new AccountResult(c.getId(), c.getUsername());
+        }
+
         Contributor c = Contributor.createWithCredentials(username, hasher.hash(command.getPassword()));
         repository.save(c);
         return new AccountResult(c.getId(), c.getUsername());

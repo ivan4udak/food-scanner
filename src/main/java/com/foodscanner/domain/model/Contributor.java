@@ -135,6 +135,33 @@ public final class Contributor {
             && !Instant.now().isBefore(resetPasswordUntil);
     }
 
+    /** Нет логина и пароля — legacy-запись (регистрация по нику до миграции). */
+    public boolean isLegacyWithoutCredentials() {
+        return username == null && passwordHash == null;
+    }
+
+    /**
+     * Присваивает логин и пароль legacy-аккаунту (миграция: старый юзер задаёт пароль).
+     * Допустимо только если учётка ещё без логина/пароля.
+     */
+    public void claimCredentials(String username, String passwordHash) {
+        if (!isLegacyWithoutCredentials()) {
+            throw new IllegalStateException("Credentials already set");
+        }
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be null or blank");
+        }
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("PasswordHash must not be null or blank");
+        }
+        this.username = username.trim();
+        this.passwordHash = passwordHash;
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        this.resetPasswordUntil = null;
+        touch();
+    }
+
     /** Установить новый пароль (после восстановления или смены). */
     public void setPassword(String newPasswordHash) {
         if (newPasswordHash == null || newPasswordHash.isBlank()) {

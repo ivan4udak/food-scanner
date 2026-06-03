@@ -89,7 +89,7 @@ struct LoginView: View {
             PrimaryButton(title: "Войти", systemImage: "arrow.right", enabled: canLogin) { submitLogin() }
         case .createConfirm:
             PrimaryButton(title: "Создать аккаунт", systemImage: "person.badge.plus",
-                          enabled: !confirm.isEmpty) { submitCreate() }
+                          enabled: password.count >= 4 && !confirm.isEmpty) { submitCreate() }
             SecondaryButton(title: "Отмена") { reset() }
         case .recovery:
             PrimaryButton(title: "Сохранить пароль", systemImage: "checkmark",
@@ -142,6 +142,7 @@ struct LoginView: View {
     }
 
     private func submitCreate() {
+        guard password.count >= 4 else { error = "Пароль не короче 4 символов"; Haptics.warning(); return }
         guard password == confirm else { error = "Пароли не совпадают"; Haptics.warning(); return }
         let user = username.trimmingCharacters(in: .whitespaces)
         error = nil

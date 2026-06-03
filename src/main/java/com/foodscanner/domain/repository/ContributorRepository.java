@@ -15,5 +15,6 @@ public interface ContributorRepository {
 
     // vNext: аутентификация
     Optional<Contributor> findByUsername(String username);
+    Optional<Contributor> findByNickname(String nickname);
     void deleteById(UUID id);
 }

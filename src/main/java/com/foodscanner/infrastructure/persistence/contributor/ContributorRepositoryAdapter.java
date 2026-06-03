@@ -42,6 +42,11 @@ public class ContributorRepositoryAdapter implements ContributorRepository {
     }
 
     @Override
+    public Optional<Contributor> findByNickname(String nickname) {
+        return jpa.findByNickname(nickname).map(this::toDomain);
+    }
+
+    @Override
     public void deleteById(UUID id) {
         jpa.deleteById(id);
     }

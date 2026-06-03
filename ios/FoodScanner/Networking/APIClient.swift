@@ -165,10 +165,13 @@ struct APIClient {
                                              ["username": username, "password": password])
         let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
         guard http.statusCode == 201, let id = auth?.contributorId else {
+            if http.statusCode == 409 {
+                throw APIError.server(status: 409, message: "Логин уже занят", details: nil)
+            }
+            let err = try? Self.decoder.decode(ServerErrorResponse.self, from: data)
             throw APIError.server(status: http.statusCode,
-                                  message: http.statusCode == 409 ? "Логин уже занят"
-                                                                  : (auth?.message ?? "Не удалось создать аккаунт"),
-                                  details: nil)
+                                  message: err?.message ?? "Не удалось создать аккаунт",
+                                  details: err?.details)
         }
         return (id, auth?.username ?? username)
     }
@@ -179,8 +182,10 @@ struct APIClient {
                                              ["username": username, "password": password])
         let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
         guard http.statusCode == 200, let id = auth?.contributorId else {
+            let err = try? Self.decoder.decode(ServerErrorResponse.self, from: data)
             throw APIError.server(status: http.statusCode,
-                                  message: auth?.message ?? "Окно восстановления истекло", details: nil)
+                                  message: err?.message ?? auth?.message ?? "Окно восстановления истекло",
+                                  details: err?.details)
         }
         return (id, auth?.username ?? username)
     }

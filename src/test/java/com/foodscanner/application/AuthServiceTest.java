@@ -39,6 +39,7 @@ class AuthServiceTest {
     void setUp() {
         repo = mock(ContributorRepository.class);
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(repo.findByNickname(any())).thenReturn(Optional.empty());
         service = new AuthService(repo, FAKE);
     }
 
@@ -140,6 +141,21 @@ class AuthServiceTest {
             when(repo.findByUsername("bob")).thenReturn(Optional.of(existing("bob", "x")));
             assertThrows(ContributorAlreadyExistsException.class,
                 () -> service.register(new RegisterAccountCommand("bob", "pass")));
+        }
+
+        @Test
+        @DisplayName("мигрирует legacy-аккаунт без пароля (задаёт логин+пароль, без дубля)")
+        void claimsLegacy() {
+            Contributor legacy = Contributor.create("oldie");   // username=null, без пароля
+            when(repo.findByUsername("oldie")).thenReturn(Optional.empty());
+            when(repo.findByNickname("oldie")).thenReturn(Optional.of(legacy));
+
+            AccountResult r = service.register(new RegisterAccountCommand("oldie", "newpass"));
+
+            assertEquals(legacy.getId(), r.getContributorId());   // тот же аккаунт, не новый
+            assertEquals("oldie", legacy.getUsername());
+            assertTrue(legacy.hasPassword());
+            verify(repo).save(legacy);
         }
     }
 
