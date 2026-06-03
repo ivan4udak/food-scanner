@@ -65,6 +65,30 @@ public class GlobalExceptionHandler {
             .body(new ErrorResponse(422, "Unprocessable Entity", ex.getMessage(), missing));
     }
 
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleLocked(AccountLockedException ex) {
+        return ResponseEntity.status(HttpStatus.LOCKED)
+            .body(new ErrorResponse(423, "Locked", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidAdminCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleAdmin(InvalidAdminCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ErrorResponse(403, "Forbidden", ex.getMessage()));
+    }
+
+    @ExceptionHandler(RecoveryNotAllowedException.class)
+    public ResponseEntity<ErrorResponse> handleRecovery(RecoveryNotAllowedException ex) {
+        return ResponseEntity.status(HttpStatus.GONE)
+            .body(new ErrorResponse(410, "Gone", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ContributorNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleContributorNotFound(ContributorNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ErrorResponse(404, "Not Found", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)

@@ -61,3 +61,36 @@ Features/     Onboarding · Scan · Draft · Result · Lookup
   `UIImageWriteToSavedPhotosAlbum`).
 - Прогресс-кольцо считает только обязательные: `uploadedCount/requiredCount`
   от бэкенда (= число загруженных обязательных типов).
+
+---
+
+## vNext — журнал (ветка dev)
+
+### Сделано: реальная загрузка фото (закрыло прежнее ограничение)
+- `POST /drafts/{id}/photos` теперь multipart: байты заливаются в MinIO,
+  в БД — storage_key; `GET /photos/{key}` отдаёт фото. captured_at из EXIF.
+
+### Блок 10 ✅ — рамка сканера
+- Убраны затемнение/линия. `ScannerCorners` (Shape): 4 угла с загибами, без анимации.
+
+### Блоки 1-4 ✅ — авторизация (backend, ветка dev)
+- `Contributor` расширен: username, passwordHash (BCrypt), failedLoginAttempts,
+  lockedUntil, resetPasswordUntil. Legacy `create(nickname)` сохранён, nickname=username.
+- Миграция **V8** (nullable username/password_hash + uq_username).
+- Порт `PasswordHasher` (application) + `BCryptPasswordHasher` (infra, spring-security-crypto).
+- `AuthService`: login (OK/INVALID/NOT_FOUND/LOCKED/RECOVERY), register, recoverPassword.
+- `AdminService`: reset-password (role==volkov + ADMIN_PASSWORD из env, не хардкод).
+- Лок-аут: 5 неудач → `lockedUntil = now+24h`, HTTP 423.
+- Восстановление: админ-сброс → passwordHash=null + окно 5 мин; `RecoveryCleanupJob`
+  (@Scheduled, раз в минуту) удаляет просроченные аккаунты.
+- Эндпоинты: `POST /auth/login|register|recover`, `POST /admin/reset-password`, `GET /ping`.
+- HTTP-маппинг в `GlobalExceptionHandler`: 423/403/410/404.
+- Тесты: AuthServiceTest, AdminServiceTest, AuthControllerTest — всего **134 зелёных**.
+- Проверено вживую против MinIO+Postgres: все сценарии + лок-аут + recovery.
+
+### TODO (следующие ходы)
+- iOS: экраны Вход/«Создать аккаунт»/«Новый пароль» (recovery), хаптики, Dynamic Island.
+- Блок 5-6: heartbeat-клиент + индикаторы соединения (ONLINE/DEGRADED/OFFLINE).
+- Блок 7-8: серверные thumbnail(~144)/full(≤1920) + сжатие, не хранить >2K.
+- Блок 9: двухуровневый кэш изображений (NSCache + disk).
+- Блок 11-12: контекстное меню источника у касания + шестерёнка «режим фото».

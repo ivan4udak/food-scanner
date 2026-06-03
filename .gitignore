@@ -57,3 +57,12 @@ target/
 
 # Generated
 out/
+
+# Runtime logs
+logs/
+*.log.*.gz
+
+# Xcode user state
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/project.xcworkspace/contents.xcworkspacedata
