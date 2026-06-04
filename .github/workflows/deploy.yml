@@ -1,0 +1,176 @@
+name: Deploy
+
+# Конвейер: Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram.
+# Ветка определяет окружение: test→staging, main→preprod, release→production (blue-green).
+on:
+  push:
+    branches: [test, main, release]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ── 1. Тесты (gate) ──────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Backend tests
+        run: mvn -B verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Web tests
+        working-directory: web
+        run: |
+          npm ci
+          npm test
+
+  # ── 2. Maven Build → Docker Build → Push в GHCR ──────────────────────
+  build-push:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.meta.outputs.env_name }}
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+      web_image: ${{ steps.meta.outputs.web_image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute env / owner / tags
+        id: meta
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            test)    ENVN=staging ;;
+            main)    ENVN=preprod ;;
+            release) ENVN=production ;;
+            *) echo "Unsupported branch ${GITHUB_REF_NAME}"; exit 1 ;;
+          esac
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"          # GHCR требует lowercase
+          SHA="${GITHUB_SHA::12}"
+          BE="${REGISTRY}/${OWNER}/food-scanner-backend"
+          WE="${REGISTRY}/${OWNER}/food-scanner-web"
+          {
+            echo "env_name=$ENVN"
+            echo "backend_repo=$BE"
+            echo "web_repo=$WE"
+            echo "sha=$SHA"
+            echo "backend_image=${BE}:${SHA}"
+            echo "web_image=${WE}:${SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Maven Build (jar, без тестов — уже прошли)
+        run: mvn -B package -DskipTests
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.backend_repo }}:${{ steps.meta.outputs.sha }}
+            ${{ steps.meta.outputs.backend_repo }}:${{ steps.meta.outputs.env_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.web_repo }}:${{ steps.meta.outputs.sha }}
+            ${{ steps.meta.outputs.web_repo }}:${{ steps.meta.outputs.env_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 3. Deploy по SSH (сервер только тянет готовые образы) ────────────
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment: ${{ needs.build-push.outputs.env_name }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          BACKEND_IMAGE: ${{ needs.build-push.outputs.backend_image }}
+          WEB_IMAGE: ${{ needs.build-push.outputs.web_image }}
+          GIT_SHA: ${{ github.sha }}
+          ENVIRONMENT: ${{ needs.build-push.outputs.env_name }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: BACKEND_IMAGE,WEB_IMAGE,GIT_SHA,ENVIRONMENT,GHCR_USER,GHCR_TOKEN
+          script_stop: true
+          script: |
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export BACKEND_IMAGE WEB_IMAGE GIT_SHA
+            /opt/foodscanner/scripts/deploy.sh "$ENVIRONMENT"
+            docker logout ghcr.io || true
+
+  # ── 4. Telegram-уведомление (успех/провал любого этапа) ──────────────
+  notify:
+    needs: [test, build-push, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram
+        env:
+          TG: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -z "$TG" ] || [ -z "$CHAT" ]; then
+            echo "Нет Telegram-секретов — пропуск уведомления."; exit 0
+          fi
+          case "${GITHUB_REF_NAME}" in
+            test) ENVN=staging ;; main) ENVN=preprod ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
+          esac
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            HEAD="✅ Deploy OK"
+          else
+            HEAD="❌ Deploy FAILED"
+          fi
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          MSG=$(printf '%s — <b>%s</b>\nbranch: %s@%s\n%s\nrun: %s' \
+            "$HEAD" "$ENVN" "$GITHUB_REF_NAME" "${GITHUB_SHA:0:7}" "$COMMIT_MSG" "$RUN_URL")
+          curl -fsS -X POST "https://api.telegram.org/bot${TG}/sendMessage" \
+            -d chat_id="${CHAT}" -d parse_mode="HTML" -d disable_web_page_preview="true" \
+            --data-urlencode text="${MSG}" >/dev/null

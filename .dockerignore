@@ -1,0 +1,19 @@
+# Контекст для backend-образа: нужен только pom.xml + target/*.jar.
+# Исключаем всё тяжёлое и не относящееся к runtime backend.
+.git
+.github
+.idea
+*.iml
+ios
+web
+docs
+logs
+scripts
+deploy
+*.md
+# target НЕ исключаем — оттуда берётся готовый jar.
+target/classes
+target/generated-sources
+target/maven-status
+target/surefire-reports
+target/test-classes

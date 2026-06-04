@@ -1,0 +1,10 @@
+# Реальные секреты окружений — НИКОГДА в репозиторий.
+app.env
+.env
+*.env
+# Но *.example нужны в репозитории (перебиваем корневой .env.*).
+!.env.staging.example
+!.env.preprod.example
+!.env.production.example
+!.env.monitoring.example
+!.env.caddy.example

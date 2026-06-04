@@ -1,0 +1,11 @@
+# Резервная ротация docker-логов (основная — драйвер json-file: max-size/max-file
+# в compose). Устанавливается в /etc/logrotate.d/foodscanner.
+/var/lib/docker/containers/*/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

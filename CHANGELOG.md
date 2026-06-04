@@ -11,6 +11,22 @@
 ## [Unreleased]
 - —
 
+## [1.3.0] — CI/CD для одного сервера (ветка feat/cicd)
+- Backend (аддитивно): `spring-boot-starter-actuator` + `micrometer-registry-prometheus`,
+  экспонирован `/actuator/prometheus` + health-пробы, метрики с тегом `env`. 156 тестов зелёные.
+- Образы: runtime `Dockerfile` backend (temurin:21-jre, jar из CI, HEALTHCHECK) + web (multistage).
+- GitHub Actions: `ci.yml` (dev/PR: тесты+сборка) и `deploy.yml`
+  (push test/main/release → Tests → Maven Build → Docker Build → Push GHCR → Deploy SSH → Telegram).
+- Окружения: `deploy/compose/*` — отдельные compose/volume/контейнеры/сети на staging(10690)/
+  preprod(10790)/production(10890); секреты в `app.env` на сервере (не в репозитории).
+- HTTPS: Caddy + Let's Encrypt (DuckDNS), маршрутизация по hostname, `/api`→backend.
+- Production: **blue-green** без k8s (два цвета backend, переключение через Caddy reload),
+  health-check новой версии и авто-rollback; история версий `releases.log` + ручной `rollback.sh`.
+- Мониторинг: Prometheus + Grafana (provisioning + дашборд) + node_exporter + cAdvisor;
+  Grafana за Caddy basic-auth. Логи: json-file ротация + logrotate.
+- Скрипты/инфра: deploy/blue-green/rollback/health/notify/bootstrap, systemd (caddy+monitoring),
+  env-примеры, runbook `deploy/README.md`.
+
 ## [1.2.0] — PWA-фронтенд (ветка feat/pwa)
 - Новый устанавливаемый PWA-клиент в `web/` (React 18 + TS 5 + Vite 5), заменяет
   SwiftUI iOS-клиент; интегрирует существующий `/api/v1` **без изменений API**.
