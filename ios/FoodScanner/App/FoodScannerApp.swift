@@ -10,13 +10,15 @@ struct FoodScannerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(state)
-                .environmentObject(connection)
-                .environmentObject(busy)
                 .tint(Theme.accent)
                 .preferredColorScheme(.light)
                 .busyOverlay(busy)
                 .connectionOverlay(connection)
+                // environmentObject — снаружи оверлеев, чтобы их содержимое
+                // (напр. OfflineBlocker) тоже видело AppState.
+                .environmentObject(state)
+                .environmentObject(connection)
+                .environmentObject(busy)
                 .task {
                     connection.apiProvider = { state.api }
                     connection.start()
