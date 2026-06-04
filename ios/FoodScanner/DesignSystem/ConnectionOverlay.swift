@@ -29,7 +29,6 @@ private struct ConnectionOverlayModifier: ViewModifier {
 private struct IslandCompanion: View {
     let state: ConnectionMonitor.State
     let message: String?
-    @State private var pulse = false
 
     private var color: Color {
         switch state {
@@ -40,41 +39,37 @@ private struct IslandCompanion: View {
         }
     }
 
+    /// Показываем только при проблеме или во время сообщения. В норме (online/connecting) — ничего
+    /// (никакой «непонятной точки» и никаких постоянных анимаций → меньше нагрузка).
+    private var visible: Bool {
+        message != nil || state == .degraded || state == .offline
+    }
+
     var body: some View {
         let di = DeviceInfo.hasDynamicIsland
         let expanded = message != nil
 
-        HStack(spacing: 8) {
-            Circle()
-                .fill(color)
-                .frame(width: 10, height: 10)
-                .overlay(
-                    Circle().stroke(color.opacity(0.5), lineWidth: 5)
-                        .scaleEffect(pulse ? 1.9 : 1).opacity(pulse ? 0 : 0.5)
-                )
-            if expanded {
-                Text(message ?? "")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+        Group {
+            if visible {
+                HStack(spacing: 8) {
+                    Circle().fill(color).frame(width: 10, height: 10)
+                    if expanded {
+                        Text(message ?? "")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.white)
+                            .lineLimit(1).fixedSize()
+                    }
+                }
+                .padding(.horizontal, expanded ? 12 : 8)
+                .padding(.vertical, 7)
+                .background(Capsule(style: .continuous).fill(.black))
+                .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
+                .padding(.top, di ? 14 : 8)
+                .padding(.trailing, di ? 16 : 12)
+                .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal, expanded ? 12 : 8)
-        .padding(.vertical, 7)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.black)
-                .shadow(color: color.opacity(0.5), radius: expanded ? 8 : 3)
-        )
-        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
-        // Прижимаем к верху рядом с «островом» (справа). Адаптив под DI/ notch / плоский.
-        .padding(.top, di ? 14 : 8)
-        .padding(.trailing, di ? 16 : 12)
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) { pulse = true }
-        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: visible)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: expanded)
     }
 }
 
@@ -91,9 +86,8 @@ private struct OfflineBlocker: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
-            // Поглощает касания — приложение недоступно.
-            Color.black.opacity(0.5).ignoresSafeArea()
+            // Сплошное затемнение (без дорогого blur). Поглощает касания — приложение недоступно.
+            Color.black.opacity(0.78).ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture { focused = false }
 

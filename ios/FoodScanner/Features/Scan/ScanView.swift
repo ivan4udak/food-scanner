@@ -14,8 +14,11 @@ struct ScanView: View {
     @State private var torchOn = false
     @State private var processing = false
     @State private var error: String?
-    @State private var lastCode: String?
+    @State private var cooldownUntil = Date.distantPast
     @State private var showSettings = false
+
+    /// Минимальный интервал между сканами — защита от флуда при лагах.
+    private let scanCooldown: TimeInterval = 4
 
     var body: some View {
         ZStack {
@@ -156,19 +159,20 @@ struct ScanView: View {
     private func resumeIfNeeded() {
         processing = false
         error = nil
-        lastCode = nil
+        cooldownUntil = .distantPast   // вернулись на экран — можно сканировать сразу
         syncCamera()
     }
 
     private func handle(code: String) {
-        // Не сканируем без стабильного соединения (ждём, а не продолжаем).
-        guard scanAllowed, !processing, code != lastCode,
+        // Один скан, затем кулдаун 4с (даже при лагах/ошибке) — никаких повторных откликов
+        // на тот же штрихкод в кадре. Без стабильной связи — ждём, а не сканируем.
+        guard scanAllowed, !processing, Date() >= cooldownUntil,
               let contributorId = state.contributorId else { return }
-        lastCode = code
+        cooldownUntil = Date().addingTimeInterval(scanCooldown)
         processing = true
         cameraActive = false
         torchOn = false
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.tick()
 
         Task {
             do {
@@ -181,8 +185,7 @@ struct ScanView: View {
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
                 processing = false
-                lastCode = nil
-                syncCamera()
+                syncCamera()   // камера вернётся, но новый скан — не раньше кулдауна
             }
         }
     }

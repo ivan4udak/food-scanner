@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Блок 19: экран настроек (через шестерёнку).
 struct SettingsView: View {
@@ -11,6 +12,7 @@ struct SettingsView: View {
     @State private var showServer = false
     @State private var cacheSize: Int64 = 0
     @State private var clearing = false
+    @State private var copied = false
 
     var body: some View {
         NavigationStack {
@@ -31,7 +33,24 @@ struct SettingsView: View {
 
                 Section("Аккаунт") {
                     row("Логин", state.nickname ?? "—")
-                    row("Contributor ID", state.contributorId?.uuidString ?? "—")
+                    if let id = state.contributorId?.uuidString {
+                        Button { copyId(id) } label: {
+                            HStack {
+                                Text("Contributor ID")
+                                Spacer()
+                                Text(copied ? "Скопировано" : id)
+                                    .foregroundStyle(copied ? Theme.accent : Theme.textSecondary)
+                                    .lineLimit(1).truncationMode(.middle)
+                                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                                    .font(.footnote).foregroundStyle(Theme.accent)
+                            }
+                        }.tint(Theme.textPrimary)
+                        .contextMenu {
+                            Button { copyId(id) } label: { Label("Скопировать полностью", systemImage: "doc.on.doc") }
+                        }
+                    } else {
+                        row("Contributor ID", "—")
+                    }
                     Button(role: .destructive) { state.signOut(); dismiss() } label: {
                         Label("Выйти из аккаунта", systemImage: "rectangle.portrait.and.arrow.right")
                     }
@@ -83,6 +102,13 @@ struct SettingsView: View {
         case .offline: return "Нет связи"
         case .connecting: return "Подключение…"
         }
+    }
+
+    private func copyId(_ id: String) {
+        UIPasteboard.general.string = id
+        Haptics.tick()
+        withAnimation { copied = true }
+        Task { try? await Task.sleep(nanoseconds: 1_500_000_000); withAnimation { copied = false } }
     }
 
     private func clearCache() {
