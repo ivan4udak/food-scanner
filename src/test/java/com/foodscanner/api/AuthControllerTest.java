@@ -4,8 +4,9 @@ import com.foodscanner.api.controller.AdminController;
 import com.foodscanner.api.controller.AuthController;
 import com.foodscanner.api.controller.GlobalExceptionHandler;
 import com.foodscanner.api.controller.PingController;
-import com.foodscanner.application.result.AccountResult;
+import com.foodscanner.application.result.AuthSession;
 import com.foodscanner.application.result.LoginResult;
+import com.foodscanner.domain.exception.InvalidTokenException;
 import com.foodscanner.application.usecase.AdminUseCase;
 import com.foodscanner.application.usecase.AuthUseCase;
 import com.foodscanner.domain.exception.ContributorAlreadyExistsException;
@@ -39,13 +40,19 @@ class AuthControllerTest {
         return "{\"username\":\"" + u + "\",\"password\":\"" + p + "\"}";
     }
 
-    @Test @DisplayName("login 200 OK")
+    private AuthSession session(String user) {
+        return new AuthSession(UUID.randomUUID(), user, "access.jwt", "refresh.tok");
+    }
+
+    @Test @DisplayName("login 200 OK + токены")
     void login200() throws Exception {
-        when(auth.login(any())).thenReturn(LoginResult.ok(UUID.randomUUID(), "alice"));
+        when(auth.login(any())).thenReturn(LoginResult.ok(session("alice")));
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content(body("alice", "secret")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("OK"))
-            .andExpect(jsonPath("$.username").value("alice"));
+            .andExpect(jsonPath("$.username").value("alice"))
+            .andExpect(jsonPath("$.accessToken").value("access.jwt"))
+            .andExpect(jsonPath("$.refreshToken").value("refresh.tok"));
     }
 
     @Test @DisplayName("login 404 NOT_FOUND")
@@ -80,12 +87,31 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.status").value("RECOVERY"));
     }
 
-    @Test @DisplayName("register 201")
+    @Test @DisplayName("register 201 + токены")
     void register201() throws Exception {
-        when(auth.register(any())).thenReturn(new AccountResult(UUID.randomUUID(), "bob"));
+        when(auth.register(any())).thenReturn(session("bob"));
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content(body("bob", "pass")))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.username").value("bob"));
+            .andExpect(jsonPath("$.username").value("bob"))
+            .andExpect(jsonPath("$.accessToken").value("access.jwt"));
+    }
+
+    @Test @DisplayName("refresh 200 → новые токены")
+    void refresh200() throws Exception {
+        when(auth.refresh(any())).thenReturn(session("bob"));
+        mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"r\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").value("access.jwt"))
+            .andExpect(jsonPath("$.refreshToken").value("refresh.tok"));
+    }
+
+    @Test @DisplayName("refresh 401 если невалиден")
+    void refresh401() throws Exception {
+        when(auth.refresh(any())).thenThrow(new InvalidTokenException("bad"));
+        mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"r\"}"))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test @DisplayName("register 409 если занят")
