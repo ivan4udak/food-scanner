@@ -3,14 +3,22 @@ import UIKit
 
 struct ScanView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var connection: ConnectionMonitor
     @Binding var path: NavigationPath
+
+    /// Сканирование разрешено только при стабильном соединении (Блок 14, клиент).
+    private var scanAllowed: Bool { connection.state == .online }
 
     @State private var access: CameraAccess = .undetermined
     @State private var cameraActive = false
     @State private var torchOn = false
     @State private var processing = false
     @State private var error: String?
-    @State private var lastCode: String?
+    @State private var cooldownUntil = Date.distantPast
+    @State private var showSettings = false
+
+    /// Минимальный интервал между сканами — защита от флуда при лагах.
+    private let scanCooldown: TimeInterval = 4
 
     var body: some View {
         ZStack {
@@ -27,9 +35,16 @@ struct ScanView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { toolbar }
+        .sheet(isPresented: $showSettings) { SettingsView() }
         .task { await prepareCamera() }
         .onAppear { resumeIfNeeded() }
         .onDisappear { cameraActive = false }
+        // Пауза скана при потере/деградации связи; возобновление и снятие статуса при online.
+        .onChange(of: connection.state) { _, _ in syncCamera() }
+    }
+
+    private func syncCamera() {
+        cameraActive = (access == .authorized) && !processing && scanAllowed
     }
 
     // MARK: Camera
@@ -83,13 +98,26 @@ struct ScanView: View {
                 ErrorBanner(message: error)
             }
             if access == .authorized {
-                Label("Наведите камеру на штрихкод", systemImage: "viewfinder")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16).padding(.vertical, 12)
-                    .background(.ultraThinMaterial, in: Capsule())
+                switch connection.state {
+                case .offline:
+                    statusPill("Нет подключения — сканер выключен", icon: "wifi.slash", tint: Theme.danger)
+                case .degraded:
+                    statusPill("Ожидание ответа сервера…", icon: "clock.arrow.circlepath", tint: Theme.warning)
+                case .connecting:
+                    statusPill("Подключение…", icon: "wifi", tint: .gray)
+                case .online:
+                    statusPill("Наведите камеру на штрихкод", icon: "viewfinder", tint: .white)
+                }
             }
         }
+    }
+
+    private func statusPill(_ text: String, icon: String, tint: Color) -> some View {
+        Label(text, systemImage: icon)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(tint == .white ? Color.white : tint)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: Capsule())
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
@@ -105,13 +133,8 @@ struct ScanView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Label(state.nickname ?? "—", systemImage: "person")
-                Button(role: .destructive) { state.signOut() } label: {
-                    Label("Сменить профиль", systemImage: "arrow.left.arrow.right")
-                }
-            } label: {
-                Image(systemName: "person.crop.circle").foregroundStyle(.white)
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape").foregroundStyle(.white)
             }
         }
     }
@@ -121,33 +144,35 @@ struct ScanView: View {
     private func prepareCamera() async {
         switch CameraAccess.current {
         case .authorized:
-            access = .authorized; cameraActive = true
+            access = .authorized
         case .undetermined:
             let granted = await CameraAccess.request()
             access = granted ? .authorized : .denied
-            cameraActive = granted
         case .denied:
             access = .denied
         case .unavailable:
             access = .unavailable
         }
+        syncCamera()
     }
 
     private func resumeIfNeeded() {
         processing = false
         error = nil
-        lastCode = nil
-        if access == .authorized { cameraActive = true }
+        cooldownUntil = .distantPast   // вернулись на экран — можно сканировать сразу
+        syncCamera()
     }
 
     private func handle(code: String) {
-        guard !processing, code != lastCode,
+        // Один скан, затем кулдаун 4с (даже при лагах/ошибке) — никаких повторных откликов
+        // на тот же штрихкод в кадре. Без стабильной связи — ждём, а не сканируем.
+        guard scanAllowed, !processing, Date() >= cooldownUntil,
               let contributorId = state.contributorId else { return }
-        lastCode = code
+        cooldownUntil = Date().addingTimeInterval(scanCooldown)
         processing = true
         cameraActive = false
         torchOn = false
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.tick()
 
         Task {
             do {
@@ -160,8 +185,7 @@ struct ScanView: View {
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
                 processing = false
-                lastCode = nil
-                cameraActive = (access == .authorized)
+                syncCamera()   // камера вернётся, но новый скан — не раньше кулдауна
             }
         }
     }

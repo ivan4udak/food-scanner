@@ -20,6 +20,8 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import com.foodscanner.application.port.PhotoStorage;
+import com.foodscanner.application.port.ImageProcessor;
+import com.foodscanner.application.port.PhotoStore;
 
 import java.time.Instant;
 import java.util.List;
@@ -39,7 +41,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Use case-ы мокируются — тестируем только контроллер и маппер.
  * Spring контекст минимальный — только web слой.
  */
-@WebMvcTest(CatalogController.class)
+@WebMvcTest(controllers = CatalogController.class,
+    excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
+        type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
+        classes = {com.foodscanner.infrastructure.config.WebConfig.class,
+                   com.foodscanner.infrastructure.security.AuthInterceptor.class}))
 @Import({CatalogApiMapper.class, GlobalExceptionHandler.class})
 @DisplayName("CatalogController — Contract Tests")
 class CatalogControllerTest {
@@ -53,6 +59,8 @@ class CatalogControllerTest {
     @MockBean CompleteCatalogUseCase          completeCatalog;
     @MockBean FindCatalogEntryByBarcodeUseCase findByBarcode;
     @MockBean PhotoStorage                     photoStorage;
+    @MockBean ImageProcessor                   imageProcessor;
+    @MockBean PhotoStore                       photoStore;
 
     // ──────────────────────────────────────────────
     @Nested
@@ -117,6 +125,7 @@ class CatalogControllerTest {
                 .thenReturn(ScanBarcodeResult.newProduct(draftId));
 
             mockMvc.perform(post("/api/v1/scan")
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new ScanBarcodeRequest("4607038310042", UUID.randomUUID()))))
@@ -132,6 +141,7 @@ class CatalogControllerTest {
                 .thenReturn(ScanBarcodeResult.alreadyExists());
 
             mockMvc.perform(post("/api/v1/scan")
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new ScanBarcodeRequest("4607038310042", UUID.randomUUID()))))
@@ -144,6 +154,7 @@ class CatalogControllerTest {
         @DisplayName("400 если barcodeValue пустой")
         void shouldReturn400WhenBarcodeBlank() throws Exception {
             mockMvc.perform(post("/api/v1/scan")
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new ScanBarcodeRequest("", UUID.randomUUID()))))
@@ -164,7 +175,7 @@ class CatalogControllerTest {
         @Test
         @DisplayName("200 с прогрессом после загрузки фото (multipart)")
         void shouldReturnProgressAfterAdd() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenReturn(new AddDraftPhotoResult(1, 4,
                     Set.of(com.foodscanner.domain.model.PhotoType.BARCODE,
@@ -174,6 +185,7 @@ class CatalogControllerTest {
 
             mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
                     .file(photo())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .param("contributorId", UUID.randomUUID().toString())
                     .param("photoType", "FRONT")
                     .param("capturedAt", "2026-05-01T10:00:00Z"))
@@ -186,12 +198,13 @@ class CatalogControllerTest {
         @Test
         @DisplayName("200 complete=true когда все обязательные загружены")
         void shouldReturnCompleteTrueWhenAllUploaded() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/nutrition/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenReturn(new AddDraftPhotoResult(4, 4, Set.of(), true));
 
             mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
                     .file(photo())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .param("contributorId", UUID.randomUUID().toString())
                     .param("photoType", "NUTRITION"))
                 .andExpect(status().isOk())
@@ -203,12 +216,13 @@ class CatalogControllerTest {
         @DisplayName("404 если черновик не найден")
         void shouldReturn404WhenDraftNotFound() throws Exception {
             UUID draftId = UUID.randomUUID();
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenThrow(new CatalogDraftNotFoundException(draftId));
 
             mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", draftId)
                     .file(photo())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .param("contributorId", UUID.randomUUID().toString())
                     .param("photoType", "FRONT"))
                 .andExpect(status().isNotFound())
@@ -218,10 +232,11 @@ class CatalogControllerTest {
         @Test
         @DisplayName("400 при невалидном PhotoType")
         void shouldReturn400WhenPhotoTypeInvalid() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
 
             mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
                     .file(photo())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .param("contributorId", UUID.randomUUID().toString())
                     .param("photoType", "INVALID_TYPE"))
                 .andExpect(status().isBadRequest());
@@ -241,6 +256,7 @@ class CatalogControllerTest {
                 .thenReturn(new CompleteCatalogResult(entryId, 1));
 
             mockMvc.perform(post("/api/v1/drafts/{draftId}/complete", UUID.randomUUID())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new CompleteCatalogRequest(UUID.randomUUID()))))
@@ -258,6 +274,7 @@ class CatalogControllerTest {
                            com.foodscanner.domain.model.PhotoType.EXTRA)));
 
             mockMvc.perform(post("/api/v1/drafts/{draftId}/complete", UUID.randomUUID())
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new CompleteCatalogRequest(UUID.randomUUID()))))
@@ -274,6 +291,7 @@ class CatalogControllerTest {
                 .thenThrow(new CatalogDraftNotFoundException(draftId));
 
             mockMvc.perform(post("/api/v1/drafts/{draftId}/complete", draftId)
+                    .requestAttr("authContributorId", java.util.UUID.randomUUID())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
                         new CompleteCatalogRequest(UUID.randomUUID()))))

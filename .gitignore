@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .kotlin
+web/.env.example
+web/.gitignore
+web/.env
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -57,3 +60,12 @@ target/
 
 # Generated
 out/
+
+# Runtime logs
+logs/
+*.log.*.gz
+
+# Xcode user state
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/**/project.xcworkspace/contents.xcworkspacedata

@@ -1,5 +1,6 @@
 package com.foodscanner.domain.model;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -8,90 +9,189 @@ import java.util.UUID;
  * Слой: domain
  * Тип: Aggregate Root
  *
- * Зачем: участник каталогизации. Нужен в V1 для атрибуции данных
- * и подготовки к рейтингу (Этап 4).
+ * Участник каталогизации. В vNext получил аутентификацию:
+ * username + passwordHash (BCrypt хранится снаружи, домен видит только строку),
+ * счётчик неудачных входов, блокировку и окно восстановления пароля.
  *
- * completedCatalogCount — доменный счётчик. Обновляется атомарно
- * при успешном завершении CatalogEntry через incrementCompletedCatalogs().
- * Это не вычисляемый агрегат по таблице — это намеренно денормализованный
- * счётчик для быстрого чтения лидерборда (Этап 4).
+ * Совместимость: фабрика create(nickname) сохранена для legacy-сценария
+ * регистрации по нику. Для auth-пользователей nickname = username.
  *
- * Immutability: id и createdAt — final. Остальные поля изменяемы
- * только через методы агрегата.
- *
- * Расширение: rank, isActive — добавить в Этапе 4.
+ * Домен НЕ знает про BCrypt — хеширование/сверка в application/infrastructure.
  */
 public final class Contributor {
 
+    /** Бизнес-правила защиты от подбора и восстановления. */
+    public static final int      MAX_FAILED_ATTEMPTS = 5;
+    public static final Duration LOCK_DURATION       = Duration.ofHours(24);
+    public static final Duration RECOVERY_WINDOW     = Duration.ofMinutes(5);
+
     private final UUID    id;
     private       String  nickname;
+    private       String  username;
+    private       String  passwordHash;
+    private       int     failedLoginAttempts;
+    private       Instant lockedUntil;
+    private       Instant resetPasswordUntil;
     private       int     completedCatalogCount;
     private final Instant createdAt;
     private       Instant updatedAt;
 
-    private Contributor(
-            UUID id,
-            String nickname,
-            int completedCatalogCount,
-            Instant createdAt,
-            Instant updatedAt) {
-        this.id                   = id;
-        this.nickname             = nickname;
+    private Contributor(UUID id, String nickname, String username, String passwordHash,
+                        int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
+                        int completedCatalogCount, Instant createdAt, Instant updatedAt) {
+        this.id                    = id;
+        this.nickname              = nickname;
+        this.username              = username;
+        this.passwordHash          = passwordHash;
+        this.failedLoginAttempts   = failedLoginAttempts;
+        this.lockedUntil           = lockedUntil;
+        this.resetPasswordUntil    = resetPasswordUntil;
         this.completedCatalogCount = completedCatalogCount;
-        this.createdAt            = createdAt;
-        this.updatedAt            = updatedAt;
+        this.createdAt             = createdAt;
+        this.updatedAt             = updatedAt;
     }
 
-    // ──────────────────────────────────────────────
-    // Фабричный метод
-    // ──────────────────────────────────────────────
+    // ── Фабрики ──────────────────────────────────────────────
 
+    /** Legacy: регистрация только по нику (без пароля). */
     public static Contributor create(String nickname) {
         if (nickname == null || nickname.isBlank()) {
             throw new IllegalArgumentException("Nickname must not be null or blank");
         }
         Instant now = Instant.now();
-        return new Contributor(UUID.randomUUID(), nickname.trim(), 0, now, now);
+        return new Contributor(UUID.randomUUID(), nickname.trim(), null, null,
+            0, null, null, 0, now, now);
+    }
+
+    /** vNext: создание с логином и BCrypt-хешем пароля. nickname = username. */
+    public static Contributor createWithCredentials(String username, String passwordHash) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be null or blank");
+        }
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("PasswordHash must not be null or blank");
+        }
+        Instant now = Instant.now();
+        String u = username.trim();
+        return new Contributor(UUID.randomUUID(), u, u, passwordHash, 0, null, null, 0, now, now);
     }
 
     /** Восстановление из хранилища. Только для ContributorRepositoryAdapter. */
     public static Contributor reconstitute(
-            UUID id,
-            String nickname,
-            int completedCatalogCount,
-            Instant createdAt,
-            Instant updatedAt) {
+            UUID id, String nickname, String username, String passwordHash,
+            int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
+            int completedCatalogCount, Instant createdAt, Instant updatedAt) {
         Objects.requireNonNull(id,        "id must not be null");
         Objects.requireNonNull(nickname,  "nickname must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
-        return new Contributor(id, nickname, completedCatalogCount, createdAt, updatedAt);
+        return new Contributor(id, nickname, username, passwordHash, failedLoginAttempts,
+            lockedUntil, resetPasswordUntil, completedCatalogCount, createdAt, updatedAt);
     }
 
-    // ──────────────────────────────────────────────
-    // Бизнес-методы
-    // ──────────────────────────────────────────────
+    // ── Аутентификация ───────────────────────────────────────
+
+    public boolean hasPassword() { return passwordHash != null; }
+
+    /** Заблокирован ли сейчас (подбор пароля). */
+    public boolean isLocked() {
+        return lockedUntil != null && Instant.now().isBefore(lockedUntil);
+    }
+
+    /** Неудачная попытка входа: +1, при достижении порога — блок на 24ч. */
+    public void recordFailedLogin() {
+        this.failedLoginAttempts++;
+        if (this.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
+            this.lockedUntil = Instant.now().plus(LOCK_DURATION);
+        }
+        touch();
+    }
+
+    /** Успешный вход: сбросить счётчик и блокировку. */
+    public void recordSuccessfulLogin() {
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        touch();
+    }
+
+    /** Админский сброс: пароль обнуляется, открывается окно восстановления 5 мин. */
+    public void beginPasswordReset() {
+        this.passwordHash = null;
+        this.resetPasswordUntil = Instant.now().plus(RECOVERY_WINDOW);
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        touch();
+    }
+
+    /** В окне восстановления (пароль сброшен, время ещё не вышло). */
+    public boolean isInRecovery() {
+        return passwordHash == null && resetPasswordUntil != null
+            && Instant.now().isBefore(resetPasswordUntil);
+    }
+
+    /** Окно восстановления истекло — аккаунт подлежит удалению. */
+    public boolean isRecoveryExpired() {
+        return passwordHash == null && resetPasswordUntil != null
+            && !Instant.now().isBefore(resetPasswordUntil);
+    }
+
+    /** Нет логина и пароля — legacy-запись (регистрация по нику до миграции). */
+    public boolean isLegacyWithoutCredentials() {
+        return username == null && passwordHash == null;
+    }
 
     /**
-     * Увеличивает счётчик завершённых каталогов на 1.
-     *
-     * Вызывается атомарно при успешном создании CatalogEntry
-     * внутри CompleteCatalogUseCase (один transaction boundary).
-     *
-     * Расширение: при появлении лидерборда (Этап 4) здесь же
-     * можно пересчитывать rank или публиковать DomainEvent.
+     * Присваивает логин и пароль legacy-аккаунту (миграция: старый юзер задаёт пароль).
+     * Допустимо только если учётка ещё без логина/пароля.
      */
-    public void incrementCompletedCatalogs() {
-        this.completedCatalogCount++;
-        this.updatedAt = Instant.now();
+    public void claimCredentials(String username, String passwordHash) {
+        if (!isLegacyWithoutCredentials()) {
+            throw new IllegalStateException("Credentials already set");
+        }
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be null or blank");
+        }
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("PasswordHash must not be null or blank");
+        }
+        this.username = username.trim();
+        this.passwordHash = passwordHash;
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        this.resetPasswordUntil = null;
+        touch();
     }
 
-    // ──────────────────────────────────────────────
-    // Геттеры
-    // ──────────────────────────────────────────────
+    /** Установить новый пароль (после восстановления или смены). */
+    public void setPassword(String newPasswordHash) {
+        if (newPasswordHash == null || newPasswordHash.isBlank()) {
+            throw new IllegalArgumentException("PasswordHash must not be null or blank");
+        }
+        this.passwordHash = newPasswordHash;
+        this.resetPasswordUntil = null;
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+        touch();
+    }
+
+    // ── Бизнес-методы ────────────────────────────────────────
+
+    public void incrementCompletedCatalogs() {
+        this.completedCatalogCount++;
+        touch();
+    }
+
+    private void touch() { this.updatedAt = Instant.now(); }
+
+    // ── Геттеры ──────────────────────────────────────────────
 
     public UUID    getId()                    { return id; }
     public String  getNickname()              { return nickname; }
+    public String  getUsername()              { return username; }
+    public String  getPasswordHash()          { return passwordHash; }
+    public int     getFailedLoginAttempts()   { return failedLoginAttempts; }
+    public Instant getLockedUntil()           { return lockedUntil; }
+    public Instant getResetPasswordUntil()    { return resetPasswordUntil; }
     public int     getCompletedCatalogCount() { return completedCatalogCount; }
     public Instant getCreatedAt()             { return createdAt; }
     public Instant getUpdatedAt()             { return updatedAt; }
@@ -108,7 +208,6 @@ public final class Contributor {
 
     @Override
     public String toString() {
-        return "Contributor{id=" + id + ", nickname='" + nickname
-            + "', completedCatalogCount=" + completedCatalogCount + "}";
+        return "Contributor{id=" + id + ", username='" + username + "'}";
     }
 }

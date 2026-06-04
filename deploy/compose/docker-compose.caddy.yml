@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────────────────
+# CADDY — единый edge-reverse-proxy с автоматическим HTTPS (Let's Encrypt, HTTP-01).
+# Единственный публично открытый сервис (80/443). Маршрутизирует по hostname:
+#   staging.* / preprod.* / <prod> / monitoring.*  →  контейнеры в сети foodscanner-edge.
+# Хосты/почта/basic-auth берутся из ./app.env (caddy).
+# ─────────────────────────────────────────────────────────────────────────
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    env_file: ./app.env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./snippets:/etc/caddy/snippets:ro
+      - caddy_data:/data        # сертификаты LE (важно сохранять!)
+      - caddy_config:/config
+    networks: [edge]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  caddy_data:
+    name: caddy_data
+  caddy_config:
+    name: caddy_config
+
+networks:
+  edge:
+    external: true
+    name: foodscanner-edge

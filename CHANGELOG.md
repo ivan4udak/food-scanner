@@ -1,0 +1,137 @@
+# Changelog
+
+Версионирование: семантическое, инкремент **PATCH** на каждый блок/правку (v1.1.1, v1.1.2, …).
+- Каждой версии соответствует git-тег `vX.Y.Z`.
+- Крупные блоки разрабатываются в отдельной ветке `feat/*`, затем мерж в `dev`.
+
+Ветки: `main` (стабильная), `dev` (интеграция), `feat/*` (крупные блоки 13–20).
+
+---
+
+## [Unreleased]
+- —
+
+## [1.3.0] — CI/CD для одного сервера (ветка feat/cicd)
+- Backend (аддитивно): `spring-boot-starter-actuator` + `micrometer-registry-prometheus`,
+  экспонирован `/actuator/prometheus` + health-пробы, метрики с тегом `env`. 156 тестов зелёные.
+- Образы: runtime `Dockerfile` backend (temurin:21-jre, jar из CI, HEALTHCHECK) + web (multistage).
+- GitHub Actions: `ci.yml` (dev/PR: тесты+сборка) и `deploy.yml`
+  (push test/main/release → Tests → Maven Build → Docker Build → Push GHCR → Deploy SSH → Telegram).
+- Окружения: `deploy/compose/*` — отдельные compose/volume/контейнеры/сети на staging(10690)/
+  preprod(10790)/production(10890); секреты в `app.env` на сервере (не в репозитории).
+- HTTPS: Caddy + Let's Encrypt (DuckDNS), маршрутизация по hostname, `/api`→backend.
+- Production: **blue-green** без k8s (два цвета backend, переключение через Caddy reload),
+  health-check новой версии и авто-rollback; история версий `releases.log` + ручной `rollback.sh`.
+- Мониторинг: Prometheus + Grafana (provisioning + дашборд) + node_exporter + cAdvisor;
+  Grafana за Caddy basic-auth. Логи: json-file ротация + logrotate.
+- Скрипты/инфра: deploy/blue-green/rollback/health/notify/bootstrap, systemd (caddy+monitoring),
+  env-примеры, runbook `deploy/README.md`.
+
+## [1.2.0] — PWA-фронтенд (ветка feat/pwa)
+- Новый устанавливаемый PWA-клиент в `web/` (React 18 + TS 5 + Vite 5), заменяет
+  SwiftUI iOS-клиент; интегрирует существующий `/api/v1` **без изменений API**.
+- Паритет функционала: Login/Register/Recover, Scan (BarcodeDetector + ZXing fallback),
+  Draft + загрузка фото (getUserMedia/`input file` + сжатие `browser-image-compression`
+  ≤1920/JPEG + EXIF capturedAt), Complete, Lookup, About + Diagnostics (/health).
+- Стек: TanStack Query 5, React Router 6, Zustand (authStore/appStore), Axios
+  (Bearer + авто-refresh access на 401 с очередью и повтором), Zod (валидация ответов).
+- PWA: manifest + service worker (Workbox), offline-кэш каталога (`/entries`, NetworkFirst)
+  и фото (`/photos`, CacheFirst). Устанавливается на iPhone через Safari → «На экран Домой».
+- Инфраструктура: multistage `Dockerfile` (node→nginx), `nginx.conf` (SPA + прокси `/api`
+  на `${BACKEND_URL}` + no-cache для SW), `docker-compose.yml` (порт 8081).
+- TDD: 30 unit-тестов (vitest) — zod-схемы, нормализация ошибок, login-маппинг,
+  refresh-retry, authStore, scan-gate, опции сжатия/EXIF. `tsc` + `vite build` зелёные.
+
+## [1.1.10] — Блок 20: экран About + диагностический пакет
+- Backend: новый публичный `GET /api/v1/health` (`HealthController` + `HealthResponse`),
+  проверяет состояние хранилища через `PhotoStorage.isAvailable()` (MinIO `bucketExists`);
+  `status` = OK / DEGRADED, поля `backend`/`storage`. `/ping` не изменён (heartbeat не утяжеляем).
+- iOS: экран `AboutView` (Настройки → «О приложении»): версии iOS/приложения/сборки,
+  Backend URL, состояние связи/Backend/MinIO, размер кэша, кнопка «Скопировать диагностику»
+  (копирует весь пакет + Contributor ID/логин в буфер). `APIClient.health()` + `HealthResponse`.
+- Версия приложения синхронизирована с git-тегами (для TestFlight):
+  `MARKETING_VERSION 1.0 → 1.1.10`, `CURRENT_PROJECT_VERSION 1 → 20`.
+- Тесты: `HealthControllerTest` (OK/DEGRADED) — всего **156 зелёных**.
+
+## [1.1.9] — UX-фиксы и оптимизация
+- Убрана «непонятная точка» острова: индикатор виден только при проблемах (degraded/offline)
+  или во время сообщения; в норме (online/connecting) — ничего.
+- Оптимизация: убрана постоянная анимация-пульс острова; offline-блокер без дорогого
+  blur (сплошное затемнение) → меньше нагрузка на старте и на экране входа.
+- Settings: Contributor ID копируется тапом (полный текст в буфер) + контекстное меню.
+- Сканер: жёсткий кулдаун 4с между сканами — больше нет потока повторных запросов
+  на один штрихкод при лагах; при возврате на экран скан доступен сразу.
+
+## [1.1.8] — Блок 19: экран настроек
+- `SettingsView` (через шестерёнку в сканере): адрес сервера (+ смена), статус сервера,
+  логин, Contributor ID, версия и сборка приложения, «Очистить кэш» (картинки + офлайн-каталог),
+  «Выйти из аккаунта».
+
+## [1.1.7] — Блок 18: офлайн-кэш каталога (SwiftData)
+- `CachedEntry` (@Model): barcode, name, типы/ключи фото, updatedAt; контейнер в App.
+- `LookupView`: сначала показывает локальную запись, затем тихо обновляет с сервера и кэширует;
+  при офлайне показывает кэш (фото — из дискового кэша Блока 9).
+- `ImageStore.clear()/diskSize()` для управления кэшем.
+
+## [1.1.6] — Блок 17: прогресс загрузки на iOS
+- `APIClient.addPhoto` — прогресс отправки (URLSession upload + `UploadProgressDelegate`).
+- `DraftViewModel`: последовательная очередь загрузок + состояния слота
+  (queued / uploading N% / waitingServer / done / failed); общий счётчик «в очереди».
+- Плитка: круговой индикатор с процентами, «сервер…» при ожидании ответа, «в очереди», галочка/ошибка.
+
+## [1.1.5] — Остров в стиле Самоката (UX)
+- Убрано кольцо; теперь статус-кружок справа от Dynamic Island (зелёный/жёлтый/красный/серый).
+- При информировании (смена состояния связи) остров «расширяется» с сообщением ~1.8с,
+  затем сворачивается в кружок (пружинная анимация). Адаптив под DI/notch/плоский верх.
+
+## [1.1.4] — Блок 16: SHA-256 дедупликация (ветка feat/dedup)
+- Контент-адресное хранение: ключ = `photos/{sha256(full)}.jpg`. `PhotoStore`/`DeduplicatingPhotoStore`
+  + порт `PhotoObjectRepository` + таблица `photo_objects` (V10). Дубликат не заливается повторно.
+- Очистка (Блок 15) стала hash-aware: объект удаляется только если на него больше нет ссылок
+  (draft_photos/catalog_entry_photos). Просмотр каталога по ШК остаётся публичным (любой клиент).
+- Тесты: DeduplicatingPhotoStoreTest, обновлён PurgeStaleDraftsServiceTest — 154 зелёных.
+- Проверено вживую: один файл в 2 черновика → 1 объект в photo_objects.
+
+## [1.1.3] — Блок 15: очистка мусора (ветка feat/cleanup-job)
+- `@Scheduled` (раз в час) `StaleDraftCleanupJob` → use-case `PurgeStaleDraftsService`:
+  находит незавершённые черновики (OPEN/ABANDONED) старше 24ч, удаляет объекты MinIO
+  (full + thumbnail, best-effort), затем сам draft (draft_photos — каскадно), логирует количество.
+- Порты: `PhotoStorage.delete`, `CatalogDraftRepository.findStaleUnfinished/deleteById`.
+- Конфиг `cleanup.draft-ttl-hours` / `cleanup.interval-ms`.
+- Тесты: PurgeStaleDraftsServiceTest (удаление/best-effort/пусто) — 151 зелёный.
+
+## [1.1.2] — Блок 14: защита API (Bearer) + разграничение скана (ветка feat/api-auth)
+- Backend: `AuthInterceptor` + `WebConfig` — Bearer обязателен на `/api/v1/**`,
+  кроме `auth/**` и `ping`. Контроллеры берут id пользователя из токена (request-атрибут),
+  не доверяя телу. Владелец проверяется: загрузка фото/завершение чужого draft → 422.
+  `HttpMessageNotReadableException` → 400.
+- iOS: сканирование разрешено только при ONLINE; при OFFLINE/DEGRADED — пауза скана и
+  статус (красный «нет подключения» / жёлтый «ожидание»), снимается при восстановлении.
+- Тесты: AuthInterceptorTest (4), обновлены контракт-тесты (requestAttr, исключение WebConfig/AuthInterceptor) — 148 зелёных.
+- Проверено вживую: без токена 401, ping 200, чужой draft 422, свой 200.
+
+## [1.1.1] — Блок 13: JWT-авторизация (ветка feat/jwt)
+- Backend: access-токен (JWT HS256, 24ч) + refresh-токен (30д, хэш в БД, ротация).
+  `POST /api/v1/auth/refresh`; login/register/recover теперь возвращают пару токенов.
+  Порт `TokenService` + `JwtTokenService` (jjwt); `RefreshToken` + репозиторий; миграция V9.
+- iOS: токены в Keychain (`KeychainStore`), Bearer-заголовок, `refresh`,
+  автообновление access при старте, logout при протухшем refresh.
+- Тесты: JwtTokenServiceTest, AuthServiceTest (refresh/ротация), AuthControllerTest (refresh 200/401) — 144 зелёных.
+
+## [1.1.0] — дизайн-ревизия индикатора соединения
+- Убрана надпись-пилюля у Dynamic Island.
+- Флюидное кольцо вокруг острова/камеры: зелёное (online), жёлтое (degraded), красное (offline).
+- OFFLINE: редактируемый адрес сервера снизу; автоповтор подключения через 5с после ввода.
+- Fix: `environmentObject` вынесен наружу оверлеев (краш OfflineBlocker без AppState).
+
+## [1.0.0] — vNext (блоки 1–12)
+- Авторизация логин/пароль (BCrypt), лок-аут 5→24ч (423), админ-сброс, восстановление, ping.
+- Heartbeat + индикаторы соединения (ONLINE/DEGRADED/OFFLINE), Dynamic Island.
+- Изображения: серверные thumbnail/full + сжатие на клиенте + двухуровневый кэш.
+- Рамка сканера (4 угла), меню источника фото у касания, шестерёнка режима.
+- iOS-вход (логин/создание/восстановление) + плавный pending-эффект.
+- Багфикс: legacy-миграция при регистрации, понятная ошибка короткого пароля.
+
+## [0.1.0] — базовая каталогизация
+- Контрибьютор, скан штрихкода, черновик, завершение, просмотр записи.
+- MinIO-хранилище фото (порт PhotoStorage), captured_at, docker-compose.

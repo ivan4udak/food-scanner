@@ -2,6 +2,7 @@ package com.foodscanner.api.controller;
 
 import com.foodscanner.api.dto.*;
 import com.foodscanner.api.mapper.CatalogApiMapper;
+import com.foodscanner.application.port.ImageProcessor;
 import com.foodscanner.application.port.PhotoStorage;
 import com.foodscanner.application.result.FindCatalogEntryResult;
 import com.foodscanner.application.usecase.*;
@@ -41,6 +42,17 @@ public class CatalogController {
     private final FindCatalogEntryByBarcodeUseCase findByBarcode;
     private final CatalogApiMapper                mapper;
     private final PhotoStorage                    photoStorage;
+    private final ImageProcessor                  imageProcessor;
+    private final com.foodscanner.application.port.PhotoStore photoStore;
+
+    /** Имя request-атрибута с id аутентифицированного пользователя (ставит AuthInterceptor). */
+    private static final String AUTH_CONTRIBUTOR = "authContributorId";
+
+    /** Full ≤ 1920 по большей стороне (≤ 2K), thumbnail ~144px. Оригинал не хранится. */
+    private static final int    FULL_MAX_SIDE = 1920;
+    private static final int    THUMB_WIDTH   = 144;
+    private static final double FULL_QUALITY  = 0.85;
+    private static final double THUMB_QUALITY = 0.8;
 
     public CatalogController(
             RegisterContributorUseCase registerContributor,
@@ -49,7 +61,9 @@ public class CatalogController {
             CompleteCatalogUseCase completeCatalog,
             FindCatalogEntryByBarcodeUseCase findByBarcode,
             CatalogApiMapper mapper,
-            PhotoStorage photoStorage) {
+            PhotoStorage photoStorage,
+            ImageProcessor imageProcessor,
+            com.foodscanner.application.port.PhotoStore photoStore) {
         this.registerContributor = registerContributor;
         this.scanBarcode         = scanBarcode;
         this.addDraftPhoto       = addDraftPhoto;
@@ -57,6 +71,8 @@ public class CatalogController {
         this.findByBarcode       = findByBarcode;
         this.mapper              = mapper;
         this.photoStorage        = photoStorage;
+        this.imageProcessor      = imageProcessor;
+        this.photoStore          = photoStore;
     }
 
     /**
@@ -82,9 +98,12 @@ public class CatalogController {
      */
     @PostMapping("/scan")
     public ResponseEntity<ScanBarcodeResponse> scan(
-            @Valid @RequestBody ScanBarcodeRequest request) {
+            @Valid @RequestBody ScanBarcodeRequest request,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity.ok(
-            mapper.toResponse(scanBarcode.execute(mapper.toCommand(request))));
+            mapper.toResponse(scanBarcode.execute(
+                new com.foodscanner.application.command.ScanBarcodeCommand(
+                    request.getBarcodeValue(), contributorId))));
     }
 
     /**
@@ -100,35 +119,42 @@ public class CatalogController {
     public ResponseEntity<AddDraftPhotoResponse> addPhoto(
             @PathVariable UUID draftId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("contributorId") UUID contributorId,
             @RequestParam("photoType") String photoType,
-            @RequestParam(value = "capturedAt", required = false) String capturedAt) throws Exception {
+            @RequestParam(value = "capturedAt", required = false) String capturedAt,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) throws Exception {
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File must not be empty");
         }
 
-        String objectKey = "drafts/" + draftId + "/" + photoType.toLowerCase()
-            + "/" + UUID.randomUUID() + extension(file);
+        // Block 7: оригинал не храним. Делаем Full (≤1920) и Thumbnail (~144), обе в JPEG.
+        byte[] original = file.getBytes();
+        byte[] full  = imageProcessor.resizeToMaxSide(original, FULL_MAX_SIDE, FULL_QUALITY);
+        byte[] thumb = imageProcessor.thumbnail(original, THUMB_WIDTH, THUMB_QUALITY);
 
-        String storageKey = photoStorage.upload(
-            file.getBytes(), file.getContentType(), objectKey);
+        // Block 16: дедупликация по SHA-256 — контент-адресный ключ, без повторной заливки.
+        String objectKey = photoStore.store(full, thumb, "image/jpeg");
 
         Instant captured = parseInstant(capturedAt);
 
         return ResponseEntity.ok(
             mapper.toResponse(
                 addDraftPhoto.execute(
-                    mapper.toCommand(draftId, contributorId, photoType, storageKey, captured))));
+                    mapper.toCommand(draftId, contributorId, photoType, objectKey, captured))));
     }
 
     /**
-     * GET /api/v1/photos/{objectKey...}
-     * Отдаёт ранее загруженное фото из хранилища (для просмотра в клиенте).
+     * GET /api/v1/photos/{objectKey...}?size=thumb|full
+     * Отдаёт фото из хранилища. По умолчанию full; size=thumb — превью ~144px.
      */
     @GetMapping("/photos/{*objectKey}")
-    public ResponseEntity<byte[]> getPhoto(@PathVariable String objectKey) {
+    public ResponseEntity<byte[]> getPhoto(
+            @PathVariable String objectKey,
+            @RequestParam(name = "size", defaultValue = "full") String size) {
         String key = objectKey.startsWith("/") ? objectKey.substring(1) : objectKey;
+        if ("thumb".equalsIgnoreCase(size)) {
+            key = thumbKey(key);
+        }
         PhotoStorage.StoredObject obj = photoStorage.download(key);
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(
@@ -136,20 +162,10 @@ public class CatalogController {
             .body(obj.content());
     }
 
-    private static String extension(MultipartFile file) {
-        String name = file.getOriginalFilename();
-        if (name != null && name.contains(".")) {
-            return name.substring(name.lastIndexOf('.')).toLowerCase();
-        }
-        String ct = file.getContentType();
-        if (ct == null) return ".bin";
-        return switch (ct) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png"  -> ".png";
-            case "image/heic" -> ".heic";
-            case "image/webp" -> ".webp";
-            default           -> ".bin";
-        };
+    /** Ключ thumbnail: вставляет _thumb перед расширением. */
+    private static String thumbKey(String key) {
+        int dot = key.lastIndexOf('.');
+        return dot < 0 ? key + "_thumb" : key.substring(0, dot) + "_thumb" + key.substring(dot);
     }
 
     private static Instant parseInstant(String raw) {
@@ -171,11 +187,12 @@ public class CatalogController {
     @PostMapping("/drafts/{draftId}/complete")
     public ResponseEntity<CompleteCatalogResponse> completeCatalog(
             @PathVariable UUID draftId,
-            @Valid @RequestBody CompleteCatalogRequest request) {
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(mapper.toResponse(
-                completeCatalog.execute(mapper.toCommand(draftId, request))));
+                completeCatalog.execute(
+                    new com.foodscanner.application.command.CompleteCatalogCommand(draftId, contributorId))));
     }
 
     /**

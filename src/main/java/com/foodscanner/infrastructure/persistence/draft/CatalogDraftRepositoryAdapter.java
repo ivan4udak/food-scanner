@@ -39,6 +39,18 @@ public class CatalogDraftRepositoryAdapter implements CatalogDraftRepository {
             .map(this::toDomain);
     }
 
+    @Override
+    public List<CatalogDraft> findStaleUnfinished(Instant cutoff) {
+        return jpa.findStaleUnfinished(cutoff).stream()
+            .map(this::toDomain)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        jpa.deleteById(id);
+    }
+
     // ──────────────────────────────────────────────
     private CatalogDraftJpaEntity toJpa(CatalogDraft d) {
         CatalogDraftJpaEntity entity = new CatalogDraftJpaEntity(

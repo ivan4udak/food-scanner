@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────
+# STAGING (ветка test). Самостоятельный стек: свои контейнеры, volume, сеть.
+# Образы приходят готовыми из GHCR (BACKEND_IMAGE/WEB_IMAGE экспортит deploy.sh).
+# Секреты — в ./app.env (chmod 600, не в репозитории). Публичный вход — через Caddy
+# по сети foodscanner-edge; на хост наружу маппится только web (loopback:10690).
+# ─────────────────────────────────────────────────────────────────────────
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-staging
+    restart: unless-stopped
+    env_file: ./app.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - staging_pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  minio:
+    image: minio/minio
+    container_name: minio-staging
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: ./app.env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - staging_miniodata:/data
+    networks: [internal]
+    logging: *default-logging
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: backend-staging
+    restart: unless-stopped
+    env_file: ./app.env
+    environment:
+      APP_ENV: staging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+
+  web:
+    image: ${WEB_IMAGE}
+    container_name: web-staging
+    restart: unless-stopped
+    environment:
+      # Резерв: Caddy сам маршрутизирует /api -> backend; этот proxy bypass'ится.
+      BACKEND_URL: http://backend-staging:8080
+    depends_on:
+      - backend
+    networks: [internal, edge]
+    ports:
+      - "127.0.0.1:10690:80"   # прямой доступ для отладки (основной путь — Caddy)
+    logging: *default-logging
+
+volumes:
+  staging_pgdata:
+    name: staging_pgdata
+  staging_miniodata:
+    name: staging_miniodata
+
+networks:
+  internal:
+    name: staging-internal
+  edge:
+    external: true
+    name: foodscanner-edge

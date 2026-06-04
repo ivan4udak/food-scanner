@@ -38,6 +38,17 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- Actuator + Prometheus (метрики для мониторинга) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- JPA / PostgreSQL -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -70,6 +81,38 @@
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>8.5.12</version>
+        </dependency>
+
+        <!-- BCrypt (без полного Spring Security) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Ресайз/сжатие изображений (thumbnail + full) -->
+        <dependency>
+            <groupId>net.coobird</groupId>
+            <artifactId>thumbnailator</artifactId>
+            <version>0.4.20</version>
+        </dependency>
+
+        <!-- JWT (access/refresh токены) -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Test -->

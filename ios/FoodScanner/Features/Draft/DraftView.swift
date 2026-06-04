@@ -9,10 +9,8 @@ struct DraftView: View {
     @EnvironmentObject private var state: AppState
     @StateObject private var model = DraftViewModel()
 
-    // Источник кадра выбирается один раз и переиспользуется.
-    @State private var source: PhotoSource?
+    // Режим источника живёт в AppState (память сессии). Блоки 11–12.
     @State private var activeSlot: PhotoSlot?
-    @State private var showSourceDialog = false
     @State private var showCamera = false
     @State private var showLibrary = false
     @State private var pickerItem: PhotosPickerItem?
@@ -41,18 +39,27 @@ struct DraftView: View {
         }
         .navigationTitle("Новый продукт")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Как добавить фото?", isPresented: $showSourceDialog, titleVisibility: .visible) {
-            Button("Сделать фото") { choose(.camera) }
-            Button("Загрузить из галереи") { choose(.library) }
-            Button("Отмена", role: .cancel) { activeSlot = nil }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Section("Режим загрузки фото") {
+                        Button { state.photoSource = .camera } label: {
+                            Label("Камера", systemImage: state.photoSource == .camera ? "checkmark" : "camera")
+                        }
+                        Button { state.photoSource = .library } label: {
+                            Label("Галерея", systemImage: state.photoSource == .library ? "checkmark" : "photo.on.rectangle")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraCapture { image in
                 if let slot = activeSlot {
-                    Task { await model.upload(image: image, for: slot,
-                                              draftId: draftId,
-                                              contributorId: state.contributorId,
-                                              api: state.api) }
+                    model.upload(image: image, for: slot,
+                                 draftId: draftId, contributorId: state.contributorId, api: state.api)
                 }
             }
             .ignoresSafeArea()
@@ -60,13 +67,9 @@ struct DraftView: View {
         .photosPicker(isPresented: $showLibrary, selection: $pickerItem, matching: .images)
         .onChange(of: pickerItem) { _, newItem in
             guard let newItem, let slot = activeSlot else { return }
-            Task {
-                await model.upload(item: newItem, for: slot,
-                                   draftId: draftId,
-                                   contributorId: state.contributorId,
-                                   api: state.api)
-                pickerItem = nil
-            }
+            model.upload(item: newItem, for: slot,
+                         draftId: draftId, contributorId: state.contributorId, api: state.api)
+            pickerItem = nil
         }
     }
 
@@ -82,9 +85,10 @@ struct DraftView: View {
                 ForEach(slots) { slot in
                     PhotoSlotCell(slot: slot,
                                   image: model.images[slot],
-                                  state: model.cellState(for: slot)) {
-                        tap(slot)
-                    }
+                                  phase: model.phase(for: slot),
+                                  hasSource: state.photoSource != nil,
+                                  onChoose: { src in choose(src, for: slot) },
+                                  onOpen:   { openExisting(for: slot) })
                 }
             }
         }
@@ -98,15 +102,15 @@ struct DraftView: View {
                 Text("Штрихкод").font(.caption).foregroundStyle(Theme.textSecondary)
                 Text(barcode).font(.system(.title3, design: .rounded).weight(.bold))
                     .foregroundStyle(Theme.textPrimary)
-                if let source {
-                    Button { showSourceDialog = true } label: {
-                        Label(source == .camera ? "Камера" : "Галерея",
-                              systemImage: source == .camera ? "camera" : "photo.on.rectangle")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Theme.accent)
-                    }
+                if model.activeUploads > 0 {
+                    Label("Загрузка: \(model.activeUploads) в очереди", systemImage: "arrow.up.circle")
+                        .font(.caption.weight(.medium)).foregroundStyle(Theme.accent)
+                } else if let src = state.photoSource {
+                    Label(src == .camera ? "Режим: камера" : "Режим: галерея",
+                          systemImage: src == .camera ? "camera" : "photo.on.rectangle")
+                        .font(.caption.weight(.medium)).foregroundStyle(Theme.accent)
                 } else {
-                    Text("Снимите обязательные фото продукта")
+                    Text("Нажмите на плитку — выберите способ")
                         .font(.footnote).foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -117,17 +121,17 @@ struct DraftView: View {
 
     // MARK: Actions
 
-    private func tap(_ slot: PhotoSlot) {
+    /// Выбор источника из меню у плитки (Блок 11): запоминаем на сессию и открываем.
+    private func choose(_ src: PhotoSource, for slot: PhotoSlot) {
+        state.photoSource = src
         activeSlot = slot
-        if let source {
-            open(source)
-        } else {
-            showSourceDialog = true
-        }
+        open(src)
     }
 
-    private func choose(_ src: PhotoSource) {
-        source = src
+    /// Режим уже задан (Блок 12) — открываем сразу.
+    private func openExisting(for slot: PhotoSlot) {
+        guard let src = state.photoSource else { return }
+        activeSlot = slot
         open(src)
     }
 
@@ -158,31 +162,92 @@ struct DraftView: View {
 private struct PhotoSlotCell: View {
     let slot: PhotoSlot
     let image: UIImage?
-    let state: DraftViewModel.CellState
-    let onTap: () -> Void
+    let phase: DraftViewModel.SlotPhase
+    let hasSource: Bool
+    let onChoose: (PhotoSource) -> Void
+    let onOpen: () -> Void
+
+    private var isDone: Bool { phase == .done }
+    private var inProgress: Bool {
+        switch phase { case .queued, .uploading, .waitingServer: return true; default: return false }
+    }
 
     private var borderColor: Color {
-        if state == .uploaded { return Theme.accent.opacity(0.6) }
+        if isDone { return Theme.accent.opacity(0.6) }
         return slot.isRequired ? Theme.accent.opacity(0.30) : Theme.stroke
     }
 
     var body: some View {
-        Button(action: onTap) {
-            ZStack(alignment: .topTrailing) {
-                content
-                badge
+        Group {
+            if hasSource {
+                Button(action: onOpen) { tile }.buttonStyle(.plain)
+            } else {
+                Menu {
+                    Button { onChoose(.camera) }  label: { Label("Сделать фото", systemImage: "camera") }
+                    Button { onChoose(.library) } label: { Label("Выбрать из галереи", systemImage: "photo.on.rectangle") }
+                } label: { tile }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
-                    .stroke(borderColor, lineWidth: state == .uploaded ? 2 : 1)
-            )
         }
-        .buttonStyle(.plain)
-        .disabled(state == .uploading)
+        .disabled(inProgress)
+    }
+
+    private var tile: some View {
+        ZStack(alignment: .topTrailing) {
+            content
+            progressOverlay
+            badge
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
+                .stroke(borderColor, lineWidth: isDone ? 2 : 1)
+        )
+    }
+
+    /// Прогресс/ожидание/очередь поверх плитки (Блок 17).
+    @ViewBuilder private var progressOverlay: some View {
+        switch phase {
+        case .uploading(let f):
+            overlayBox {
+                ZStack {
+                    Circle().stroke(.white.opacity(0.25), lineWidth: 5)
+                    Circle().trim(from: 0, to: max(0.02, f))
+                        .stroke(Theme.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.15), value: f)
+                    Text("\(Int(f * 100))%").font(.caption.weight(.bold)).foregroundStyle(.white)
+                }
+                .frame(width: 54, height: 54)
+            }
+        case .waitingServer:
+            overlayBox {
+                VStack(spacing: 6) {
+                    ProgressView().tint(.white)
+                    Text("сервер…").font(.caption2).foregroundStyle(.white.opacity(0.85))
+                }
+            }
+        case .queued:
+            overlayBox {
+                VStack(spacing: 6) {
+                    Image(systemName: "clock").foregroundStyle(.white)
+                    Text("в очереди").font(.caption2).foregroundStyle(.white.opacity(0.85))
+                }
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func overlayBox<V: View>(@ViewBuilder _ inner: () -> V) -> some View {
+        ZStack {
+            Color.black.opacity(0.45)
+            inner()
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
     }
 
     @ViewBuilder private var content: some View {
@@ -228,15 +293,18 @@ private struct PhotoSlotCell: View {
     }
 
     @ViewBuilder private var badge: some View {
-        switch state {
-        case .uploaded:
+        switch phase {
+        case .done:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(Theme.accent)
                 .background(Circle().fill(.white))
                 .padding(10)
-        case .uploading:
-            ProgressView().padding(12)
-        case .empty:
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Theme.danger)
+                .background(Circle().fill(.white))
+                .padding(10)
+        case .idle:
             if slot.isRequired {
                 Text("обязательно")
                     .font(.system(size: 9, weight: .bold))
@@ -245,6 +313,8 @@ private struct PhotoSlotCell: View {
                     .background(Theme.accent.opacity(0.12), in: Capsule())
                     .padding(8)
             }
+        default:
+            EmptyView()
         }
     }
 }

@@ -1,0 +1,52 @@
+# Caddy — единый edge-proxy. Автоматический HTTPS (Let's Encrypt, HTTP-01).
+# Хосты и параметры берутся из переменных окружения (env_file app.env).
+# Маршрут /api/* → backend окружения; всё остальное → web (статика PWA).
+{
+	email {$ACME_EMAIL}
+	# Для тестов LE раскомментируйте staging-CA, чтобы не упереться в лимиты:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ── STAGING (ветка test) ────────────────────────────────────────────────
+{$STAGING_HOST} {
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy backend-staging:8080
+	}
+	handle {
+		reverse_proxy web-staging:80
+	}
+}
+
+# ── PRE-PRODUCTION (ветка main) ──────────────────────────────────────────
+{$PREPROD_HOST} {
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy backend-preprod:8080
+	}
+	handle {
+		reverse_proxy web-preprod:80
+	}
+}
+
+# ── PRODUCTION (ветка release, blue-green) ───────────────────────────────
+# Активный цвет backend задаётся импортируемым сниппетом, который переписывает
+# blue-green-switch.sh + `caddy reload` (zero-downtime переключение).
+{$PROD_HOST} {
+	encode zstd gzip
+	handle /api/* {
+		import /etc/caddy/snippets/prod-upstream.caddy
+	}
+	handle {
+		reverse_proxy web-production:80
+	}
+}
+
+# ── MONITORING (Grafana за basic-auth) ───────────────────────────────────
+{$MONITORING_HOST} {
+	encode zstd gzip
+	basic_auth {
+		{$MONITORING_BASICAUTH_USER} {$MONITORING_BASICAUTH_HASH}
+	}
+	reverse_proxy grafana:3000
+}

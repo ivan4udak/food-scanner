@@ -61,3 +61,109 @@ Features/     Onboarding · Scan · Draft · Result · Lookup
   `UIImageWriteToSavedPhotosAlbum`).
 - Прогресс-кольцо считает только обязательные: `uploadedCount/requiredCount`
   от бэкенда (= число загруженных обязательных типов).
+
+---
+
+## vNext — журнал (ветка dev)
+
+### Сделано: реальная загрузка фото (закрыло прежнее ограничение)
+- `POST /drafts/{id}/photos` теперь multipart: байты заливаются в MinIO,
+  в БД — storage_key; `GET /photos/{key}` отдаёт фото. captured_at из EXIF.
+
+### Блок 10 ✅ — рамка сканера
+- Убраны затемнение/линия. `ScannerCorners` (Shape): 4 угла с загибами, без анимации.
+
+### Блоки 1-4 ✅ — авторизация (backend, ветка dev)
+- `Contributor` расширен: username, passwordHash (BCrypt), failedLoginAttempts,
+  lockedUntil, resetPasswordUntil. Legacy `create(nickname)` сохранён, nickname=username.
+- Миграция **V8** (nullable username/password_hash + uq_username).
+- Порт `PasswordHasher` (application) + `BCryptPasswordHasher` (infra, spring-security-crypto).
+- `AuthService`: login (OK/INVALID/NOT_FOUND/LOCKED/RECOVERY), register, recoverPassword.
+- `AdminService`: reset-password (role==volkov + ADMIN_PASSWORD из env, не хардкод).
+- Лок-аут: 5 неудач → `lockedUntil = now+24h`, HTTP 423.
+- Восстановление: админ-сброс → passwordHash=null + окно 5 мин; `RecoveryCleanupJob`
+  (@Scheduled, раз в минуту) удаляет просроченные аккаунты.
+- Эндпоинты: `POST /auth/login|register|recover`, `POST /admin/reset-password`, `GET /ping`.
+- HTTP-маппинг в `GlobalExceptionHandler`: 423/403/410/404.
+- Тесты: AuthServiceTest, AdminServiceTest, AuthControllerTest — всего **134 зелёных**.
+- Проверено вживую против MinIO+Postgres: все сценарии + лок-аут + recovery.
+
+### Блоки 7-9 ✅ — изображения (скорость)
+- **Блок 7 (backend):** при загрузке сервер делает Full (≤1920 по большей стороне)
+  и Thumbnail (~144px), обе в JPEG, кладёт в MinIO. Оригинал НЕ хранится
+  (`ImageProcessor` порт + `ThumbnailatorImageProcessor`). `GET /photos/{key}?size=thumb|full`.
+  Проверено: 4000×3000/796КБ → full 1920×1440/199КБ + thumb 144×108/3.6КБ.
+- **Блок 8 (iOS):** `ImageCompressor` — даунскейл до ≤1920 + JPEG (подбор качества к ≤800КБ)
+  перед отправкой; EXIF captured_at читается из оригинала ДО сжатия.
+- **Блок 9 (iOS):** `ImageStore` (actor) — memory `NSCache` + disk (Caches), ключ SHA256.
+  `CachedImage` (память→диск→сеть, повторно не качает). Плитки каталога — thumbnail;
+  тап → `PhotoViewer` полноэкранно в full (≤FullHD).
+- Тесты: `ThumbnailatorImageProcessorTest` (ресайз/превью/без апскейла) — всего 137 зелёных.
+
+### Блоки 5-6 ✅ — соединение (iOS)
+- `ConnectionMonitor` (@MainActor): heartbeat `GET /ping` каждые 5с (async/await),
+  состояния ONLINE(<10с)/DEGRADED(10–20с)/OFFLINE(>20с), старт/стоп по scenePhase.
+- `ConnectionOverlay` (модификатор на RootView):
+  - ONLINE после подключения/реконнекта → зелёный баннер «Подключение установлено» 1.2с;
+  - DEGRADED → жёлтая шапка с двумя вращающимися полосками;
+  - OFFLINE → помутнение всего экрана + блок кликов, красный треугольник
+    «Нет соединения с сервером», снизу вращающиеся серые полоски + «подключение...» +
+    капсула «Подключение к серверу» (загрузка фото заблокирована оверлеем).
+- **Dynamic Island**: `IslandStatus` — чёрная капсула-«остров» с цветным кружком
+  состояния (зелёный/жёлтый/красный), детект DI по верхнему safe-area inset ≥59.
+- Хаптики (`Haptics`): success при реконнекте, warning при обрыве.
+- Проверено в симуляторе: OFFLINE-блокер (мёртвый URL) и возврат в ONLINE (живой backend).
+
+### iOS-вход ✅ — клиентская часть авторизации
+- `LoginView` (заменил регистрацию по нику): шаги Вход → «Создать аккаунт»
+  (подтверждение пароля при NOT_FOUND) → «Новый пароль» (RECOVERY).
+- `APIClient`: login → `LoginOutcome` (ok/recovery/notFound/invalid/locked,
+  читает тела 401/404/423 без выброса), register (409→ошибка), recover.
+- Хаптики: success при входе/создании, warning при ошибке.
+- **Плавность без рывков:** `BusyController` + `busyOverlay` — при ожидании ответа
+  экран замутняется (blur+dim нарастают со временем, `TimelineView(.animation)`),
+  спиннер вращается всё медленнее (угол ~√t); следующий экран раскрывается
+  только после ответа. Смена Login↔ScanFlow — плавный `.opacity` (0.5с).
+- Проверено в симуляторе: экран входа рендерится; backend-сценарии — ранее живьём.
+
+### Блоки 11-12 ✅ — выбор источника фото
+- Режим источника хранится в `AppState.photoSource` (в памяти, НЕ в UserDefaults,
+  живёт до конца сессии).
+- **Блок 11:** пока режим не задан — тап по плитке открывает `Menu` прямо у плитки
+  (у места касания): «Сделать фото» / «Выбрать из галереи»; выбор запоминается на сессию.
+- **Блок 12:** шестерёнка в тулбаре экрана «Новый продукт» → секция «Режим загрузки фото»
+  с галочкой (✓) у выбранного (Камера/Галерея) — задаёт режим по умолчанию для всех плиток.
+- Когда режим задан — плитки открывают источник сразу (Button), без повторного меню.
+
+### Багфикс «Не удалось создать аккаунт»
+- Причина 1 (legacy без пароля): register создавал дубль с nickname=username →
+  конфликт `uq_contributors_nickname` → 500. Фикс: если есть legacy-аккаунт
+  (username=null, без пароля) с таким ником — **присваиваем ему логин+пароль**
+  (`Contributor.claimCredentials`), миграция без дубля. + repo.findByNickname.
+- Причина 2 (короткий пароль): register требует 4..100 → 400, клиент показывал
+  общее сообщение. Фикс: клиент декодит `ServerErrorResponse` (показывает детали) +
+  валидация на шаге создания (минимум 4, кнопка заблокирована).
+- Тесты: AuthServiceTest.claimsLegacy; всего **138 зелёных**. Проверено вживую:
+  legacy login→404, register→201 (миграция), login→200.
+
+### Дизайн-ревизия индикатора соединения (v1.1.0)
+- Убрана надпись/пилюля у Dynamic Island (текста нет совсем).
+- `IslandRing` — флюидное «дышащее» кольцо вокруг острова/камеры: зелёное (online,
+  короткая вспышка при подключении), жёлтое (degraded), красное (offline).
+- OFFLINE-блокер: снизу **редактируемый адрес сервера** (тап → ввод); через 5с
+  после ввода — автоповтор подключения (обратный отсчёт «повтор через N с»).
+- Фикс: `environmentObject` вынесен наружу оверлеев, иначе `OfflineBlocker`
+  не видел `AppState` → краш при переходе в offline.
+
+### Блок 20 ✅ — экран About + диагностика (v1.1.10)
+- `AboutView` (Настройки → «О приложении»): версии iOS/приложения/сборки, Backend URL,
+  состояние связи (из `ConnectionMonitor`), Backend/MinIO (из нового `GET /api/v1/health`),
+  размер кэша. Кнопка «Скопировать диагностику» — весь пакет + Contributor ID/логин в буфер.
+- `APIClient.health()` (публичный путь, nil при сетевой ошибке) + `HealthResponse`.
+- Backend: `HealthController` + `PhotoStorage.isAvailable()` (MinIO `bucketExists`), путь в
+  whitelist `WebConfig` рядом с `/ping`. Тесты `HealthControllerTest` — 156 зелёных.
+- Версия в `project.pbxproj` приведена к тегам: `1.0/1 → 1.1.10/20` (для TestFlight).
+
+### Итог vNext
+Закрыты блоки 1–12. Остаётся опционально: хаптик на успешном скане (частично есть),
+Live Activity для «настоящего» Dynamic Island, OCR (будущий этап).

@@ -55,6 +55,21 @@ spring:
       max-file-size:    ${MAX_FILE_SIZE:25MB}
       max-request-size: ${MAX_REQUEST_SIZE:25MB}
 
+# ── Админ (сброс паролей) ────────────────────────────────────────────
+admin:
+  password: ${ADMIN_PASSWORD:admin}
+
+# ── JWT ──────────────────────────────────────────────────────────────
+jwt:
+  secret:           ${JWT_SECRET:dev-secret-change-me-please-change-me-32b}
+  access-ttl-hours: ${JWT_ACCESS_TTL_HOURS:24}
+  refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}
+
+# ── Очистка мусора (Блок 15) ─────────────────────────────────────────
+cleanup:
+  draft-ttl-hours: ${CLEANUP_DRAFT_TTL_HOURS:24}
+  interval-ms:     ${CLEANUP_INTERVAL_MS:3600000}   # раз в час
+
 # ── Объектное хранилище фото (MinIO / S3-совместимое) ────────────────
 storage:
   provider: ${STORAGE_PROVIDER:minio}
@@ -83,36 +98,36 @@ server:
 #
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:WARN}
+    root: ${LOG_LEVEL_ROOT:DEBUG}
 
     # Приложение
-    com.foodscanner: ${LOG_LEVEL_APP:INFO}
-    com.foodscanner.domain: ${LOG_LEVEL_DOMAIN:INFO}
-    com.foodscanner.application: ${LOG_LEVEL_APPLICATION:INFO}
-    com.foodscanner.infrastructure: ${LOG_LEVEL_INFRA:INFO}
-    com.foodscanner.api: ${LOG_LEVEL_API:INFO}
+    com.foodscanner: ${LOG_LEVEL_APP:DEBUG}
+    com.foodscanner.domain: ${LOG_LEVEL_DOMAIN:DEBUG}
+    com.foodscanner.application: ${LOG_LEVEL_APPLICATION:DEBUG}
+    com.foodscanner.infrastructure: ${LOG_LEVEL_INFRA:DEBUG}
+    com.foodscanner.api: ${LOG_LEVEL_API:DEBUG}
 
     # Spring Web — входящие запросы, маппинг роутов
-    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
-    org.springframework.web.servlet.DispatcherServlet: ${LOG_LEVEL_WEB:INFO}
-    org.springframework.web.servlet.mvc.method.annotation: ${LOG_LEVEL_WEB:INFO}
+    org.springframework.web: ${LOG_LEVEL_WEB:TRACE}
+    org.springframework.web.servlet.DispatcherServlet: ${LOG_LEVEL_WEB:TRACE}
+    org.springframework.web.servlet.mvc.method.annotation: ${LOG_LEVEL_WEB:DEBUG}
 
     # SQL запросы (show-sql=true + этот уровень = полные запросы с параметрами)
-    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
-    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL_PARAMS:WARN}    # значения параметров
-    org.hibernate.orm.jdbc.extract: ${LOG_LEVEL_SQL_PARAMS:WARN} # результаты
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:TRACE}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL_PARAMS:DEBUG}    # значения параметров
+    org.hibernate.orm.jdbc.extract: ${LOG_LEVEL_SQL_PARAMS:DEBUG} # результаты
 
     # HikariCP — пул соединений
-    com.zaxxer.hikari: ${LOG_LEVEL_HIKARI:WARN}
-    com.zaxxer.hikari.HikariConfig: ${LOG_LEVEL_HIKARI:WARN}
+    com.zaxxer.hikari: ${LOG_LEVEL_HIKARI:TRACE}
+    com.zaxxer.hikari.HikariConfig: ${LOG_LEVEL_HIKARI:DEBUG}
 
     # Flyway
-    org.flywaydb: ${LOG_LEVEL_FLYWAY:INFO}
+    org.flywaydb: ${LOG_LEVEL_FLYWAY:DEBUG}
 
     # Spring Data / JPA
-    org.springframework.data: ${LOG_LEVEL_DATA:WARN}
-    org.springframework.orm.jpa: ${LOG_LEVEL_JPA:WARN}
-    org.springframework.transaction: ${LOG_LEVEL_TX:WARN}
+    org.springframework.data: ${LOG_LEVEL_DATA:DEBUG}
+    org.springframework.orm.jpa: ${LOG_LEVEL_JPA:DEBUG}
+    org.springframework.transaction: ${LOG_LEVEL_TX:DEBUG}
 
   # Формат строки лога
   pattern:
@@ -130,7 +145,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: ${MANAGEMENT_ENDPOINTS:health,info,prometheus}
+      base-path: /actuator
   endpoint:
     health:
       show-details: ${HEALTH_SHOW_DETAILS:when-authorized}
+      probes:
+        enabled: true   # /actuator/health/liveness|readiness
+  metrics:
+    tags:
+      application: food-scanner
+      env: ${APP_ENV:local}    # staging|preprod|production — разделение в Grafana
+  prometheus:
+    metrics:
+      export:
+        enabled: ${PROMETHEUS_ENABLED:true}

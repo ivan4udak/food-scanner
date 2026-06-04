@@ -9,9 +9,7 @@ import java.util.UUID;
 
 /**
  * Слой: infrastructure
- *
- * Адаптер между JPA и доменным репозиторием.
- * Маппинг domain ↔ JPA явный — нет магии, нет MapStruct в MVP.
+ * Адаптер между JPA и доменным репозиторием. Маппинг domain ↔ JPA явный.
  */
 @Repository
 public class ContributorRepositoryAdapter implements ContributorRepository {
@@ -24,8 +22,7 @@ public class ContributorRepositoryAdapter implements ContributorRepository {
 
     @Override
     public Contributor save(Contributor contributor) {
-        ContributorJpaEntity entity = toJpa(contributor);
-        jpa.save(entity);
+        jpa.save(toJpa(contributor));
         return contributor;
     }
 
@@ -39,16 +36,33 @@ public class ContributorRepositoryAdapter implements ContributorRepository {
         return jpa.existsByNickname(nickname);
     }
 
+    @Override
+    public Optional<Contributor> findByUsername(String username) {
+        return jpa.findByUsername(username).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<Contributor> findByNickname(String nickname) {
+        return jpa.findByNickname(nickname).map(this::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        jpa.deleteById(id);
+    }
+
     // ──────────────────────────────────────────────
     private ContributorJpaEntity toJpa(Contributor c) {
         return new ContributorJpaEntity(
-            c.getId(), c.getNickname(), c.getCompletedCatalogCount(),
-            c.getCreatedAt(), c.getUpdatedAt());
+            c.getId(), c.getNickname(), c.getUsername(), c.getPasswordHash(),
+            c.getFailedLoginAttempts(), c.getLockedUntil(), c.getResetPasswordUntil(),
+            c.getCompletedCatalogCount(), c.getCreatedAt(), c.getUpdatedAt());
     }
 
     private Contributor toDomain(ContributorJpaEntity e) {
         return Contributor.reconstitute(
-            e.getId(), e.getNickname(), e.getCompletedCatalogCount(),
-            e.getCreatedAt(), e.getUpdatedAt());
+            e.getId(), e.getNickname(), e.getUsername(), e.getPasswordHash(),
+            e.getFailedLoginAttempts(), e.getLockedUntil(), e.getResetPasswordUntil(),
+            e.getCompletedCatalogCount(), e.getCreatedAt(), e.getUpdatedAt());
     }
 }
