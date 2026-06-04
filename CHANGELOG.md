@@ -9,8 +9,16 @@
 ---
 
 ## [Unreleased]
-- Блоки 15–20 (очистка мусора, SHA-256 дедупликация, прогресс загрузки,
+- Блоки 16–20 (SHA-256 дедупликация, прогресс загрузки,
   офлайн-кэш каталога, экран настроек, About/TestFlight).
+
+## [1.1.3] — Блок 15: очистка мусора (ветка feat/cleanup-job)
+- `@Scheduled` (раз в час) `StaleDraftCleanupJob` → use-case `PurgeStaleDraftsService`:
+  находит незавершённые черновики (OPEN/ABANDONED) старше 24ч, удаляет объекты MinIO
+  (full + thumbnail, best-effort), затем сам draft (draft_photos — каскадно), логирует количество.
+- Порты: `PhotoStorage.delete`, `CatalogDraftRepository.findStaleUnfinished/deleteById`.
+- Конфиг `cleanup.draft-ttl-hours` / `cleanup.interval-ms`.
+- Тесты: PurgeStaleDraftsServiceTest (удаление/best-effort/пусто) — 151 зелёный.
 
 ## [1.1.2] — Блок 14: защита API (Bearer) + разграничение скана (ветка feat/api-auth)
 - Backend: `AuthInterceptor` + `WebConfig` — Bearer обязателен на `/api/v1/**`,

@@ -65,6 +65,11 @@ jwt:
   access-ttl-hours: ${JWT_ACCESS_TTL_HOURS:24}
   refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}
 
+# ── Очистка мусора (Блок 15) ─────────────────────────────────────────
+cleanup:
+  draft-ttl-hours: ${CLEANUP_DRAFT_TTL_HOURS:24}
+  interval-ms:     ${CLEANUP_INTERVAL_MS:3600000}   # раз в час
+
 # ── Объектное хранилище фото (MinIO / S3-совместимое) ────────────────
 storage:
   provider: ${STORAGE_PROVIDER:minio}

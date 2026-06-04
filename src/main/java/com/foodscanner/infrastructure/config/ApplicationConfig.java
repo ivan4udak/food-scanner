@@ -33,6 +33,13 @@ public class ApplicationConfig {
     }
 
     @Bean
+    public PurgeStaleDraftsService purgeStaleDraftsService(
+            CatalogDraftRepository draftRepository,
+            com.foodscanner.application.port.PhotoStorage photoStorage) {
+        return new PurgeStaleDraftsService(draftRepository, photoStorage);
+    }
+
+    @Bean
     public PasswordHasher passwordHasher() {
         return new BCryptPasswordHasher();
     }
