@@ -319,4 +319,27 @@ Features/
 
 ---
 
+## PWA-фронтенд (`web/`, ветка feat/pwa, v1.2.0)
+
+Добавлен второй клиент — устанавливаемое PWA на React/TS/Vite, повторяющее
+функционал SwiftUI-клиента и использующее тот же backend `/api/v1` без изменений.
+
+- **Архитектура:** слои `api` (axios-клиент с Bearer + авто-refresh на 401, zod-валидация
+  ответов), `store` (Zustand: сессия + UI), `lib` (barcode: BarcodeDetector→ZXing fallback;
+  imageCompression: ≤1920/JPEG + EXIF), `hooks` (TanStack Query, heartbeat /ping),
+  `features` (auth/scan/draft/result/lookup/about).
+- **PWA:** Workbox SW + manifest; offline-кэш каталога (`/entries` NetworkFirst) и
+  фото (`/photos` CacheFirst); установка на iPhone через Safari → «На экран Домой».
+- **Фото:** выбор камера/галерея (`input[type=file capture]`), сжатие на клиенте,
+  multipart-загрузка с прогрессом; фото с Bearer грузятся как object URL.
+- **Диагностика:** экран About — версии, base API, состояние связи/Backend/MinIO
+  (через `/health`, Блок 20), размер кэша, «Скопировать диагностику».
+- **Инфра:** multistage Dockerfile (node→nginx), nginx (SPA + прокси `/api` →
+  `${BACKEND_URL}`), docker-compose (порт 8081).
+- **TDD:** 30 vitest-тестов (zod/ошибки/login/refresh/store/scan-gate/сжатие); `tsc` +
+  `vite build` зелёные; Docker-образ собирается, nginx-смоук (index/SW/SPA-fallback) ок.
+- **Журнал клиента:** `web/README.md`.
+
+---
+
 _Документ поддерживается вручную; детальный клиентский журнал — `ios/DEVELOPMENT.md`._

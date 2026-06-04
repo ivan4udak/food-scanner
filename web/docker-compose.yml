@@ -1,0 +1,21 @@
+# PWA-фронтенд Food Scanner. Собирает образ и раздаёт статику через nginx,
+# проксируя /api на существующий backend (Spring Boot, /api/v1) без его изменений.
+#
+# По умолчанию backend ожидается на хосте (mvn spring-boot:run, порт 8080):
+#   docker compose up -d --build
+# Если backend запущен в своей docker-сети — задайте BACKEND_URL=http://backend:8080
+# и подключите внешнюю сеть.
+services:
+  pwa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: foodscanner-pwa
+    ports:
+      - "8081:80"
+    environment:
+      # Без слеша на конце и без пути — nginx сам сохранит /api/v1/...
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

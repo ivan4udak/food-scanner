@@ -1,0 +1,44 @@
+{
+  "name": "food-scanner-pwa",
+  "version": "1.1.10",
+  "private": true,
+  "type": "module",
+  "description": "Food Scanner — installable PWA frontend (replaces the SwiftUI iOS client). Integrates the existing /api/v1 backend without changes.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 4173",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.51.1",
+    "@zxing/browser": "^0.2.0",
+    "@zxing/library": "^0.22.0",
+    "axios": "^1.7.2",
+    "browser-image-compression": "^2.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^24.1.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4",
+    "vite-plugin-pwa": "^0.20.1",
+    "vitest": "^2.0.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -11,6 +11,21 @@
 ## [Unreleased]
 - —
 
+## [1.2.0] — PWA-фронтенд (ветка feat/pwa)
+- Новый устанавливаемый PWA-клиент в `web/` (React 18 + TS 5 + Vite 5), заменяет
+  SwiftUI iOS-клиент; интегрирует существующий `/api/v1` **без изменений API**.
+- Паритет функционала: Login/Register/Recover, Scan (BarcodeDetector + ZXing fallback),
+  Draft + загрузка фото (getUserMedia/`input file` + сжатие `browser-image-compression`
+  ≤1920/JPEG + EXIF capturedAt), Complete, Lookup, About + Diagnostics (/health).
+- Стек: TanStack Query 5, React Router 6, Zustand (authStore/appStore), Axios
+  (Bearer + авто-refresh access на 401 с очередью и повтором), Zod (валидация ответов).
+- PWA: manifest + service worker (Workbox), offline-кэш каталога (`/entries`, NetworkFirst)
+  и фото (`/photos`, CacheFirst). Устанавливается на iPhone через Safari → «На экран Домой».
+- Инфраструктура: multistage `Dockerfile` (node→nginx), `nginx.conf` (SPA + прокси `/api`
+  на `${BACKEND_URL}` + no-cache для SW), `docker-compose.yml` (порт 8081).
+- TDD: 30 unit-тестов (vitest) — zod-схемы, нормализация ошибок, login-маппинг,
+  refresh-retry, authStore, scan-gate, опции сжатия/EXIF. `tsc` + `vite build` зелёные.
+
 ## [1.1.10] — Блок 20: экран About + диагностический пакет
 - Backend: новый публичный `GET /api/v1/health` (`HealthController` + `HealthResponse`),
   проверяет состояние хранилища через `PhotoStorage.isAvailable()` (MinIO `bucketExists`);

@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .kotlin
+web/.env.example
+web/.gitignore
+web/.env
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
