@@ -12,8 +12,8 @@ final class ConnectionMonitor: ObservableObject {
     }
 
     @Published private(set) var state: State = .connecting
-    /// Кратковременный зелёный баннер «Подключение установлено».
-    @Published var showConnectedBanner = false
+    /// Краткое сообщение для «расширения острова» при информировании (как у Самоката).
+    @Published var islandMessage: String?
 
     /// Поставщик актуального API-клиента (baseURL может меняться в настройках).
     var apiProvider: (() -> APIClient)?
@@ -60,19 +60,27 @@ final class ConnectionMonitor: ObservableObject {
         guard next != state else { return }
         let wasDown = state != .online
         state = next
-        if next == .online && wasDown {
-            flashConnected()
-            Haptics.success()
-        } else if next == .offline {
-            Haptics.warning()
+        switch next {
+        case .online:
+            if wasDown { expandIsland("Связь восстановлена"); Haptics.success() }
+        case .degraded:
+            expandIsland("Соединение нестабильно")
+        case .offline:
+            expandIsland("Нет соединения"); Haptics.warning()
+        case .connecting:
+            break
         }
     }
 
-    private func flashConnected() {
-        withAnimation(.spring(duration: 0.4)) { showConnectedBanner = true }
+    /// Раскрывает «остров» с сообщением на ~1.8с, затем сворачивает в кружок.
+    private func expandIsland(_ message: String) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { islandMessage = message }
+        let shown = message
         Task {
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
-            withAnimation(.easeOut(duration: 0.3)) { showConnectedBanner = false }
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            if islandMessage == shown {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) { islandMessage = nil }
+            }
         }
     }
 }

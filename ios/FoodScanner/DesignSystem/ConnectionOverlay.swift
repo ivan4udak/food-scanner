@@ -14,10 +14,9 @@ private struct ConnectionOverlayModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // Флюидное кольцо вокруг Dynamic Island / камеры. Без текста.
-            .overlay(alignment: .top) {
-                IslandRing(state: monitor.state, connectedFlash: monitor.showConnectedBanner)
-                    .ignoresSafeArea(edges: .top)
+            // Статус-кружок справа от Dynamic Island + расширение при информировании.
+            .overlay(alignment: .topTrailing) {
+                IslandCompanion(state: monitor.state, message: monitor.islandMessage)
                     .allowsHitTesting(false)
             }
             .overlay { if monitor.state == .offline { OfflineBlocker(monitor: monitor) } }
@@ -25,12 +24,12 @@ private struct ConnectionOverlayModifier: ViewModifier {
     }
 }
 
-// MARK: - Флюидное кольцо вокруг Dynamic Island
+// MARK: - Спутник Dynamic Island (кружок справа + расширение, стиль Самоката)
 
-private struct IslandRing: View {
+private struct IslandCompanion: View {
     let state: ConnectionMonitor.State
-    let connectedFlash: Bool
-    @State private var breathe = false
+    let message: String?
+    @State private var pulse = false
 
     private var color: Color {
         switch state {
@@ -41,26 +40,41 @@ private struct IslandRing: View {
         }
     }
 
-    /// Кольцо видно при проблеме всегда; при online — только короткой вспышкой при подключении.
-    private var visible: Bool { state != .online || connectedFlash }
-
     var body: some View {
         let di = DeviceInfo.hasDynamicIsland
-        // Габариты «острова» (iPhone с Dynamic Island) либо компактная капсула сверху.
-        let w: CGFloat = di ? 134 : 66
-        let h: CGFloat = di ? 40  : 12
-        let topPad: CGFloat = di ? 9 : 6
+        let expanded = message != nil
 
-        Capsule(style: .continuous)
-            .stroke(color, lineWidth: 3.5)
-            .frame(width: w + (breathe ? 7 : 2), height: h + (breathe ? 7 : 2))
-            .shadow(color: color.opacity(0.85), radius: breathe ? 12 : 5)
-            .opacity(visible ? (breathe ? 0.95 : 0.6) : 0)
-            .padding(.top, topPad)
-            .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: breathe)
-            .animation(.easeInOut(duration: 0.5), value: visible)
-            .animation(.easeInOut(duration: 0.4), value: color)
-            .onAppear { breathe = true }
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 10, height: 10)
+                .overlay(
+                    Circle().stroke(color.opacity(0.5), lineWidth: 5)
+                        .scaleEffect(pulse ? 1.9 : 1).opacity(pulse ? 0 : 0.5)
+                )
+            if expanded {
+                Text(message ?? "")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .padding(.horizontal, expanded ? 12 : 8)
+        .padding(.vertical, 7)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.black)
+                .shadow(color: color.opacity(0.5), radius: expanded ? 8 : 3)
+        )
+        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
+        // Прижимаем к верху рядом с «островом» (справа). Адаптив под DI/ notch / плоский.
+        .padding(.top, di ? 14 : 8)
+        .padding(.trailing, di ? 16 : 12)
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) { pulse = true }
+        }
     }
 }
 
