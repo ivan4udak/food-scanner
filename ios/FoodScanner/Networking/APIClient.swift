@@ -56,9 +56,12 @@ struct APIClient {
 
     /// Загружает БИНАРНОЕ фото (multipart). Исходный формат сохраняется как есть.
     /// capturedAt — дата съёмки из метаданных (для камеры можно передать текущее время или nil).
+    /// Загружает фото (multipart) с прогрессом отправки. onProgress: 0…1 (доля отправленных байт).
+    /// Когда дошло до 1.0 — идёт ожидание ответа сервера.
     func addPhoto(draftId: UUID, contributorId: UUID, type: String,
                   imageData: Data, filename: String, mimeType: String,
-                  capturedAt: Date?) async throws -> AddDraftPhotoResponse {
+                  capturedAt: Date?,
+                  onProgress: (@Sendable (Double) -> Void)? = nil) async throws -> AddDraftPhotoResponse {
         guard let url = URL(string: "drafts/\(draftId.uuidString)/photos", relativeTo: apiRoot) else {
             throw APIError.invalidURL
         }
@@ -67,6 +70,7 @@ struct APIClient {
         req.httpMethod = "POST"
         req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let accessToken { req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization") }
 
         var body = Data()
         func field(_ name: String, _ value: String) {
@@ -87,9 +91,16 @@ struct APIClient {
         body.append(imageData)
         body.append("\r\n")
         body.append("--\(boundary)--\r\n")
-        req.httpBody = body
 
-        return try await send(req, allow404: false)!
+        let data: Data
+        let response: URLResponse
+        do {
+            let delegate = onProgress.map { UploadProgressDelegate(onProgress: $0) }
+            (data, response) = try await URLSession.shared.upload(for: req, from: body, delegate: delegate)
+        } catch {
+            throw APIError.transport(error)
+        }
+        return try process(data, response, allow404: false)!
     }
 
     /// URL фото. thumbnail=true → лёгкое превью (~144px), иначе full (≤1920).
@@ -260,6 +271,11 @@ struct APIClient {
         } catch {
             throw APIError.transport(error)
         }
+        return try process(data, response, allow404: allow404)
+    }
+
+    /// Общая обработка ответа: коды/ошибки/декод.
+    private func process<R: Decodable>(_ data: Data, _ response: URLResponse, allow404: Bool) throws -> R? {
         guard let http = response as? HTTPURLResponse else { throw APIError.empty }
 
         if http.statusCode == 404 && allow404 { return nil }
@@ -282,6 +298,19 @@ struct APIClient {
 
     private var apiRoot: URL {
         baseURL.appendingPathComponent("api/v1/")
+    }
+}
+
+/// Делегат прогресса отправки multipart-тела (Блок 17).
+final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
+    private let onProgress: @Sendable (Double) -> Void
+    init(onProgress: @escaping @Sendable (Double) -> Void) { self.onProgress = onProgress }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    didSendBodyData bytesSent: Int64,
+                    totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        onProgress(min(1, Double(totalBytesSent) / Double(totalBytesExpectedToSend)))
     }
 }
 
