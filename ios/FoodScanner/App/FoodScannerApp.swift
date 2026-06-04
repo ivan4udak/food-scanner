@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct FoodScannerApp: App {
@@ -19,6 +20,7 @@ struct FoodScannerApp: App {
                 .environmentObject(state)
                 .environmentObject(connection)
                 .environmentObject(busy)
+                .modelContainer(for: CachedEntry.self)
                 .task {
                     connection.apiProvider = { state.api }
                     connection.start()
