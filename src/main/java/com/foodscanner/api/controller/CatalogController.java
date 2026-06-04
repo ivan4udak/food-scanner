@@ -44,6 +44,9 @@ public class CatalogController {
     private final PhotoStorage                    photoStorage;
     private final ImageProcessor                  imageProcessor;
 
+    /** Имя request-атрибута с id аутентифицированного пользователя (ставит AuthInterceptor). */
+    private static final String AUTH_CONTRIBUTOR = "authContributorId";
+
     /** Full ≤ 1920 по большей стороне (≤ 2K), thumbnail ~144px. Оригинал не хранится. */
     private static final int    FULL_MAX_SIDE = 1920;
     private static final int    THUMB_WIDTH   = 144;
@@ -92,9 +95,12 @@ public class CatalogController {
      */
     @PostMapping("/scan")
     public ResponseEntity<ScanBarcodeResponse> scan(
-            @Valid @RequestBody ScanBarcodeRequest request) {
+            @Valid @RequestBody ScanBarcodeRequest request,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity.ok(
-            mapper.toResponse(scanBarcode.execute(mapper.toCommand(request))));
+            mapper.toResponse(scanBarcode.execute(
+                new com.foodscanner.application.command.ScanBarcodeCommand(
+                    request.getBarcodeValue(), contributorId))));
     }
 
     /**
@@ -110,9 +116,9 @@ public class CatalogController {
     public ResponseEntity<AddDraftPhotoResponse> addPhoto(
             @PathVariable UUID draftId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("contributorId") UUID contributorId,
             @RequestParam("photoType") String photoType,
-            @RequestParam(value = "capturedAt", required = false) String capturedAt) throws Exception {
+            @RequestParam(value = "capturedAt", required = false) String capturedAt,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) throws Exception {
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File must not be empty");
@@ -181,11 +187,12 @@ public class CatalogController {
     @PostMapping("/drafts/{draftId}/complete")
     public ResponseEntity<CompleteCatalogResponse> completeCatalog(
             @PathVariable UUID draftId,
-            @Valid @RequestBody CompleteCatalogRequest request) {
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(mapper.toResponse(
-                completeCatalog.execute(mapper.toCommand(draftId, request))));
+                completeCatalog.execute(
+                    new com.foodscanner.application.command.CompleteCatalogCommand(draftId, contributorId))));
     }
 
     /**
