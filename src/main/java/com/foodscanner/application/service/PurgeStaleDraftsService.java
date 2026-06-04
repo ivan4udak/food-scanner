@@ -6,25 +6,32 @@ import com.foodscanner.application.usecase.PurgeStaleDraftsUseCase;
 import com.foodscanner.domain.model.CatalogDraft;
 import com.foodscanner.domain.model.DraftPhoto;
 import com.foodscanner.domain.repository.CatalogDraftRepository;
+import com.foodscanner.domain.repository.PhotoObjectRepository;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Слой: application
- * Удаляет незавершённые черновики старше maxAge: объекты в хранилище (full + thumbnail),
- * затем сам черновик (draft_photos — каскадно). Best-effort по объектам:
- * ошибка удаления одного не останавливает очистку остальных.
+ * Удаляет незавершённые черновики старше maxAge. С учётом дедупликации (Блок 16):
+ * объект в хранилище удаляется только если на него больше нет ссылок
+ * (ни из draft_photos, ни из catalog_entry_photos). Best-effort по объектам.
  */
 public class PurgeStaleDraftsService implements PurgeStaleDraftsUseCase {
 
     private final CatalogDraftRepository draftRepository;
     private final PhotoStorage           photoStorage;
+    private final PhotoObjectRepository  photoObjects;
 
-    public PurgeStaleDraftsService(CatalogDraftRepository draftRepository, PhotoStorage photoStorage) {
+    public PurgeStaleDraftsService(CatalogDraftRepository draftRepository,
+                                   PhotoStorage photoStorage,
+                                   PhotoObjectRepository photoObjects) {
         this.draftRepository = draftRepository;
         this.photoStorage    = photoStorage;
+        this.photoObjects    = photoObjects;
     }
 
     @Override
@@ -34,11 +41,17 @@ public class PurgeStaleDraftsService implements PurgeStaleDraftsUseCase {
 
         int objects = 0;
         for (CatalogDraft draft : stale) {
-            for (DraftPhoto photo : draft.getPhotos()) {
-                objects += deleteQuietly(photo.getStorageKey());
-                objects += deleteQuietly(thumbKey(photo.getStorageKey()));
+            Set<String> keys = new LinkedHashSet<>();
+            for (DraftPhoto p : draft.getPhotos()) keys.add(p.getStorageKey());
+
+            draftRepository.deleteById(draft.getId());   // удаляет draft_photos (каскад)
+
+            for (String key : keys) {
+                if (photoObjects.isObjectKeyReferenced(key)) continue;  // объект ещё используется
+                objects += deleteQuietly(key);
+                objects += deleteQuietly(DeduplicatingPhotoStore.thumbKey(key));
+                photoObjects.deleteByObjectKey(key);
             }
-            draftRepository.deleteById(draft.getId());
         }
         return new PurgeResult(stale.size(), objects);
     }
@@ -48,12 +61,7 @@ public class PurgeStaleDraftsService implements PurgeStaleDraftsUseCase {
             photoStorage.delete(key);
             return 1;
         } catch (RuntimeException e) {
-            return 0;   // объект мог отсутствовать — не валим очистку
+            return 0;
         }
-    }
-
-    private static String thumbKey(String key) {
-        int dot = key.lastIndexOf('.');
-        return dot < 0 ? key + "_thumb" : key.substring(0, dot) + "_thumb" + key.substring(dot);
     }
 }

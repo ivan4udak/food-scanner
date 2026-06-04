@@ -33,10 +33,18 @@ public class ApplicationConfig {
     }
 
     @Bean
+    public com.foodscanner.application.port.PhotoStore photoStore(
+            com.foodscanner.application.port.PhotoStorage photoStorage,
+            com.foodscanner.domain.repository.PhotoObjectRepository photoObjects) {
+        return new DeduplicatingPhotoStore(photoStorage, photoObjects);
+    }
+
+    @Bean
     public PurgeStaleDraftsService purgeStaleDraftsService(
             CatalogDraftRepository draftRepository,
-            com.foodscanner.application.port.PhotoStorage photoStorage) {
-        return new PurgeStaleDraftsService(draftRepository, photoStorage);
+            com.foodscanner.application.port.PhotoStorage photoStorage,
+            com.foodscanner.domain.repository.PhotoObjectRepository photoObjects) {
+        return new PurgeStaleDraftsService(draftRepository, photoStorage, photoObjects);
     }
 
     @Bean

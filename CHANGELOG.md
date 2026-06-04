@@ -9,8 +9,17 @@
 ---
 
 ## [Unreleased]
-- Блоки 16–20 (SHA-256 дедупликация, прогресс загрузки,
-  офлайн-кэш каталога, экран настроек, About/TestFlight).
+- UX-нюансы iOS: остров в стиле Самоката (расширение + кружок справа), адрес сервера
+  над клавиатурой, адаптация под размеры (5/6/7/X/15…).
+- Блоки 17–20 (прогресс загрузки, офлайн-кэш каталога, экран настроек, About/TestFlight).
+
+## [1.1.4] — Блок 16: SHA-256 дедупликация (ветка feat/dedup)
+- Контент-адресное хранение: ключ = `photos/{sha256(full)}.jpg`. `PhotoStore`/`DeduplicatingPhotoStore`
+  + порт `PhotoObjectRepository` + таблица `photo_objects` (V10). Дубликат не заливается повторно.
+- Очистка (Блок 15) стала hash-aware: объект удаляется только если на него больше нет ссылок
+  (draft_photos/catalog_entry_photos). Просмотр каталога по ШК остаётся публичным (любой клиент).
+- Тесты: DeduplicatingPhotoStoreTest, обновлён PurgeStaleDraftsServiceTest — 154 зелёных.
+- Проверено вживую: один файл в 2 черновика → 1 объект в photo_objects.
 
 ## [1.1.3] — Блок 15: очистка мусора (ветка feat/cleanup-job)
 - `@Scheduled` (раз в час) `StaleDraftCleanupJob` → use-case `PurgeStaleDraftsService`:

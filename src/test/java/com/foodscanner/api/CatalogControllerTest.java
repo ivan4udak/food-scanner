@@ -21,6 +21,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import com.foodscanner.application.port.PhotoStorage;
 import com.foodscanner.application.port.ImageProcessor;
+import com.foodscanner.application.port.PhotoStore;
 
 import java.time.Instant;
 import java.util.List;
@@ -59,6 +60,7 @@ class CatalogControllerTest {
     @MockBean FindCatalogEntryByBarcodeUseCase findByBarcode;
     @MockBean PhotoStorage                     photoStorage;
     @MockBean ImageProcessor                   imageProcessor;
+    @MockBean PhotoStore                       photoStore;
 
     // ──────────────────────────────────────────────
     @Nested
@@ -173,7 +175,7 @@ class CatalogControllerTest {
         @Test
         @DisplayName("200 с прогрессом после загрузки фото (multipart)")
         void shouldReturnProgressAfterAdd() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenReturn(new AddDraftPhotoResult(1, 4,
                     Set.of(com.foodscanner.domain.model.PhotoType.BARCODE,
@@ -196,7 +198,7 @@ class CatalogControllerTest {
         @Test
         @DisplayName("200 complete=true когда все обязательные загружены")
         void shouldReturnCompleteTrueWhenAllUploaded() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/nutrition/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenReturn(new AddDraftPhotoResult(4, 4, Set.of(), true));
 
@@ -214,7 +216,7 @@ class CatalogControllerTest {
         @DisplayName("404 если черновик не найден")
         void shouldReturn404WhenDraftNotFound() throws Exception {
             UUID draftId = UUID.randomUUID();
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/front/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
             when(addDraftPhoto.execute(any()))
                 .thenThrow(new CatalogDraftNotFoundException(draftId));
 
@@ -230,7 +232,7 @@ class CatalogControllerTest {
         @Test
         @DisplayName("400 при невалидном PhotoType")
         void shouldReturn400WhenPhotoTypeInvalid() throws Exception {
-            when(photoStorage.upload(any(), any(), any())).thenReturn("drafts/x/u.jpg");
+            when(photoStore.store(any(), any(), any())).thenReturn("photos/h.jpg");
 
             mockMvc.perform(multipart("/api/v1/drafts/{draftId}/photos", UUID.randomUUID())
                     .file(photo())

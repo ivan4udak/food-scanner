@@ -43,6 +43,7 @@ public class CatalogController {
     private final CatalogApiMapper                mapper;
     private final PhotoStorage                    photoStorage;
     private final ImageProcessor                  imageProcessor;
+    private final com.foodscanner.application.port.PhotoStore photoStore;
 
     /** Имя request-атрибута с id аутентифицированного пользователя (ставит AuthInterceptor). */
     private static final String AUTH_CONTRIBUTOR = "authContributorId";
@@ -61,7 +62,8 @@ public class CatalogController {
             FindCatalogEntryByBarcodeUseCase findByBarcode,
             CatalogApiMapper mapper,
             PhotoStorage photoStorage,
-            ImageProcessor imageProcessor) {
+            ImageProcessor imageProcessor,
+            com.foodscanner.application.port.PhotoStore photoStore) {
         this.registerContributor = registerContributor;
         this.scanBarcode         = scanBarcode;
         this.addDraftPhoto       = addDraftPhoto;
@@ -70,6 +72,7 @@ public class CatalogController {
         this.mapper              = mapper;
         this.photoStorage        = photoStorage;
         this.imageProcessor      = imageProcessor;
+        this.photoStore          = photoStore;
     }
 
     /**
@@ -129,11 +132,8 @@ public class CatalogController {
         byte[] full  = imageProcessor.resizeToMaxSide(original, FULL_MAX_SIDE, FULL_QUALITY);
         byte[] thumb = imageProcessor.thumbnail(original, THUMB_WIDTH, THUMB_QUALITY);
 
-        String objectKey = "drafts/" + draftId + "/" + photoType.toLowerCase()
-            + "/" + UUID.randomUUID() + ".jpg";
-
-        photoStorage.upload(full,  "image/jpeg", objectKey);
-        photoStorage.upload(thumb, "image/jpeg", thumbKey(objectKey));
+        // Block 16: дедупликация по SHA-256 — контент-адресный ключ, без повторной заливки.
+        String objectKey = photoStore.store(full, thumb, "image/jpeg");
 
         Instant captured = parseInstant(capturedAt);
 
