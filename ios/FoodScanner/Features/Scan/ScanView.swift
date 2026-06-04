@@ -15,6 +15,7 @@ struct ScanView: View {
     @State private var processing = false
     @State private var error: String?
     @State private var lastCode: String?
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -31,6 +32,7 @@ struct ScanView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { toolbar }
+        .sheet(isPresented: $showSettings) { SettingsView() }
         .task { await prepareCamera() }
         .onAppear { resumeIfNeeded() }
         .onDisappear { cameraActive = false }
@@ -128,13 +130,8 @@ struct ScanView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Label(state.nickname ?? "—", systemImage: "person")
-                Button(role: .destructive) { state.signOut() } label: {
-                    Label("Сменить профиль", systemImage: "arrow.left.arrow.right")
-                }
-            } label: {
-                Image(systemName: "person.crop.circle").foregroundStyle(.white)
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape").foregroundStyle(.white)
             }
         }
     }
