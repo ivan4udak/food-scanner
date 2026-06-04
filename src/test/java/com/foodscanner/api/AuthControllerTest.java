@@ -27,7 +27,11 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest({AuthController.class, AdminController.class, PingController.class})
+@WebMvcTest(controllers = {AuthController.class, AdminController.class, PingController.class},
+    excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
+        type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
+        classes = {com.foodscanner.infrastructure.config.WebConfig.class,
+                   com.foodscanner.infrastructure.security.AuthInterceptor.class}))
 @Import(GlobalExceptionHandler.class)
 @DisplayName("Auth/Admin/Ping — Contract Tests")
 class AuthControllerTest {

@@ -3,7 +3,11 @@ import UIKit
 
 struct ScanView: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var connection: ConnectionMonitor
     @Binding var path: NavigationPath
+
+    /// Сканирование разрешено только при стабильном соединении (Блок 14, клиент).
+    private var scanAllowed: Bool { connection.state == .online }
 
     @State private var access: CameraAccess = .undetermined
     @State private var cameraActive = false
@@ -30,6 +34,12 @@ struct ScanView: View {
         .task { await prepareCamera() }
         .onAppear { resumeIfNeeded() }
         .onDisappear { cameraActive = false }
+        // Пауза скана при потере/деградации связи; возобновление и снятие статуса при online.
+        .onChange(of: connection.state) { _, _ in syncCamera() }
+    }
+
+    private func syncCamera() {
+        cameraActive = (access == .authorized) && !processing && scanAllowed
     }
 
     // MARK: Camera
@@ -83,13 +93,26 @@ struct ScanView: View {
                 ErrorBanner(message: error)
             }
             if access == .authorized {
-                Label("Наведите камеру на штрихкод", systemImage: "viewfinder")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16).padding(.vertical, 12)
-                    .background(.ultraThinMaterial, in: Capsule())
+                switch connection.state {
+                case .offline:
+                    statusPill("Нет подключения — сканер выключен", icon: "wifi.slash", tint: Theme.danger)
+                case .degraded:
+                    statusPill("Ожидание ответа сервера…", icon: "clock.arrow.circlepath", tint: Theme.warning)
+                case .connecting:
+                    statusPill("Подключение…", icon: "wifi", tint: .gray)
+                case .online:
+                    statusPill("Наведите камеру на штрихкод", icon: "viewfinder", tint: .white)
+                }
             }
         }
+    }
+
+    private func statusPill(_ text: String, icon: String, tint: Color) -> some View {
+        Label(text, systemImage: icon)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(tint == .white ? Color.white : tint)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: Capsule())
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
@@ -121,27 +144,28 @@ struct ScanView: View {
     private func prepareCamera() async {
         switch CameraAccess.current {
         case .authorized:
-            access = .authorized; cameraActive = true
+            access = .authorized
         case .undetermined:
             let granted = await CameraAccess.request()
             access = granted ? .authorized : .denied
-            cameraActive = granted
         case .denied:
             access = .denied
         case .unavailable:
             access = .unavailable
         }
+        syncCamera()
     }
 
     private func resumeIfNeeded() {
         processing = false
         error = nil
         lastCode = nil
-        if access == .authorized { cameraActive = true }
+        syncCamera()
     }
 
     private func handle(code: String) {
-        guard !processing, code != lastCode,
+        // Не сканируем без стабильного соединения (ждём, а не продолжаем).
+        guard scanAllowed, !processing, code != lastCode,
               let contributorId = state.contributorId else { return }
         lastCode = code
         processing = true
@@ -161,7 +185,7 @@ struct ScanView: View {
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
                 processing = false
                 lastCode = nil
-                cameraActive = (access == .authorized)
+                syncCamera()
             }
         }
     }
