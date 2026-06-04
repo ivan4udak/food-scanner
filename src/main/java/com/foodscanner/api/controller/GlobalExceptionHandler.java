@@ -71,6 +71,12 @@ public class GlobalExceptionHandler {
             .body(new ErrorResponse(423, "Locked", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(new ErrorResponse(401, "Unauthorized", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidAdminCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleAdmin(InvalidAdminCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -99,6 +105,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(new ErrorResponse(400, "Bad Request", ex.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(new ErrorResponse(400, "Bad Request", "Некорректное тело запроса"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

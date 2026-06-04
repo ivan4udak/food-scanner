@@ -61,9 +61,33 @@ struct CatalogEntryResponse: Decodable, Identifiable {
     }
 }
 
+struct AuthResponse: Decodable {
+    let status: String
+    let contributorId: UUID?
+    let username: String?
+    let accessToken: String?
+    let refreshToken: String?
+    let message: String?
+}
+
+/// Успешная аутентификация: профиль + пара токенов.
+struct Session {
+    let contributorId: UUID
+    let username: String
+    let accessToken: String
+    let refreshToken: String
+}
+
 struct ServerErrorResponse: Decodable {
     let status: Int
     let error: String
     let message: String
     let details: [String]?
+}
+
+/// Блок 20: диагностика — состояние backend и хранилища (MinIO).
+struct HealthResponse: Decodable {
+    let status: String     // "OK" | "DEGRADED"
+    let backend: String    // "UP"
+    let storage: String    // "UP" | "DOWN"
 }

@@ -12,6 +12,7 @@ public interface ContributorJpaRepository
         extends JpaRepository<ContributorJpaEntity, UUID> {
     boolean existsByNickname(String nickname);
     Optional<ContributorJpaEntity> findByUsername(String username);
+    Optional<ContributorJpaEntity> findByNickname(String nickname);
 
     /** Удаляет аккаунты, у которых истекло окно восстановления (пароль так и не задан). */
     @Modifying

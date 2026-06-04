@@ -38,6 +38,23 @@ actor ImageStore {
         return img
     }
 
+    /// Полностью очищает кэш изображений (память + диск). Возвращает освобождённый размер (байт).
+    func clear() -> Int64 {
+        memory.removeAllObjects()
+        let size = diskSize()
+        try? fileManager.removeItem(at: dir)
+        try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        return size
+    }
+
+    /// Текущий размер дискового кэша (байт).
+    func diskSize() -> Int64 {
+        guard let files = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey]) else { return 0 }
+        return files.reduce(0) { acc, url in
+            acc + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        }
+    }
+
     private func cacheKey(_ storageKey: String, _ thumbnail: Bool) -> String {
         let raw = (thumbnail ? "thumb:" : "full:") + storageKey
         let digest = SHA256.hash(data: Data(raw.utf8))

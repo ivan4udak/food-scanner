@@ -43,6 +43,10 @@ public class CatalogController {
     private final CatalogApiMapper                mapper;
     private final PhotoStorage                    photoStorage;
     private final ImageProcessor                  imageProcessor;
+    private final com.foodscanner.application.port.PhotoStore photoStore;
+
+    /** Имя request-атрибута с id аутентифицированного пользователя (ставит AuthInterceptor). */
+    private static final String AUTH_CONTRIBUTOR = "authContributorId";
 
     /** Full ≤ 1920 по большей стороне (≤ 2K), thumbnail ~144px. Оригинал не хранится. */
     private static final int    FULL_MAX_SIDE = 1920;
@@ -58,7 +62,8 @@ public class CatalogController {
             FindCatalogEntryByBarcodeUseCase findByBarcode,
             CatalogApiMapper mapper,
             PhotoStorage photoStorage,
-            ImageProcessor imageProcessor) {
+            ImageProcessor imageProcessor,
+            com.foodscanner.application.port.PhotoStore photoStore) {
         this.registerContributor = registerContributor;
         this.scanBarcode         = scanBarcode;
         this.addDraftPhoto       = addDraftPhoto;
@@ -67,6 +72,7 @@ public class CatalogController {
         this.mapper              = mapper;
         this.photoStorage        = photoStorage;
         this.imageProcessor      = imageProcessor;
+        this.photoStore          = photoStore;
     }
 
     /**
@@ -92,9 +98,12 @@ public class CatalogController {
      */
     @PostMapping("/scan")
     public ResponseEntity<ScanBarcodeResponse> scan(
-            @Valid @RequestBody ScanBarcodeRequest request) {
+            @Valid @RequestBody ScanBarcodeRequest request,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity.ok(
-            mapper.toResponse(scanBarcode.execute(mapper.toCommand(request))));
+            mapper.toResponse(scanBarcode.execute(
+                new com.foodscanner.application.command.ScanBarcodeCommand(
+                    request.getBarcodeValue(), contributorId))));
     }
 
     /**
@@ -110,9 +119,9 @@ public class CatalogController {
     public ResponseEntity<AddDraftPhotoResponse> addPhoto(
             @PathVariable UUID draftId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("contributorId") UUID contributorId,
             @RequestParam("photoType") String photoType,
-            @RequestParam(value = "capturedAt", required = false) String capturedAt) throws Exception {
+            @RequestParam(value = "capturedAt", required = false) String capturedAt,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) throws Exception {
 
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File must not be empty");
@@ -123,11 +132,8 @@ public class CatalogController {
         byte[] full  = imageProcessor.resizeToMaxSide(original, FULL_MAX_SIDE, FULL_QUALITY);
         byte[] thumb = imageProcessor.thumbnail(original, THUMB_WIDTH, THUMB_QUALITY);
 
-        String objectKey = "drafts/" + draftId + "/" + photoType.toLowerCase()
-            + "/" + UUID.randomUUID() + ".jpg";
-
-        photoStorage.upload(full,  "image/jpeg", objectKey);
-        photoStorage.upload(thumb, "image/jpeg", thumbKey(objectKey));
+        // Block 16: дедупликация по SHA-256 — контент-адресный ключ, без повторной заливки.
+        String objectKey = photoStore.store(full, thumb, "image/jpeg");
 
         Instant captured = parseInstant(capturedAt);
 
@@ -181,11 +187,12 @@ public class CatalogController {
     @PostMapping("/drafts/{draftId}/complete")
     public ResponseEntity<CompleteCatalogResponse> completeCatalog(
             @PathVariable UUID draftId,
-            @Valid @RequestBody CompleteCatalogRequest request) {
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(mapper.toResponse(
-                completeCatalog.execute(mapper.toCommand(draftId, request))));
+                completeCatalog.execute(
+                    new com.foodscanner.application.command.CompleteCatalogCommand(draftId, contributorId))));
     }
 
     /**

@@ -1,15 +1,39 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct FoodScannerApp: App {
     @StateObject private var state = AppState()
+    @StateObject private var connection = ConnectionMonitor()
+    @StateObject private var busy = BusyController()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(state)
                 .tint(Theme.accent)
                 .preferredColorScheme(.light)
+                .busyOverlay(busy)
+                .connectionOverlay(connection)
+                // environmentObject — снаружи оверлеев, чтобы их содержимое
+                // (напр. OfflineBlocker) тоже видело AppState.
+                .environmentObject(state)
+                .environmentObject(connection)
+                .environmentObject(busy)
+                .modelContainer(for: CachedEntry.self)
+                .task {
+                    connection.apiProvider = { state.api }
+                    connection.start()
+                    // Автообновление access-токена при старте; если refresh протух — logout.
+                    if state.isRegistered { await state.refreshSession() }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .active:                connection.start()
+                    case .background, .inactive: connection.stop()
+                    @unknown default:            break
+                    }
+                }
         }
     }
 }
@@ -26,11 +50,17 @@ struct RootView: View {
     @EnvironmentObject private var state: AppState
 
     var body: some View {
-        if state.isRegistered {
-            ScanFlowView()
-        } else {
-            RegisterView()
+        ZStack {
+            if state.isRegistered {
+                ScanFlowView()
+                    .transition(.opacity)
+            } else {
+                LoginView()
+                    .transition(.opacity)
+            }
         }
+        // Плавная (без рывков) смена экрана после ответа сервера.
+        .animation(.easeInOut(duration: 0.5), value: state.isRegistered)
     }
 }
 
