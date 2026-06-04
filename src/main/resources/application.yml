@@ -145,7 +145,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: ${MANAGEMENT_ENDPOINTS:health,info,prometheus}
+      base-path: /actuator
   endpoint:
     health:
       show-details: ${HEALTH_SHOW_DETAILS:when-authorized}
+      probes:
+        enabled: true   # /actuator/health/liveness|readiness
+  metrics:
+    tags:
+      application: food-scanner
+      env: ${APP_ENV:local}    # staging|preprod|production — разделение в Grafana
+  prometheus:
+    metrics:
+      export:
+        enabled: ${PROMETHEUS_ENABLED:true}
