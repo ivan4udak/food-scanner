@@ -154,6 +154,22 @@ struct APIClient {
         }
     }
 
+    /// Диагностика (Блок 20): состояние backend + MinIO. nil при сетевой ошибке.
+    func health(timeout: TimeInterval = 4) async -> HealthResponse? {
+        guard let url = URL(string: "health", relativeTo: apiRoot) else { return nil }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = timeout
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        do {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return nil }
+            return try? Self.decoder.decode(HealthResponse.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: Auth
 
     func login(username: String, password: String) async throws -> LoginOutcome {

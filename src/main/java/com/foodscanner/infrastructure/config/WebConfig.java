@@ -25,7 +25,8 @@ public class WebConfig implements WebMvcConfigurer {
             .addPathPatterns("/api/v1/**")
             .excludePathPatterns(
                 "/api/v1/auth/**",   // login/register/recover/refresh
-                "/api/v1/ping"
+                "/api/v1/ping",
+                "/api/v1/health"     // диагностика (экран «О приложении»)
             );
     }
 }

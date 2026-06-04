@@ -75,4 +75,15 @@ public class MinioPhotoStorage implements PhotoStorage {
             throw new StorageException("Failed to delete object '" + objectKey + "'", e);
         }
     }
+
+    @Override
+    public boolean isAvailable() {
+        try {
+            // Лёгкая проверка связи с MinIO: запрос наличия бакета.
+            client.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

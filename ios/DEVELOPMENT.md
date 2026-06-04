@@ -155,6 +155,15 @@ Features/     Onboarding · Scan · Draft · Result · Lookup
 - Фикс: `environmentObject` вынесен наружу оверлеев, иначе `OfflineBlocker`
   не видел `AppState` → краш при переходе в offline.
 
+### Блок 20 ✅ — экран About + диагностика (v1.1.10)
+- `AboutView` (Настройки → «О приложении»): версии iOS/приложения/сборки, Backend URL,
+  состояние связи (из `ConnectionMonitor`), Backend/MinIO (из нового `GET /api/v1/health`),
+  размер кэша. Кнопка «Скопировать диагностику» — весь пакет + Contributor ID/логин в буфер.
+- `APIClient.health()` (публичный путь, nil при сетевой ошибке) + `HealthResponse`.
+- Backend: `HealthController` + `PhotoStorage.isAvailable()` (MinIO `bucketExists`), путь в
+  whitelist `WebConfig` рядом с `/ping`. Тесты `HealthControllerTest` — 156 зелёных.
+- Версия в `project.pbxproj` приведена к тегам: `1.0/1 → 1.1.10/20` (для TestFlight).
+
 ### Итог vNext
 Закрыты блоки 1–12. Остаётся опционально: хаптик на успешном скане (частично есть),
 Live Activity для «настоящего» Dynamic Island, OCR (будущий этап).

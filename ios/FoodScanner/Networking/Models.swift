@@ -84,3 +84,10 @@ struct ServerErrorResponse: Decodable {
     let message: String
     let details: [String]?
 }
+
+/// Блок 20: диагностика — состояние backend и хранилища (MinIO).
+struct HealthResponse: Decodable {
+    let status: String     // "OK" | "DEGRADED"
+    let backend: String    // "UP"
+    let storage: String    // "UP" | "DOWN"
+}

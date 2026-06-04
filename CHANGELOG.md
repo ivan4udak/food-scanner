@@ -9,7 +9,18 @@
 ---
 
 ## [Unreleased]
-- Блок 20 (About + диагностический пакет, подготовка к TestFlight).
+- —
+
+## [1.1.10] — Блок 20: экран About + диагностический пакет
+- Backend: новый публичный `GET /api/v1/health` (`HealthController` + `HealthResponse`),
+  проверяет состояние хранилища через `PhotoStorage.isAvailable()` (MinIO `bucketExists`);
+  `status` = OK / DEGRADED, поля `backend`/`storage`. `/ping` не изменён (heartbeat не утяжеляем).
+- iOS: экран `AboutView` (Настройки → «О приложении»): версии iOS/приложения/сборки,
+  Backend URL, состояние связи/Backend/MinIO, размер кэша, кнопка «Скопировать диагностику»
+  (копирует весь пакет + Contributor ID/логин в буфер). `APIClient.health()` + `HealthResponse`.
+- Версия приложения синхронизирована с git-тегами (для TestFlight):
+  `MARKETING_VERSION 1.0 → 1.1.10`, `CURRENT_PROJECT_VERSION 1 → 20`.
+- Тесты: `HealthControllerTest` (OK/DEGRADED) — всего **156 зелёных**.
 
 ## [1.1.9] — UX-фиксы и оптимизация
 - Убрана «непонятная точка» острова: индикатор виден только при проблемах (degraded/offline)

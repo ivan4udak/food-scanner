@@ -57,8 +57,11 @@ struct SettingsView: View {
                 }
 
                 Section("Приложение") {
-                    row("Версия", AppInfo.version)
-                    row("Сборка", AppInfo.build)
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        row("О приложении", "\(AppInfo.version) (\(AppInfo.build))")
+                    }
                     Button { clearCache() } label: {
                         HStack {
                             Label("Очистить кэш", systemImage: "trash")
