@@ -65,4 +65,14 @@ public class MinioPhotoStorage implements PhotoStorage {
             throw new StorageException("Failed to download object '" + objectKey + "'", e);
         }
     }
+
+    @Override
+    public void delete(String objectKey) {
+        try {
+            client.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
+        } catch (Exception e) {
+            // Идемпотентно: отсутствие объекта не должно ронять очистку.
+            throw new StorageException("Failed to delete object '" + objectKey + "'", e);
+        }
+    }
 }
