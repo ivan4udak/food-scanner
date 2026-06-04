@@ -20,5 +20,10 @@ EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=4s --start-period=45s --retries=5 \
   CMD wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1
 
+# Дефолтные JVM-настройки под маленький сервер (несколько окружений на одном хосте):
+# фиксированный небольшой heap + SerialGC + ограниченный JIT → стабильное потребление RAM.
+# Переопределяется переменной JAVA_OPTS из app.env (env_file) при необходимости.
+ENV JAVA_OPTS="-Xms64m -Xmx256m -XX:+UseSerialGC -XX:+TieredStopAtLevel=1 -XX:MaxMetaspaceSize=160m"
+
 # JAVA_OPTS позволяет тюнить память/GC из env без пересборки.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
