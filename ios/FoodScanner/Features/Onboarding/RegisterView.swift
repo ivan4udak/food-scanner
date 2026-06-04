@@ -122,9 +122,9 @@ struct LoginView: View {
             do {
                 let outcome = try await busy.run { try await state.api.login(username: user, password: password) }
                 switch outcome {
-                case let .ok(id, name):
+                case let .ok(session):
                     Haptics.success()
-                    state.save(contributorId: id, nickname: name)   // RootView сам сменит экран
+                    state.signIn(session)   // RootView сам сменит экран
                 case .recovery:
                     confirm = ""; password = ""
                     step = .recovery
@@ -148,9 +148,9 @@ struct LoginView: View {
         error = nil
         Task {
             do {
-                let (id, name) = try await busy.run { try await state.api.register(username: user, password: password) }
+                let session = try await busy.run { try await state.api.register(username: user, password: password) }
                 Haptics.success()
-                state.save(contributorId: id, nickname: name)
+                state.signIn(session)
             } catch {
                 Haptics.warning()
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -164,9 +164,9 @@ struct LoginView: View {
         error = nil
         Task {
             do {
-                let (id, name) = try await busy.run { try await state.api.recover(username: user, password: password) }
+                let session = try await busy.run { try await state.api.recover(username: user, password: password) }
                 Haptics.success()
-                state.save(contributorId: id, nickname: name)
+                state.signIn(session)
             } catch {
                 Haptics.warning()
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription

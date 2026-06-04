@@ -65,7 +65,17 @@ struct AuthResponse: Decodable {
     let status: String
     let contributorId: UUID?
     let username: String?
+    let accessToken: String?
+    let refreshToken: String?
     let message: String?
+}
+
+/// Успешная аутентификация: профиль + пара токенов.
+struct Session {
+    let contributorId: UUID
+    let username: String
+    let accessToken: String
+    let refreshToken: String
 }
 
 struct ServerErrorResponse: Decodable {

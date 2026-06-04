@@ -22,6 +22,8 @@ struct FoodScannerApp: App {
                 .task {
                     connection.apiProvider = { state.api }
                     connection.start()
+                    // Автообновление access-токена при старте; если refresh протух — logout.
+                    if state.isRegistered { await state.refreshSession() }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     switch phase {

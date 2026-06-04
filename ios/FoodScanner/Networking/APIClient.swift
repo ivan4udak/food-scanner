@@ -23,6 +23,8 @@ enum APIError: LocalizedError {
 /// Тонкий async/await клиент над REST API Food Scanner (`/api/v1`).
 struct APIClient {
     var baseURL: URL
+    /// Access-токен для Bearer-авторизации (если есть).
+    var accessToken: String?
 
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder()
@@ -101,8 +103,10 @@ struct APIClient {
         guard let url = photoURL(storageKey: storageKey, thumbnail: thumbnail) else {
             throw APIError.invalidURL
         }
+        var req = URLRequest(url: url)
+        if let accessToken { req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization") }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.data(for: req)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw APIError.server(status: (response as? HTTPURLResponse)?.statusCode ?? -1,
                                       message: "Не удалось загрузить фото", details: nil)
@@ -148,7 +152,7 @@ struct APIClient {
         switch http.statusCode {
         case 200:
             if auth?.status == "RECOVERY" { return .recovery(auth?.username ?? username) }
-            if let id = auth?.contributorId { return .ok(id, auth?.username ?? username) }
+            if let s = session(from: auth, fallbackUser: username) { return .ok(s) }
             throw APIError.empty
         case 404: return .notFound
         case 401: return .invalid(auth?.message ?? "Неверный логин или пароль")
@@ -159,12 +163,12 @@ struct APIClient {
         }
     }
 
-    /// Создание аккаунта. 409 → ContributorAlreadyExists (бросается APIError.server 409).
-    func register(username: String, password: String) async throws -> (UUID, String) {
+    /// Создание аккаунта (или миграция legacy). 409 → логин занят.
+    func register(username: String, password: String) async throws -> Session {
         let (data, http) = try await postRaw("auth/register",
                                              ["username": username, "password": password])
         let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
-        guard http.statusCode == 201, let id = auth?.contributorId else {
+        guard http.statusCode == 201, let s = session(from: auth, fallbackUser: username) else {
             if http.statusCode == 409 {
                 throw APIError.server(status: 409, message: "Логин уже занят", details: nil)
             }
@@ -173,21 +177,38 @@ struct APIClient {
                                   message: err?.message ?? "Не удалось создать аккаунт",
                                   details: err?.details)
         }
-        return (id, auth?.username ?? username)
+        return s
     }
 
     /// Установка нового пароля в окне восстановления.
-    func recover(username: String, password: String) async throws -> (UUID, String) {
+    func recover(username: String, password: String) async throws -> Session {
         let (data, http) = try await postRaw("auth/recover",
                                              ["username": username, "password": password])
         let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
-        guard http.statusCode == 200, let id = auth?.contributorId else {
+        guard http.statusCode == 200, let s = session(from: auth, fallbackUser: username) else {
             let err = try? Self.decoder.decode(ServerErrorResponse.self, from: data)
             throw APIError.server(status: http.statusCode,
                                   message: err?.message ?? auth?.message ?? "Окно восстановления истекло",
                                   details: err?.details)
         }
-        return (id, auth?.username ?? username)
+        return s
+    }
+
+    /// Обновление токенов по refresh-токену. 401 → InvalidToken (refresh протух/невалиден).
+    func refresh(refreshToken: String) async throws -> Session {
+        let (data, http) = try await postRaw("auth/refresh", ["refreshToken": refreshToken])
+        let auth = try? Self.decoder.decode(AuthResponse.self, from: data)
+        guard http.statusCode == 200, let s = session(from: auth, fallbackUser: auth?.username ?? "") else {
+            throw APIError.server(status: http.statusCode, message: "Сессия истекла", details: nil)
+        }
+        return s
+    }
+
+    private func session(from auth: AuthResponse?, fallbackUser: String) -> Session? {
+        guard let auth, let id = auth.contributorId,
+              let access = auth.accessToken, let refresh = auth.refreshToken else { return nil }
+        return Session(contributorId: id, username: auth.username ?? fallbackUser,
+                       accessToken: access, refreshToken: refresh)
     }
 
     /// POST JSON, возвращает (data, response) без выброса на не-2xx.
@@ -230,10 +251,12 @@ struct APIClient {
     }
 
     private func send<R: Decodable>(_ request: URLRequest, allow404: Bool) async throws -> R? {
+        var req = request
+        if let accessToken { req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization") }
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await URLSession.shared.data(for: req)
         } catch {
             throw APIError.transport(error)
         }
@@ -270,7 +293,7 @@ private extension Data {
 
 /// Исход попытки входа (Блок 1).
 enum LoginOutcome {
-    case ok(UUID, String)        // вход выполнен
+    case ok(Session)             // вход выполнен (профиль + токены)
     case recovery(String)        // режим восстановления (нужен новый пароль)
     case notFound                // пользователя нет → предложить создать
     case invalid(String)         // неверный логин/пароль
