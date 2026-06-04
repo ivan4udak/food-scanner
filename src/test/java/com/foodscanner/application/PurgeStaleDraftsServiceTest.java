@@ -7,6 +7,7 @@ import com.foodscanner.domain.model.Barcode;
 import com.foodscanner.domain.model.CatalogDraft;
 import com.foodscanner.domain.model.PhotoType;
 import com.foodscanner.domain.repository.CatalogDraftRepository;
+import com.foodscanner.domain.repository.PhotoObjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,56 +20,61 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@DisplayName("PurgeStaleDraftsService — очистка мусора")
+@DisplayName("PurgeStaleDraftsService — очистка мусора (hash-aware)")
 class PurgeStaleDraftsServiceTest {
 
     private CatalogDraftRepository draftRepo;
     private PhotoStorage photoStorage;
+    private PhotoObjectRepository photoObjects;
     private PurgeStaleDraftsService service;
 
     @BeforeEach
     void setUp() {
         draftRepo = mock(CatalogDraftRepository.class);
         photoStorage = mock(PhotoStorage.class);
-        service = new PurgeStaleDraftsService(draftRepo, photoStorage);
+        photoObjects = mock(PhotoObjectRepository.class);
+        service = new PurgeStaleDraftsService(draftRepo, photoStorage, photoObjects);
     }
 
     private CatalogDraft staleDraftWithTwoPhotos() {
         CatalogDraft d = CatalogDraft.create(new Barcode("4607038310042"), UUID.randomUUID());
-        d.addPhoto(PhotoType.BARCODE, "drafts/x/barcode/u.jpg");
-        d.addPhoto(PhotoType.FRONT,   "drafts/x/front/u.jpg");
+        d.addPhoto(PhotoType.BARCODE, "photos/aaa.jpg");
+        d.addPhoto(PhotoType.FRONT,   "photos/bbb.jpg");
         return d;
     }
 
     @Test
-    @DisplayName("удаляет объекты (full+thumb) и сам черновик, считает количество")
-    void purgesDraftAndObjects() {
+    @DisplayName("несвязанные объекты удаляются (full+thumb) + draft + запись реестра")
+    void purgesUnreferenced() {
         CatalogDraft d = staleDraftWithTwoPhotos();
         when(draftRepo.findStaleUnfinished(any())).thenReturn(List.of(d));
+        when(photoObjects.isObjectKeyReferenced(any())).thenReturn(false);
 
         PurgeResult r = service.purge(Duration.ofHours(24));
 
         assertEquals(1, r.draftsDeleted());
-        assertEquals(4, r.objectsDeleted());                 // 2 фото × (full + thumb)
-        verify(photoStorage).delete("drafts/x/barcode/u.jpg");
-        verify(photoStorage).delete("drafts/x/barcode/u_thumb.jpg");
-        verify(photoStorage).delete("drafts/x/front/u.jpg");
-        verify(photoStorage).delete("drafts/x/front/u_thumb.jpg");
+        assertEquals(4, r.objectsDeleted());                 // 2 объекта × (full+thumb)
         verify(draftRepo).deleteById(d.getId());
+        verify(photoStorage).delete("photos/aaa.jpg");
+        verify(photoStorage).delete("photos/aaa_thumb.jpg");
+        verify(photoObjects).deleteByObjectKey("photos/aaa.jpg");
+        verify(photoObjects).deleteByObjectKey("photos/bbb.jpg");
     }
 
     @Test
-    @DisplayName("ошибка удаления объекта не останавливает очистку (best-effort)")
-    void continuesOnStorageError() {
+    @DisplayName("общий объект (есть ссылки) НЕ удаляется")
+    void keepsReferenced() {
         CatalogDraft d = staleDraftWithTwoPhotos();
         when(draftRepo.findStaleUnfinished(any())).thenReturn(List.of(d));
-        doThrow(new RuntimeException("missing")).when(photoStorage).delete("drafts/x/barcode/u.jpg");
+        when(photoObjects.isObjectKeyReferenced(any())).thenReturn(true);  // ещё используется
 
         PurgeResult r = service.purge(Duration.ofHours(24));
 
         assertEquals(1, r.draftsDeleted());
-        assertEquals(3, r.objectsDeleted());                 // один объект не удалился
+        assertEquals(0, r.objectsDeleted());
         verify(draftRepo).deleteById(d.getId());
+        verify(photoStorage, never()).delete(any());
+        verify(photoObjects, never()).deleteByObjectKey(any());
     }
 
     @Test
