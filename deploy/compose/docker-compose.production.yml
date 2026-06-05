@@ -26,17 +26,8 @@ services:
       retries: 5
     logging: *default-logging
 
-  minio:
-    image: minio/minio
-    container_name: minio-production
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    env_file: ./app.env   # MINIO_ROOT_USER/PASSWORD приходят отсюда
-    volumes:
-      - production_miniodata:/data
-    networks: [internal]
-    logging: *default-logging
-
+  # MinIO общий (стек docker-compose.minio.yml), доступен по сети foodscanner-edge
+  # как `minio`. Bucket production задаётся в app.env (MINIO_BUCKET=food-images-production).
   backend:
     image: ${BACKEND_IMAGE}
     container_name: backend-production
@@ -47,8 +38,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
     networks: [internal, edge]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
@@ -74,8 +63,6 @@ services:
 volumes:
   production_pgdata:
     name: production_pgdata
-  production_miniodata:
-    name: production_miniodata
 
 networks:
   internal:

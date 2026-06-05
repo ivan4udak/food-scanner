@@ -14,7 +14,7 @@ fi
 systemctl enable --now docker
 
 echo "==> 2. Каталоги $BASE"
-mkdir -p "$BASE"/{scripts,caddy,monitoring,staging,production}
+mkdir -p "$BASE"/{scripts,caddy,minio,monitoring,staging,production}
 touch "$BASE"/{staging,production}/releases.log
 
 echo "==> 3. Внешняя docker-сеть foodscanner-edge"
@@ -34,6 +34,7 @@ if [[ -n "$REPO_DEPLOY" && -d "$REPO_DEPLOY" ]]; then
   cp -f "$REPO_DEPLOY"/compose/docker-compose.staging.yml    "$BASE/staging/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.production.yml "$BASE/production/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.caddy.yml      "$BASE/caddy/docker-compose.yml"
+  cp -f "$REPO_DEPLOY"/compose/docker-compose.minio.yml      "$BASE/minio/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.monitoring.yml "$BASE/monitoring/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/caddy/Caddyfile                       "$BASE/caddy/Caddyfile"
   cp -rf "$REPO_DEPLOY"/monitoring/*                         "$BASE/monitoring/"
