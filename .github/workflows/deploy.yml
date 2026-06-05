@@ -169,8 +169,9 @@ jobs:
             HEAD="❌ Deploy FAILED"
           fi
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          MSG=$(printf '%s — <b>%s</b>\nbranch: %s@%s\n%s\nrun: %s' \
-            "$HEAD" "$ENVN" "$GITHUB_REF_NAME" "${GITHUB_SHA:0:7}" "$COMMIT_MSG" "$RUN_URL")
+          # Заголовок — по ветке (test/release), ниже окружение и версия (короткий SHA).
+          MSG=$(printf '%s — <b>%s</b> [%s]\nокружение: %s\n%s\nrun: %s' \
+            "$HEAD" "$GITHUB_REF_NAME" "${GITHUB_SHA:0:7}" "$ENVN" "$COMMIT_MSG" "$RUN_URL")
           curl -fsS -X POST "https://api.telegram.org/bot${TG}/sendMessage" \
             -d chat_id="${CHAT}" -d parse_mode="HTML" -d disable_web_page_preview="true" \
             --data-urlencode text="${MSG}" >/dev/null
