@@ -7,7 +7,7 @@
 services:
   minio:
     image: minio/minio
-    container_name: minio
+    container_name: minio-shared   # отдельное имя, чтобы не конфликтовать с per-env minio при миграции
     restart: unless-stopped
     command: server /data --console-address ":9001"
     env_file: ./app.env   # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD

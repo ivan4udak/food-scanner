@@ -59,7 +59,7 @@ ssh -L 5433:postgres-production:5432 root@103.119.19.181
 Креды БД лежат на сервере: `/opt/foodscanner/<env>/app.env` (`DB_USER`, `DB_PASSWORD`).
 
 ## 4. MinIO (объектное хранилище, общий инстанс)
-- S3-API: внутри docker-сети `minio:9000` (наружу не публикуется).
+- S3-API: внутри docker-сети `minio-shared:9000` (наружу не публикуется).
 - Веб-консоль: `127.0.0.1:9001` на сервере → туннель:
 ```bash
 ssh -L 9001:localhost:9001 root@103.119.19.181
