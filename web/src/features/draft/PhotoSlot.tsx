@@ -70,13 +70,30 @@ export function PhotoSlot({ type, required, state, capture, onPick, onRetry }: P
       {state.status === 'queued' && <div className="progress">в очереди…</div>}
       {state.status === 'compressing' && <div className="progress">сжатие…</div>}
       {state.status === 'uploading' && <div className="progress">{Math.round(state.progress * 100)}%</div>}
-      {state.status === 'error' && <div className="progress">ошибка ⟳ повторить</div>}
+      {state.status === 'error' && (
+        <div className="progress error-overlay" aria-label="Ошибка, повторить">
+          <RetryIcon />
+        </div>
+      )}
 
-      <span className="label">
-        {PHOTO_LABELS[type]}
-        {required ? ' *' : ''}
-      </span>
+      {/* Подпись скрыта во время загрузки/ошибки, чтобы не накладывалась на индикатор. */}
+      {(state.status === 'empty' || state.status === 'done') && (
+        <span className="label">
+          {PHOTO_LABELS[type]}
+          {required ? ' *' : ''}
+        </span>
+      )}
       {state.status === 'done' && <span className="badge">✓</span>}
     </div>
+  );
+}
+
+/** Круглая стрелка «повторить». */
+function RetryIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
   );
 }
