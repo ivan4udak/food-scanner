@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PHOTO_TYPES, REQUIRED_PHOTO_TYPES, type PhotoType } from '@/api/types';
 import { addPhoto, complete } from '@/api/catalog';
@@ -30,7 +30,16 @@ export function DraftPage() {
   const setSlot = (type: PhotoType, patch: Partial<SlotState>) =>
     setSlots((prev) => ({ ...prev, [type]: { status: 'empty', progress: 0, ...prev[type], ...patch } }));
 
-  async function handlePick(type: PhotoType, file: File) {
+  // Последовательная очередь загрузок: сервер (2 ядра) ресайзит по одному фото за раз,
+  // иначе параллельные загрузки насыщают CPU → пинг проседает → связь «отваливается».
+  const uploadQueue = useRef<Promise<unknown>>(Promise.resolve());
+
+  function handlePick(type: PhotoType, file: File) {
+    setSlot(type, { status: 'queued', progress: 0 });
+    uploadQueue.current = uploadQueue.current.then(() => doUpload(type, file));
+  }
+
+  async function doUpload(type: PhotoType, file: File) {
     setError(null);
     try {
       const capturedAt = await readCapturedAt(file);

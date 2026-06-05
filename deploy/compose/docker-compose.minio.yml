@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────
+# ОБЩИЙ MinIO (один на все окружения). Изоляция — на уровне bucket'ов:
+# food-images-staging / food-images-production (задаётся MINIO_BUCKET в app.env
+# каждого окружения). БД остаются раздельными. Бэкенды ходят к нему по сети
+# foodscanner-edge как к хосту `minio`.
+# ─────────────────────────────────────────────────────────────────────────
+services:
+  minio:
+    image: minio/minio
+    container_name: minio-shared   # отдельное имя, чтобы не конфликтовать с per-env minio при миграции
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: ./app.env   # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9001:9001"   # веб-консоль только через SSH-туннель
+    networks: [edge]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  minio_data:
+    name: minio_data
+
+networks:
+  edge:
+    external: true
+    name: foodscanner-edge

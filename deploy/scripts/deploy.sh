@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Деплой окружения. Для production делегирует blue-green.
+# Деплой окружения (in-place): pull → up → health-check → откат при провале.
 # Вызывается из GitHub Actions по SSH с экспортированными BACKEND_IMAGE/WEB_IMAGE/GIT_SHA.
 #
 # Usage: deploy.sh <staging|preprod|production>
@@ -20,11 +20,6 @@ source "$SCRIPTS/lib.sh"
 cd "$ENV_DIR"
 export BACKEND_IMAGE WEB_IMAGE
 
-# production → blue-green с health-gate и авто-rollback
-if [[ "$ENVIRONMENT" == "production" ]]; then
-  exec "$SCRIPTS/blue-green-deploy.sh"
-fi
-
 log "Деплой $ENVIRONMENT: backend=$BACKEND_IMAGE web=$WEB_IMAGE (sha=$GIT_SHA)"
 
 # Запоминаем предыдущие образы для отката
@@ -38,6 +33,7 @@ docker compose up -d --remove-orphans
 if "$SCRIPTS/health-check.sh" "backend-$ENVIRONMENT" 40 3; then
   record_release "$ENV_DIR" "$GIT_SHA" "$BACKEND_IMAGE" "$WEB_IMAGE"
   log "✅ $ENVIRONMENT обновлён до $GIT_SHA"
+  prune_images   # освободить диск от старых образов
   notify_ok "$ENVIRONMENT" "$GIT_SHA"
 else
   log "❌ health-check не прошёл — откат"

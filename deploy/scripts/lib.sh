@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Общие функции для deploy/rollback/blue-green скриптов.
+# Общие функции для deploy/rollback скриптов.
 # Подключается через: source /opt/foodscanner/scripts/lib.sh
 
 BASE="${FS_BASE:-/opt/foodscanner}"
@@ -33,3 +33,7 @@ notify() {
 }
 notify_ok()   { notify "✅ Deploy OK — <b>$1</b> ($2) на $(hostname)"; }
 notify_fail() { notify "❌ Deploy FAILED — <b>$1</b> ($2) на $(hostname)"; }
+
+# Чистка диска: удаляет неиспользуемые образы старше 48ч (маленький диск сервера).
+# Running-образы и недавние (для быстрого отката) сохраняются.
+prune_images() { docker image prune -af --filter "until=48h" >/dev/null 2>&1 || true; }

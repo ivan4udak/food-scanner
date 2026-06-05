@@ -1,39 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────
-# PRODUCTION (ветка release). Blue-Green без Kubernetes.
-#
-#  • backend-blue / backend-green — два цвета backend, выбираются compose-профилем.
-#    Активный цвет прописан в Caddy-сниппете (deploy/caddy/snippets/prod-upstream.caddy),
-#    переключение = перезапись сниппета + `caddy reload` (zero-downtime).
-#  • postgres-production / minio-production — общие для обоих цветов (данные одни).
-#  • web-production — статика PWA (10890 на loopback), /api проксирует Caddy на активный цвет.
-#
-#  Деплой идёт в ПРОСТАИВАЮЩИЙ цвет: `docker compose --profile green up -d backend-green`,
-#  health-check, переключение Caddy, затем остановка старого цвета. При фейле — откат
-#  (старый цвет продолжает обслуживать трафик).
+# PRODUCTION (ветка release). In-place деплой (без blue-green) — сервер 2GB/2c
+# не вмещает два prod-JVM одновременно. Деплой: остановить старый backend, поднять
+# новый, health-check; при провале — откат к предыдущему образу (releases.log).
+# Кратковременный простой (~30–60с) на время старта новой версии.
 # ─────────────────────────────────────────────────────────────────────────
 x-logging: &default-logging
   driver: "json-file"
   options:
     max-size: "10m"
     max-file: "5"
-
-x-backend-common: &backend-common
-  image: ${BACKEND_IMAGE}
-  restart: unless-stopped
-  env_file: ./app.env
-  depends_on:
-    postgres:
-      condition: service_healthy
-    minio:
-      condition: service_started
-  networks: [internal, edge]
-  healthcheck:
-    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
-    interval: 15s
-    timeout: 4s
-    retries: 5
-    start_period: 45s
-  logging: *default-logging
 
 services:
   postgres:
@@ -51,40 +26,35 @@ services:
       retries: 5
     logging: *default-logging
 
-  minio:
-    image: minio/minio
-    container_name: minio-production
+  # MinIO общий (стек docker-compose.minio.yml), доступен по сети foodscanner-edge
+  # как `minio`. Bucket production задаётся в app.env (MINIO_BUCKET=food-images-production).
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: backend-production
     restart: unless-stopped
-    command: server /data --console-address ":9001"
-    env_file: ./app.env   # MINIO_ROOT_USER/PASSWORD приходят отсюда
-    volumes:
-      - production_miniodata:/data
-    networks: [internal]
+    env_file: ./app.env
+    environment:
+      APP_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 45s
     logging: *default-logging
-
-  backend-blue:
-    <<: *backend-common
-    container_name: backend-blue
-    environment:
-      APP_ENV: production
-      DEPLOY_COLOR: blue
-    profiles: ["blue"]
-
-  backend-green:
-    <<: *backend-common
-    container_name: backend-green
-    environment:
-      APP_ENV: production
-      DEPLOY_COLOR: green
-    profiles: ["green"]
 
   web:
     image: ${WEB_IMAGE}
     container_name: web-production
     restart: unless-stopped
     environment:
-      # Caddy маршрутизирует /api на активный цвет; здесь — безопасный резерв.
-      BACKEND_URL: http://backend-blue:8080
+      BACKEND_URL: http://backend-production:8080
+    depends_on:
+      - backend
     networks: [internal, edge]
     ports:
       - "127.0.0.1:10890:80"
@@ -93,8 +63,6 @@ services:
 volumes:
   production_pgdata:
     name: production_pgdata
-  production_miniodata:
-    name: production_miniodata
 
 networks:
   internal:

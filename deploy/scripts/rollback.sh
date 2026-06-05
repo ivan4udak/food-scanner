@@ -31,5 +31,5 @@ log "ОТКАТ $ENVIRONMENT → sha=$GIT_SHA"
 log "  backend=$BACKEND_IMAGE"
 log "  web=$WEB_IMAGE"
 
-# Переиспользуем обычный путь деплоя (для production — blue-green).
+# Переиспользуем обычный путь деплоя (in-place с health-check).
 exec "$SCRIPTS/deploy.sh" "$ENVIRONMENT"

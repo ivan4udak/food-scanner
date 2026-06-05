@@ -18,35 +18,19 @@
 	}
 }
 
-# ── PRE-PRODUCTION (ветка main) ──────────────────────────────────────────
-{$PREPROD_HOST} {
-	encode zstd gzip
-	handle /api/* {
-		reverse_proxy backend-preprod:8080
-	}
-	handle {
-		reverse_proxy web-preprod:80
-	}
-}
-
-# ── PRODUCTION (ветка release, blue-green) ───────────────────────────────
-# Активный цвет backend задаётся импортируемым сниппетом, который переписывает
-# blue-green-switch.sh + `caddy reload` (zero-downtime переключение).
+# ── PRODUCTION (ветка release, in-place) ─────────────────────────────────
 {$PROD_HOST} {
 	encode zstd gzip
 	handle /api/* {
-		import /etc/caddy/snippets/prod-upstream.caddy
+		reverse_proxy backend-production:8080
 	}
 	handle {
 		reverse_proxy web-production:80
 	}
 }
 
-# ── MONITORING (Grafana за basic-auth) ───────────────────────────────────
+# ── MONITORING (Grafana — у неё своя авторизация) ────────────────────────
 {$MONITORING_HOST} {
 	encode zstd gzip
-	basic_auth {
-		{$MONITORING_BASICAUTH_USER} {$MONITORING_BASICAUTH_HASH}
-	}
 	reverse_proxy grafana:3000
 }

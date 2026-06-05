@@ -26,17 +26,8 @@ services:
       retries: 5
     logging: *default-logging
 
-  minio:
-    image: minio/minio
-    container_name: minio-staging
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    env_file: ./app.env   # MINIO_ROOT_USER/PASSWORD приходят отсюда
-    volumes:
-      - staging_miniodata:/data
-    networks: [internal]
-    logging: *default-logging
-
+  # MinIO общий для всех окружений (стек docker-compose.minio.yml), доступен по
+  # сети foodscanner-edge как `minio`. Bucket этого окружения — в app.env (MINIO_BUCKET).
   backend:
     image: ${BACKEND_IMAGE}
     container_name: backend-staging
@@ -47,8 +38,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
     networks: [internal, edge]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
@@ -75,8 +64,6 @@ services:
 volumes:
   staging_pgdata:
     name: staging_pgdata
-  staging_miniodata:
-    name: staging_miniodata
 
 networks:
   internal:

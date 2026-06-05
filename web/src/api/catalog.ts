@@ -1,4 +1,5 @@
 import { api, ApiError, parseOrThrow } from '@/api/client';
+import { useAuthStore } from '@/store/authStore';
 import {
   AddPhotoResponseSchema,
   CatalogEntrySchema,
@@ -11,9 +12,13 @@ import {
   type ScanResponse,
 } from '@/api/types';
 
-/** POST /scan — пользователь берётся из токена. */
+/**
+ * POST /scan — реального пользователя backend берёт из токена, но DTO тела всё ещё
+ * валидирует contributorId как @NotNull, поэтому отправляем его (id текущего юзера).
+ */
 export async function scan(barcodeValue: string): Promise<ScanResponse> {
-  const res = await api.post('/scan', { barcodeValue });
+  const contributorId = useAuthStore.getState().contributorId;
+  const res = await api.post('/scan', { barcodeValue, contributorId });
   return parseOrThrow(ScanResponseSchema, res.data);
 }
 
