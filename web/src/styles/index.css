@@ -215,3 +215,6 @@ input:focus, select:focus { border-color: var(--accent-dim); }
   background: var(--surface); border-top: 1px solid var(--border);
   font-size: 0.9rem;
 }
+/* Когда снизу показана плашка установки — резерв места, чтобы она не перекрывала
+   контент (например, кнопку ручного ввода ШК на экране сканирования). */
+body.install-banner-open .page { padding-bottom: calc(env(safe-area-inset-bottom) + 92px); }
