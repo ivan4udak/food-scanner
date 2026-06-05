@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { ConnectionProvider } from '@/components/ConnectionContext';
@@ -20,13 +21,20 @@ export default function App() {
   const { deferred, dismissed, promptInstall, dismiss, reopen } = useInstall();
 
   // iPhone в обычной вкладке Safari и установка не отложена → обязательный экран установки.
-  // В standalone-режиме (запуск с экрана «Домой») экран никогда не показывается.
-  if (ios && !standalone && !dismissed) {
+  const showInstallPage = ios && !standalone && !dismissed;
+  const iosReminder = ios && !standalone && dismissed;
+  const showBanner = !standalone && !showInstallPage && (iosReminder || Boolean(deferred));
+
+  // Пока показана нижняя плашка — резервируем место снизу, чтобы она не перекрывала
+  // контент (например, кнопку ручного ввода ШК).
+  useEffect(() => {
+    document.body.classList.toggle('install-banner-open', showBanner);
+    return () => document.body.classList.remove('install-banner-open');
+  }, [showBanner]);
+
+  if (showInstallPage) {
     return <InstallInstructionsPage deferred={deferred} onInstall={promptInstall} onDismiss={dismiss} />;
   }
-
-  const iosReminder = ios && !standalone && dismissed;
-  const showBanner = !standalone && (iosReminder || Boolean(deferred));
 
   return (
     <QueryClientProvider client={queryClient}>
