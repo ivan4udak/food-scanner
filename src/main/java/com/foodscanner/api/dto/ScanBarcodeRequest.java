@@ -1,7 +1,6 @@
 package com.foodscanner.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public class ScanBarcodeRequest {
@@ -9,7 +8,8 @@ public class ScanBarcodeRequest {
     @NotBlank(message = "Barcode must not be blank")
     private String barcodeValue;
 
-    @NotNull(message = "ContributorId must not be null")
+    // Пользователь берётся из JWT (см. CatalogController.scan), поэтому поле опционально:
+    // клиент может его не присылать. Оставлено для обратной совместимости (iOS шлёт).
     private UUID contributorId;
 
     public ScanBarcodeRequest() {}

@@ -29,11 +29,8 @@
 	}
 }
 
-# ── MONITORING (Grafana за basic-auth) ───────────────────────────────────
+# ── MONITORING (Grafana — у неё своя авторизация) ────────────────────────
 {$MONITORING_HOST} {
 	encode zstd gzip
-	basic_auth {
-		{$MONITORING_BASICAUTH_USER} {$MONITORING_BASICAUTH_HASH}
-	}
 	reverse_proxy grafana:3000
 }
