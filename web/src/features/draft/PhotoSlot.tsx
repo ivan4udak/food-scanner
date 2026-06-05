@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { PhotoType } from '@/api/types';
 
-export type SlotStatus = 'empty' | 'compressing' | 'uploading' | 'done' | 'error';
+export type SlotStatus = 'empty' | 'queued' | 'compressing' | 'uploading' | 'done' | 'error';
 
 export interface SlotState {
   status: SlotStatus;
@@ -49,6 +49,7 @@ export function PhotoSlot({ type, required, state, capture, onPick }: Props) {
 
       {state.previewUrl && <img src={state.previewUrl} alt={PHOTO_LABELS[type]} />}
 
+      {state.status === 'queued' && <div className="progress">в очереди…</div>}
       {state.status === 'compressing' && <div className="progress">сжатие…</div>}
       {state.status === 'uploading' && <div className="progress">{Math.round(state.progress * 100)}%</div>}
       {state.status === 'error' && <div className="progress">ошибка, повторить</div>}
