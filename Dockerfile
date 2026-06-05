@@ -23,7 +23,7 @@ HEALTHCHECK --interval=15s --timeout=4s --start-period=45s --retries=5 \
 # Дефолтные JVM-настройки под маленький сервер (несколько окружений на одном хосте):
 # фиксированный небольшой heap + SerialGC + ограниченный JIT → стабильное потребление RAM.
 # Переопределяется переменной JAVA_OPTS из app.env (env_file) при необходимости.
-ENV JAVA_OPTS="-Xms64m -Xmx256m -XX:+UseSerialGC -XX:+TieredStopAtLevel=1 -XX:MaxMetaspaceSize=160m"
+ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:+UseSerialGC -XX:+TieredStopAtLevel=1"
 
 # JAVA_OPTS позволяет тюнить память/GC из env без пересборки.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
