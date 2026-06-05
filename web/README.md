@@ -3,6 +3,11 @@
 Устанавливаемое PWA-приложение, заменяющее SwiftUI iOS-клиент. Работает с
 существующим backend (`/api/v1`, Spring Boot) **без изменений API**.
 
+Развёрнуто (за Caddy + Let's Encrypt):
+- production — `https://foodscanner.duckdns.org`
+- stable — `https://foodscanner-preprod.duckdns.org`
+- staging — `https://foodscanner-staging.duckdns.org`
+
 ## Стек
 - React 18 + TypeScript 5 + Vite 5
 - `vite-plugin-pwa` (Workbox) — manifest, service worker, offline-кэш
@@ -18,15 +23,25 @@
 Login · Register · Recover Password · Scan Barcode · Draft · Upload Photos ·
 Complete Catalog · Lookup Product · About + Diagnostics.
 
+Плюс:
+- **Install-flow для iPhone:** в обычной вкладке Safari показывается обязательный экран
+  установки на «Домой»; в standalone-режиме не появляется. Android — кнопка установки
+  через `beforeinstallprompt`. Отложка на 24ч (`localStorage: foodscanner.install.dismissed`)
+  + баннер-напоминание.
+- **Загрузка фото:** последовательная очередь (по одному файлу — щадит сервер),
+  **retry** досылает тот же файл из памяти без повторного выбора, индикаторы сжатия/процентов,
+  ошибка = красная карточка + иконка ⟳.
+
 ## Структура
 ```
 src/
   api/        types.ts (zod) · client.ts (axios+refresh) · auth · catalog · health
   store/      authStore · appStore (zustand persist)
-  lib/        barcode.ts (BarcodeDetector→ZXing) · imageCompression.ts (+EXIF)
+  lib/        platform.ts (isStandalone/isIOS/isAndroid) · barcode.ts (BarcodeDetector→ZXing)
+              imageCompression.ts (+EXIF)
   hooks/      queries.ts (TanStack) · components/ConnectionContext (ping 5с)
   components/ ProtectedRoute · ConnectionBanner · AuthedImage · Spinner · Layout
-  features/   auth/ scan/ draft/ result/ lookup/ about/
+  features/   auth/ scan/ draft/ result/ lookup/ about/ install/
   router.tsx · App.tsx · main.tsx
 ```
 

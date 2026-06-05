@@ -95,6 +95,13 @@ public class ApplicationConfig {
     }
 
     @Bean
+    public GetDraftService getDraftService(
+            CatalogDraftRepository draftRepository,
+            CatalogCompletionPolicy policy) {
+        return new GetDraftService(draftRepository, policy);
+    }
+
+    @Bean
     public CompleteCatalogService completeCatalogService(
             CatalogDraftRepository draftRepository,
             CatalogEntryRepository entryRepository,

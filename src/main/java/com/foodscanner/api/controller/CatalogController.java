@@ -40,6 +40,7 @@ public class CatalogController {
     private final AddDraftPhotoUseCase            addDraftPhoto;
     private final CompleteCatalogUseCase          completeCatalog;
     private final FindCatalogEntryByBarcodeUseCase findByBarcode;
+    private final GetDraftUseCase                 getDraft;
     private final CatalogApiMapper                mapper;
     private final PhotoStorage                    photoStorage;
     private final ImageProcessor                  imageProcessor;
@@ -60,6 +61,7 @@ public class CatalogController {
             AddDraftPhotoUseCase addDraftPhoto,
             CompleteCatalogUseCase completeCatalog,
             FindCatalogEntryByBarcodeUseCase findByBarcode,
+            GetDraftUseCase getDraft,
             CatalogApiMapper mapper,
             PhotoStorage photoStorage,
             ImageProcessor imageProcessor,
@@ -69,6 +71,7 @@ public class CatalogController {
         this.addDraftPhoto       = addDraftPhoto;
         this.completeCatalog     = completeCatalog;
         this.findByBarcode       = findByBarcode;
+        this.getDraft            = getDraft;
         this.mapper              = mapper;
         this.photoStorage        = photoStorage;
         this.imageProcessor      = imageProcessor;
@@ -104,6 +107,19 @@ public class CatalogController {
             mapper.toResponse(scanBarcode.execute(
                 new com.foodscanner.application.command.ScanBarcodeCommand(
                     request.getBarcodeValue(), contributorId))));
+    }
+
+    /**
+     * GET /api/v1/drafts/{draftId}
+     * Состояние черновика владельца (для восстановления фото на клиенте).
+     * 200 OK — { draftId, barcode, status, photos[], uploadedCount, requiredCount, missingTypes, complete }
+     * 404 Not Found — черновик не найден · 422 — чужой черновик
+     */
+    @GetMapping("/drafts/{draftId}")
+    public ResponseEntity<DraftResponse> getDraft(
+            @PathVariable UUID draftId,
+            @RequestAttribute(AUTH_CONTRIBUTOR) UUID contributorId) {
+        return ResponseEntity.ok(mapper.toResponse(getDraft.execute(draftId, contributorId)));
     }
 
     /**
