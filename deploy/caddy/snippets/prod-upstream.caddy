@@ -1,4 +1,0 @@
-# Активный backend production (blue-green). Этот файл переписывается
-# blue-green-switch.sh при переключении цвета, затем выполняется `caddy reload`.
-# Значение по умолчанию — blue (первый деплой).
-reverse_proxy backend-blue:8080

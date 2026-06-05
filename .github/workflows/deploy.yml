@@ -1,7 +1,7 @@
 name: Deploy
 
 # Конвейер: Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram.
-# Ветка определяет окружение: test→staging, release→production (blue-green).
+# Ветка определяет окружение: test→staging, release→production (in-place).
 # (preprod отключён — сервер 2GB/2 cores держит только 2 окружения.)
 on:
   push:

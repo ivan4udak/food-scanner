@@ -18,13 +18,11 @@
 	}
 }
 
-# ── PRODUCTION (ветка release, blue-green) ───────────────────────────────
-# Активный цвет backend задаётся импортируемым сниппетом, который переписывает
-# blue-green-switch.sh + `caddy reload` (zero-downtime переключение).
+# ── PRODUCTION (ветка release, in-place) ─────────────────────────────────
 {$PROD_HOST} {
 	encode zstd gzip
 	handle /api/* {
-		import /etc/caddy/snippets/prod-upstream.caddy
+		reverse_proxy backend-production:8080
 	}
 	handle {
 		reverse_proxy web-production:80

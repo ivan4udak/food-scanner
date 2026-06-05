@@ -1,16 +1,18 @@
 # Food Scanner — CI/CD (один сервер)
 
-Production-ready конвейер для одного Ubuntu 24.04: **GitHub Actions → GHCR → Docker Compose**,
-бесплатный HTTPS (**Caddy + Let's Encrypt / DuckDNS**), **blue-green** прод с авто-rollback,
-**Prometheus + Grafana**, уведомления в **Telegram**. Без Kubernetes/Jenkins/Ansible/Terraform.
+Production-ready конвейер для одного Ubuntu: **GitHub Actions → GHCR → Docker Compose**,
+бесплатный HTTPS (**Caddy + Let's Encrypt / DuckDNS**), in-place деплой с health-check и
+авто-rollback, **Prometheus + Grafana**, уведомления в **Telegram**. Без Kubernetes/Jenkins/Ansible/Terraform.
+
+> Профиль под маленький сервер (2GB/2c): два окружения — staging и production —
+> и in-place деплой (blue-green отключён, т.к. два prod-JVM не вмещаются в 2GB).
 
 ## Ветка → окружение → хост
 
 | Ветка | Окружение | Хост (Caddy) | web (loopback) | Особенность |
 |-------|-----------|--------------|----------------|-------------|
-| `test` | staging | `staging.<duckdns>` | `127.0.0.1:10690` | rolling + health-rollback |
-| `main` | preprod | `preprod.<duckdns>` | `127.0.0.1:10790` | rolling + health-rollback |
-| `release` | production | `<duckdns>` | `127.0.0.1:10890` | **blue-green** + health-rollback |
+| `test` | staging | `staging.<duckdns>` | `127.0.0.1:10690` | in-place + health-rollback |
+| `release` | production | `<duckdns>` | `127.0.0.1:10890` | in-place + health-rollback |
 
 Конвейер: **Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram**.
 Сборка — только в Actions; сервер тянет готовые образы из GHCR.
@@ -21,8 +23,7 @@ compose/   docker-compose.{staging,preprod,production,caddy,monitoring}.yml
 caddy/     Caddyfile + snippets/prod-upstream.caddy (активный цвет prod)
 monitoring/ prometheus/prometheus.yml + grafana/provisioning + dashboards
 env/       .env.*.example (на сервере → app.env, chmod 600)
-scripts/   deploy.sh blue-green-deploy.sh blue-green-switch.sh rollback.sh
-           health-check.sh notify-telegram.sh lib.sh bootstrap-server.sh
+scripts/   deploy.sh rollback.sh health-check.sh notify-telegram.sh lib.sh bootstrap-server.sh
 systemd/   foodscanner-caddy.service, foodscanner-monitoring.service
 logrotate/ foodscanner
 ```
@@ -59,7 +60,6 @@ sudo bash deploy/scripts/bootstrap-server.sh /path/to/repo/deploy
 Затем создайте секреты (chmod 600) из примеров:
 ```bash
 cp deploy/env/.env.staging.example    /opt/foodscanner/staging/app.env
-cp deploy/env/.env.preprod.example    /opt/foodscanner/preprod/app.env
 cp deploy/env/.env.production.example /opt/foodscanner/production/app.env
 cp deploy/env/.env.caddy.example      /opt/foodscanner/caddy/app.env
 cp deploy/env/.env.monitoring.example /opt/foodscanner/monitoring/app.env
@@ -73,10 +73,11 @@ sudo systemctl enable --now foodscanner-caddy foodscanner-monitoring
 ```
 
 ## 4. Деплой
-`git push` в `test`/`main`/`release` запускает весь конвейер автоматически. Деплой-джоба по SSH
+`git push` в `test`/`release` запускает весь конвейер автоматически. Деплой-джоба по SSH
 делает `docker login ghcr.io` и запускает `/opt/foodscanner/scripts/deploy.sh <env>`:
-- **staging/preprod:** `pull` → `up -d` → health-check `backend-<env>`; при провале — откат к предыдущим образам из `releases.log`.
-- **production:** деплой в простаивающий цвет → health-check → `caddy reload` на новый цвет → гашение старого; при провале новый цвет удаляется, трафик остаётся на текущем.
+- **in-place (оба окружения):** `pull` → `up -d` (пересоздаёт backend) → health-check `backend-<env>`;
+  при провале — откат к предыдущему образу из `releases.log`. Кратковременный простой (~30–60с)
+  на время старта новой версии.
 
 ## 5. Откат вручную
 ```bash

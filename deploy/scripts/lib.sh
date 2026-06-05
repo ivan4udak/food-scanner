@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Общие функции для deploy/rollback/blue-green скриптов.
+# Общие функции для deploy/rollback скриптов.
 # Подключается через: source /opt/foodscanner/scripts/lib.sh
 
 BASE="${FS_BASE:-/opt/foodscanner}"
