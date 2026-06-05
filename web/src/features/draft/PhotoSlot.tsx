@@ -24,15 +24,33 @@ interface Props {
   state: SlotState;
   capture: boolean;
   onPick: (type: PhotoType, file: File) => void;
+  /** Повторная отправка УЖЕ выбранного файла (без открытия камеры/галереи). */
+  onRetry: (type: PhotoType) => void;
 }
 
-export function PhotoSlot({ type, required, state, capture, onPick }: Props) {
+export function PhotoSlot({ type, required, state, capture, onPick, onRetry }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    // При ошибке — повторяем тот же файл, НЕ открывая выбор фото.
+    if (state.status === 'error') {
+      onRetry(type);
+      return;
+    }
+    // Пока идёт сжатие/очередь/загрузка — игнорируем тапы.
+    if (state.status === 'queued' || state.status === 'compressing' || state.status === 'uploading') {
+      return;
+    }
+    // empty / done — открыть камеру или галерею.
+    inputRef.current?.click();
+  };
 
   return (
     <div
-      className={`slot ${required ? 'required' : ''} ${state.status === 'done' ? 'done' : ''}`}
-      onClick={() => inputRef.current?.click()}
+      className={`slot ${required ? 'required' : ''} ${state.status === 'done' ? 'done' : ''} ${
+        state.status === 'error' ? 'error' : ''
+      }`}
+      onClick={handleClick}
     >
       <input
         ref={inputRef}
@@ -52,7 +70,7 @@ export function PhotoSlot({ type, required, state, capture, onPick }: Props) {
       {state.status === 'queued' && <div className="progress">в очереди…</div>}
       {state.status === 'compressing' && <div className="progress">сжатие…</div>}
       {state.status === 'uploading' && <div className="progress">{Math.round(state.progress * 100)}%</div>}
-      {state.status === 'error' && <div className="progress">ошибка, повторить</div>}
+      {state.status === 'error' && <div className="progress">ошибка ⟳ повторить</div>}
 
       <span className="label">
         {PHOTO_LABELS[type]}
