@@ -38,6 +38,7 @@ docker compose up -d --remove-orphans
 if "$SCRIPTS/health-check.sh" "backend-$ENVIRONMENT" 40 3; then
   record_release "$ENV_DIR" "$GIT_SHA" "$BACKEND_IMAGE" "$WEB_IMAGE"
   log "✅ $ENVIRONMENT обновлён до $GIT_SHA"
+  prune_images   # освободить диск от старых образов
   notify_ok "$ENVIRONMENT" "$GIT_SHA"
 else
   log "❌ health-check не прошёл — откат"

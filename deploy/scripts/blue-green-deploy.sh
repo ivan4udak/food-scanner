@@ -35,6 +35,7 @@ if "$SCRIPTS/health-check.sh" "backend-$IDLE" 40 3; then
   # Гасим старый цвет (с задержкой на дренаж соединений).
   sleep 5
   docker compose --profile "$ACTIVE" rm -sf "backend-$ACTIVE" 2>/dev/null || true
+  prune_images   # освободить диск от старых образов
   log "🟢 production на $IDLE ($GIT_SHA), старый $ACTIVE остановлен"
   notify_ok "production" "$GIT_SHA → $IDLE"
 else
