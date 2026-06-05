@@ -24,5 +24,7 @@ scrape_configs:
     static_configs:
       - targets: ["backend-staging:8080"]
         labels: { env: staging }
+      - targets: ["backend-stable:8080"]
+        labels: { env: stable }
       - targets: ["backend-production:8080"]
         labels: { env: production }

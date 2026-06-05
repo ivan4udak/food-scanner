@@ -4,7 +4,8 @@ app.env
 *.env
 # Но *.example нужны в репозитории (перебиваем корневой .env.*).
 !.env.staging.example
-!.env.preprod.example
+!.env.stable.example
 !.env.production.example
+!.env.minio.example
 !.env.monitoring.example
 !.env.caddy.example

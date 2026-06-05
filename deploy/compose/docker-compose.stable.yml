@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────────
+# STABLE (ветка main). Третье окружение: своя БД, общий MinIO (bucket food-images-stable),
+# in-place деплой. web на loopback:10790, вход — через Caddy (foodscanner-stable.duckdns.org).
+# ─────────────────────────────────────────────────────────────────────────
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-stable
+    restart: unless-stopped
+    env_file: ./app.env   # POSTGRES_DB/USER/PASSWORD приходят отсюда
+    volumes:
+      - stable_pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # MinIO общий (стек docker-compose.minio.yml) — minio-shared:9000, bucket в app.env.
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: backend-stable
+    restart: unless-stopped
+    env_file: ./app.env
+    environment:
+      APP_ENV: stable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/ping >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 45s
+    logging: *default-logging
+
+  web:
+    image: ${WEB_IMAGE}
+    container_name: web-stable
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend-stable:8080
+    depends_on:
+      - backend
+    networks: [internal, edge]
+    ports:
+      - "127.0.0.1:10790:80"
+    logging: *default-logging
+
+volumes:
+  stable_pgdata:
+    name: stable_pgdata
+
+networks:
+  internal:
+    name: stable-internal
+  edge:
+    external: true
+    name: foodscanner-edge

@@ -1,11 +1,10 @@
 name: Deploy
 
 # Конвейер: Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram.
-# Ветка определяет окружение: test→staging, release→production (in-place).
-# (preprod отключён — сервер 2GB/2 cores держит только 2 окружения.)
+# Ветка определяет окружение: test→staging, main→stable, release→production (in-place).
 on:
   push:
-    branches: [test, release]
+    branches: [test, main, release]
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -59,6 +58,7 @@ jobs:
         run: |
           case "${GITHUB_REF_NAME}" in
             test)    ENVN=staging ;;
+            main)    ENVN=stable ;;
             release) ENVN=production ;;
             *) echo "Unsupported branch ${GITHUB_REF_NAME}"; exit 1 ;;
           esac
@@ -70,6 +70,7 @@ jobs:
           BASE="$(cat VERSION 2>/dev/null | tr -d ' \n' || echo 0.0.0)"
           case "${GITHUB_REF_NAME}" in
             test)    VER="v${BASE}t" ;;
+            main)    VER="v${BASE}s" ;;
             release) VER="v${BASE}" ;;
             *)       VER="v${BASE}-${GITHUB_REF_NAME}" ;;
           esac
@@ -171,7 +172,7 @@ jobs:
             echo "Нет Telegram-секретов — пропуск уведомления."; exit 0
           fi
           case "${GITHUB_REF_NAME}" in
-            test) ENVN=staging ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
+            test) ENVN=staging ;; main) ENVN=stable ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
           esac
           if [ "$DEPLOY_RESULT" = "success" ]; then
             HEAD="✅ Deploy OK"
