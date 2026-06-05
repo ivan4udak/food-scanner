@@ -9,7 +9,7 @@
 | Окружение | Ветка | Публичный адрес (Caddy, HTTPS) | API base | web на хосте | Статус |
 |-----------|-------|-------------------------------|----------|--------------|--------|
 | **staging** | `test` | `https://foodscanner-staging.duckdns.org` | `…/api/v1` | `127.0.0.1:10690` | активно |
-| **stable** | `main` | `https://foodscanner-stable.duckdns.org` | `…/api/v1` | `127.0.0.1:10790` | активно |
+| **stable** | `main` | `https://foodscanner-preprod.duckdns.org` | `…/api/v1` | `127.0.0.1:10790` | активно |
 | **production** | `release` | `https://foodscanner.duckdns.org` | `…/api/v1` | `127.0.0.1:10890` | активно |
 
 Изоляция: у каждого окружения **своя БД** (`postgres-staging` / `postgres-production`)
