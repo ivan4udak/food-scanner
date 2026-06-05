@@ -49,9 +49,10 @@ cat <<EOF
 Готово. Осталось вручную (секреты НЕ в репозитории):
   1) Создать app.env в каждом каталоге из *.env.*.example и chmod 600:
        $BASE/staging/app.env  $BASE/production/app.env
-       $BASE/caddy/app.env    $BASE/monitoring/app.env
+       $BASE/minio/app.env    $BASE/caddy/app.env  $BASE/monitoring/app.env
+     (MINIO_ACCESS_KEY/SECRET_KEY в окружениях = MINIO_ROOT_USER/PASSWORD из minio/app.env)
   2) В DuckDNS создать поддомены (staging./корень/monitoring.) на IP сервера.
-  3) Поднять edge-сервисы:
-       systemctl enable --now foodscanner-caddy foodscanner-monitoring
+  3) Поднять edge-сервисы (MinIO — общий, до приложений):
+       systemctl enable --now foodscanner-minio foodscanner-caddy foodscanner-monitoring
   4) Деплой — автоматически из GitHub Actions (push в test/release).
 EOF
