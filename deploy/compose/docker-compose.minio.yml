@@ -5,9 +5,11 @@
 # foodscanner-edge как к хосту `minio`.
 # ─────────────────────────────────────────────────────────────────────────
 services:
-  minio:
+  # ВАЖНО: имя сервиса = сетевой алиас на edge. Должно быть minio-shared (не minio),
+  # иначе alias `minio` на edge перебивает per-env minio у прода → запись в чужой MinIO.
+  minio-shared:
     image: minio/minio
-    container_name: minio-shared   # отдельное имя, чтобы не конфликтовать с per-env minio при миграции
+    container_name: minio-shared
     restart: unless-stopped
     command: server /data --console-address ":9001"
     env_file: ./app.env   # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
