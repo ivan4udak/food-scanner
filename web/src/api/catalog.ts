@@ -4,10 +4,12 @@ import {
   AddPhotoResponseSchema,
   CatalogEntrySchema,
   CompleteResponseSchema,
+  DraftDetailsSchema,
   ScanResponseSchema,
   type AddPhotoResponse,
   type CatalogEntry,
   type CompleteResponse,
+  type DraftDetails,
   type PhotoType,
   type ScanResponse,
 } from '@/api/types';
@@ -46,6 +48,14 @@ export async function addPhoto(input: AddPhotoInput): Promise<AddPhotoResponse> 
     },
   });
   return parseOrThrow(AddPhotoResponseSchema, res.data);
+}
+
+/** GET /drafts/{id} — состояние черновика (для восстановления фото). null при 404. */
+export async function getDraft(draftId: string): Promise<DraftDetails | null> {
+  const res = await api.get(`/drafts/${draftId}`, { validateStatus: () => true });
+  if (res.status === 404) return null;
+  if (res.status === 200) return parseOrThrow(DraftDetailsSchema, res.data);
+  throw new ApiError(`Не удалось загрузить черновик (HTTP ${res.status})`, res.status);
 }
 
 /** POST /drafts/{id}/complete — 201. */

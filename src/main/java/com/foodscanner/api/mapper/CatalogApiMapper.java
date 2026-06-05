@@ -90,4 +90,15 @@ public class CatalogApiMapper {
             result.getId(), result.getBarcode(),
             result.getContributorId(), photos, result.getCreatedAt());
     }
+
+    public DraftResponse toResponse(com.foodscanner.application.result.DraftDetailsResult r) {
+        List<DraftResponse.PhotoDto> photos = r.getPhotos().stream()
+            .map(p -> new DraftResponse.PhotoDto(p.type().name(), p.storageKey(), p.capturedAt()))
+            .collect(Collectors.toList());
+        java.util.Set<String> missing = r.getMissingTypes().stream()
+            .map(Enum::name).collect(Collectors.toSet());
+        return new DraftResponse(
+            r.getDraftId().toString(), r.getBarcode(), r.getStatus(), photos,
+            r.getUploadedCount(), r.getRequiredCount(), missing, r.isComplete());
+    }
 }

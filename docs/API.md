@@ -93,6 +93,19 @@
 - `200` `{ "status":"EXISTS", "draftId": null }` — уже в каталоге.
 - `400` `barcodeValue` пустой.
 
+> Повторный скан того же ШК при наличии **OPEN-черновика** у пользователя возвращает
+> тот же `draftId` (черновик не дублируется).
+
+### GET /drafts/{draftId}
+Состояние черновика владельца — для **восстановления уже загруженных фото** на клиенте.
+- `200`:
+```json
+{ "draftId":"…", "barcode":"4607038310042", "status":"OPEN",
+  "photos":[ { "type":"BARCODE", "storageKey":"photos/<hash>.jpg", "capturedAt":"…" } ],
+  "uploadedCount":1, "requiredCount":4, "missingTypes":["FRONT","INGREDIENTS","NUTRITION"], "complete":false }
+```
+`photos` — по одному (последнему) фото на тип. `404` нет черновика · `422` чужой черновик.
+
 ### POST /drafts/{draftId}/photos  (multipart/form-data)
 Загрузка фото в черновик; владелец проверяется по токену. Поля формы:
 - `file` — бинарь изображения (**обязательно**)

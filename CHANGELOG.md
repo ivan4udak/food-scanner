@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.5.0] — Восстановление черновика (новый эндпоинт)
+- **API (аддитивно):** `GET /api/v1/drafts/{draftId}` → состояние черновика владельца
+  `{ draftId, barcode, status, photos[type,storageKey,capturedAt], uploadedCount, requiredCount, missingTypes, complete }`
+  (по одному, последнему, фото на тип). DDD: `GetDraftUseCase`/`GetDraftService`, `DraftDetailsResult`,
+  `DraftResponse`. 158 тестов зелёные.
+- **PWA:** при входе в черновик слоты восстанавливаются с сервера (статус `done` + миниатюра по `storageKey`),
+  счётчик и флаг «завершить» подтягиваются — раньше слоты были пустыми, хотя фото на сервере есть.
+- `docs/API.md` обновлён.
+
 ## [1.4.0] — PWA: install-flow + фиксы загрузки фото
 - **Крупная фича:** обязательный install-flow для iPhone (экран установки на «Домой» в Safari;
   в standalone не показывается; Android-кнопка установки через `beforeinstallprompt`;
