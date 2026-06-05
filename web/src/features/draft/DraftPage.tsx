@@ -33,10 +33,23 @@ export function DraftPage() {
   // Последовательная очередь загрузок: сервер (2 ядра) ресайзит по одному фото за раз,
   // иначе параллельные загрузки насыщают CPU → пинг проседает → связь «отваливается».
   const uploadQueue = useRef<Promise<unknown>>(Promise.resolve());
+  // Выбранные файлы по типу — чтобы «Повторить» досылал тот же файл без повторного выбора.
+  const pickedFiles = useRef<Partial<Record<PhotoType, File>>>({});
 
-  function handlePick(type: PhotoType, file: File) {
+  function enqueueUpload(type: PhotoType, file: File) {
     setSlot(type, { status: 'queued', progress: 0 });
     uploadQueue.current = uploadQueue.current.then(() => doUpload(type, file));
+  }
+
+  function handlePick(type: PhotoType, file: File) {
+    pickedFiles.current[type] = file; // файл уже в памяти приложения
+    enqueueUpload(type, file);
+  }
+
+  // Повтор после ошибки: переотправляем тот же файл, камеру/галерею НЕ открываем.
+  function handleRetry(type: PhotoType) {
+    const file = pickedFiles.current[type];
+    if (file) enqueueUpload(type, file);
   }
 
   async function doUpload(type: PhotoType, file: File) {
@@ -112,6 +125,7 @@ export function DraftPage() {
             state={slots[type] ?? { status: 'empty', progress: 0 }}
             capture={useCapture}
             onPick={handlePick}
+            onRetry={handleRetry}
           />
         ))}
       </div>

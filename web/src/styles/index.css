@@ -137,10 +137,12 @@ input:focus, select:focus { border-color: var(--accent-dim); }
 }
 .slot.required { border-style: solid; }
 .slot.done { border-color: var(--accent); border-style: solid; }
+.slot.error { border-color: var(--danger); border-style: solid; }
 .slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .slot .badge { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6); border-radius: 8px; padding: 2px 6px; font-size: 0.7rem; }
 .slot .label { font-size: 0.8rem; z-index: 1; }
 .slot .progress { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.55); font-weight: 600; }
+.slot .error-overlay { background: rgba(255,69,58,0.32); color: #fff; }
 
 .ring {
   width: 64px; height: 64px; border-radius: 50%;
@@ -167,3 +169,49 @@ input:focus, select:focus { border-color: var(--accent-dim); }
 .list-empty { padding: 40px 0; text-align: center; color: var(--text-secondary); }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .grow { flex: 1; }
+
+/* ── Install (PWA) ── */
+.install-page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: calc(env(safe-area-inset-top) + 32px) 22px calc(env(safe-area-inset-bottom) + 28px);
+}
+.install-logo { width: 96px; height: 96px; border-radius: 22px; margin-top: 8px; }
+.install-title { font-size: 1.5rem; margin: 6px 0 0; }
+.install-desc { color: var(--text-secondary); max-width: 420px; margin: 0; }
+.install-steps { list-style: none; padding: 0; margin: 10px 0 0; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
+.install-step {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
+}
+.install-step-num {
+  flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #06130a; font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.install-step-icon { color: var(--accent); display: flex; align-items: center; }
+.install-step-text { flex: 1; font-size: 0.95rem; }
+.install-step-badge {
+  display: inline-block; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 2px 8px; font-size: 0.85rem; color: var(--accent);
+}
+.install-illustration {
+  width: 100%; max-width: 420px; min-height: 84px; border-radius: var(--radius);
+  border: 1px dashed var(--border); background: var(--surface-2); color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center; padding: 16px; font-size: 0.9rem;
+}
+.install-page .btn { max-width: 420px; }
+.install-note { color: var(--text-secondary); font-size: 0.8rem; margin: 2px 0 0; }
+
+.install-banner {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  max-width: var(--maxw); margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
+  background: var(--surface); border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
