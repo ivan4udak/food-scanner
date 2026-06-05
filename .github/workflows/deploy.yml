@@ -1,11 +1,10 @@
 name: Deploy
 
 # Конвейер: Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram.
-# Ветка определяет окружение: test→staging, release→production (in-place).
-# (preprod отключён — сервер 2GB/2 cores держит только 2 окружения.)
+# Ветка определяет окружение: test→staging, main→stable, release→production (in-place).
 on:
   push:
-    branches: [test, release]
+    branches: [test, main, release]
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -50,6 +49,7 @@ jobs:
       env_name: ${{ steps.meta.outputs.env_name }}
       backend_image: ${{ steps.meta.outputs.backend_image }}
       web_image: ${{ steps.meta.outputs.web_image }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +58,7 @@ jobs:
         run: |
           case "${GITHUB_REF_NAME}" in
             test)    ENVN=staging ;;
+            main)    ENVN=stable ;;
             release) ENVN=production ;;
             *) echo "Unsupported branch ${GITHUB_REF_NAME}"; exit 1 ;;
           esac
@@ -65,11 +66,20 @@ jobs:
           SHA="${GITHUB_SHA::12}"
           BE="${REGISTRY}/${OWNER}/food-scanner-backend"
           WE="${REGISTRY}/${OWNER}/food-scanner-web"
+          # Версия: базовый номер из файла VERSION + суффикс ветки (t=test, чисто=release).
+          BASE="$(cat VERSION 2>/dev/null | tr -d ' \n' || echo 0.0.0)"
+          case "${GITHUB_REF_NAME}" in
+            test)    VER="v${BASE}t" ;;
+            main)    VER="v${BASE}s" ;;
+            release) VER="v${BASE}" ;;
+            *)       VER="v${BASE}-${GITHUB_REF_NAME}" ;;
+          esac
           {
             echo "env_name=$ENVN"
             echo "backend_repo=$BE"
             echo "web_repo=$WE"
             echo "sha=$SHA"
+            echo "version=$VER"
             echo "backend_image=${BE}:${SHA}"
             echo "web_image=${WE}:${SHA}"
           } >> "$GITHUB_OUTPUT"
@@ -156,12 +166,13 @@ jobs:
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
+          VERSION_LABEL: ${{ needs.build-push.outputs.version }}
         run: |
           if [ -z "$TG" ] || [ -z "$CHAT" ]; then
             echo "Нет Telegram-секретов — пропуск уведомления."; exit 0
           fi
           case "${GITHUB_REF_NAME}" in
-            test) ENVN=staging ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
+            test) ENVN=staging ;; main) ENVN=stable ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
           esac
           if [ "$DEPLOY_RESULT" = "success" ]; then
             HEAD="✅ Deploy OK"
@@ -169,9 +180,10 @@ jobs:
             HEAD="❌ Deploy FAILED"
           fi
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          # Заголовок — по ветке (test/release), ниже окружение и версия (короткий SHA).
-          MSG=$(printf '%s — <b>%s</b> [%s]\nокружение: %s\n%s\nrun: %s' \
-            "$HEAD" "$GITHUB_REF_NAME" "${GITHUB_SHA:0:7}" "$ENVN" "$COMMIT_MSG" "$RUN_URL")
+          VER="${VERSION_LABEL:-${GITHUB_SHA:0:7}}"   # версия из VERSION, иначе SHA (если build не дошёл)
+          # Заголовок: ветка + версия; ниже окружение, коммит, ссылка на run.
+          MSG=$(printf '%s — <b>%s</b> [%s]\nокружение: %s · %s\n%s\nrun: %s' \
+            "$HEAD" "$GITHUB_REF_NAME" "$VER" "$ENVN" "${GITHUB_SHA:0:7}" "$COMMIT_MSG" "$RUN_URL")
           curl -fsS -X POST "https://api.telegram.org/bot${TG}/sendMessage" \
             -d chat_id="${CHAT}" -d parse_mode="HTML" -d disable_web_page_preview="true" \
             --data-urlencode text="${MSG}" >/dev/null

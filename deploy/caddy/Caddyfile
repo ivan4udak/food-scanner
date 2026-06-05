@@ -18,6 +18,17 @@
 	}
 }
 
+# ── STABLE (ветка main) ──────────────────────────────────────────────────
+{$STABLE_HOST} {
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy backend-stable:8080
+	}
+	handle {
+		reverse_proxy web-stable:80
+	}
+}
+
 # ── PRODUCTION (ветка release, in-place) ─────────────────────────────────
 {$PROD_HOST} {
 	encode zstd gzip

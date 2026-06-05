@@ -9,11 +9,11 @@
 | Окружение | Ветка | Публичный адрес (Caddy, HTTPS) | API base | web на хосте | Статус |
 |-----------|-------|-------------------------------|----------|--------------|--------|
 | **staging** | `test` | `https://foodscanner-staging.duckdns.org` | `…/api/v1` | `127.0.0.1:10690` | активно |
+| **stable** | `main` | `https://foodscanner-preprod.duckdns.org` | `…/api/v1` | `127.0.0.1:10790` | активно |
 | **production** | `release` | `https://foodscanner.duckdns.org` | `…/api/v1` | `127.0.0.1:10890` | активно |
-| **preprod** | `main` | `https://foodscanner-preprod.duckdns.org` | `…/api/v1` | `127.0.0.1:10790` | **отключено** (профиль 2-х окружений под текущее железо; можно вернуть) |
 
 Изоляция: у каждого окружения **своя БД** (`postgres-staging` / `postgres-production`)
-и **свой bucket** в общем MinIO (`food-images-staging` / `food-images-production`).
+и **свой bucket** в общем MinIO (`food-images-staging` / `food-images-stable` / `food-images-production`).
 Общие на всех: MinIO (один инстанс), Caddy, мониторинг.
 
 ---
@@ -65,7 +65,7 @@ ssh -L 5433:postgres-production:5432 root@103.119.19.181
 ssh -L 9001:localhost:9001 root@103.119.19.181
 # затем открыть http://localhost:9001  (логин = MINIO_ROOT_USER / MINIO_ROOT_PASSWORD из /opt/foodscanner/minio/app.env)
 ```
-Buckets: `food-images-staging`, `food-images-production`. Ключи объектов: `photos/<sha256>.jpg`.
+Buckets: `food-images-staging`, `food-images-stable`, `food-images-production`. Ключи объектов: `photos/<sha256>.jpg`.
 
 ## 5. Мониторинг
 - **Grafana:** `https://foodscanner-mon.duckdns.org` (через Caddy, HTTPS). Логин `admin` / пароль из Grafana.

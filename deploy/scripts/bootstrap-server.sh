@@ -14,8 +14,8 @@ fi
 systemctl enable --now docker
 
 echo "==> 2. Каталоги $BASE"
-mkdir -p "$BASE"/{scripts,caddy,minio,monitoring,staging,production}
-touch "$BASE"/{staging,production}/releases.log
+mkdir -p "$BASE"/{scripts,caddy,minio,monitoring,staging,stable,production}
+touch "$BASE"/{staging,stable,production}/releases.log
 
 echo "==> 3. Внешняя docker-сеть foodscanner-edge"
 docker network inspect foodscanner-edge >/dev/null 2>&1 || docker network create foodscanner-edge
@@ -32,6 +32,7 @@ if [[ -n "$REPO_DEPLOY" && -d "$REPO_DEPLOY" ]]; then
   echo "==> 5. Копирование конфигов из $REPO_DEPLOY"
   cp -f "$REPO_DEPLOY"/scripts/*.sh "$BASE/scripts/"; chmod +x "$BASE/scripts/"*.sh
   cp -f "$REPO_DEPLOY"/compose/docker-compose.staging.yml    "$BASE/staging/docker-compose.yml"
+  cp -f "$REPO_DEPLOY"/compose/docker-compose.stable.yml     "$BASE/stable/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.production.yml "$BASE/production/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.caddy.yml      "$BASE/caddy/docker-compose.yml"
   cp -f "$REPO_DEPLOY"/compose/docker-compose.minio.yml      "$BASE/minio/docker-compose.yml"
@@ -48,10 +49,10 @@ cat <<EOF
 
 Готово. Осталось вручную (секреты НЕ в репозитории):
   1) Создать app.env в каждом каталоге из *.env.*.example и chmod 600:
-       $BASE/staging/app.env  $BASE/production/app.env
-       $BASE/minio/app.env    $BASE/caddy/app.env  $BASE/monitoring/app.env
+       $BASE/staging/app.env  $BASE/stable/app.env  $BASE/production/app.env
+       $BASE/minio/app.env    $BASE/caddy/app.env   $BASE/monitoring/app.env
      (MINIO_ACCESS_KEY/SECRET_KEY в окружениях = MINIO_ROOT_USER/PASSWORD из minio/app.env)
-  2) В DuckDNS создать поддомены (staging./корень/monitoring.) на IP сервера.
+  2) В DuckDNS создать поддомены (staging./stable./корень/monitoring.) на IP сервера.
   3) Поднять edge-сервисы (MinIO — общий, до приложений):
        systemctl enable --now foodscanner-minio foodscanner-caddy foodscanner-monitoring
   4) Деплой — автоматически из GitHub Actions (push в test/release).
