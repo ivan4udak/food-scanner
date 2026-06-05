@@ -4,30 +4,40 @@ Production-ready конвейер для одного Ubuntu: **GitHub Actions �
 бесплатный HTTPS (**Caddy + Let's Encrypt / DuckDNS**), in-place деплой с health-check и
 авто-rollback, **Prometheus + Grafana**, уведомления в **Telegram**. Без Kubernetes/Jenkins/Ansible/Terraform.
 
-> Профиль под маленький сервер (2GB/2c): два окружения — staging и production —
-> и in-place деплой (blue-green отключён, т.к. два prod-JVM не вмещаются в 2GB).
+> Сервер 4GB/2c/30GB. Три окружения, **in-place** деплой (без blue-green — проще и надёжнее
+> на одном хосте; кратковременный простой ~30–60с при деплое некритичен).
 
 ## Ветка → окружение → хост
 
-| Ветка | Окружение | Хост (Caddy) | web (loopback) | Особенность |
-|-------|-----------|--------------|----------------|-------------|
-| `test` | staging | `staging.<duckdns>` | `127.0.0.1:10690` | in-place + health-rollback |
-| `release` | production | `<duckdns>` | `127.0.0.1:10890` | in-place + health-rollback |
+| Ветка | Окружение | Хост (Caddy) | web (loopback) | MinIO bucket |
+|-------|-----------|--------------|----------------|--------------|
+| `test` | staging | `foodscanner-staging.duckdns.org` | `127.0.0.1:10690` | `food-images-staging` |
+| `main` | stable | `foodscanner-preprod.duckdns.org` | `127.0.0.1:10790` | `food-images-stable` |
+| `release` | production | `foodscanner.duckdns.org` | `127.0.0.1:10890` | `food-images-production` |
+
+Все окружения: своя БД (`postgres-<env>`) + **общий MinIO** (`minio-shared`, отдельный bucket).
+Общие сервисы: `minio-shared`, `caddy`, мониторинг.
 
 Конвейер: **Push → Tests → Maven Build → Docker Build → Push (GHCR) → Deploy → Telegram**.
 Сборка — только в Actions; сервер тянет готовые образы из GHCR.
 
+## Версионирование (файл `VERSION` в корне → `v<VERSION>` в Telegram)
+- **PATCH** — фикс/мелкая доработка: `1.4.0 → 1.4.1 → … → 1.4.10 …`
+- **MINOR** — крупная фича / изменение API: `→ 1.5.0`
+- Суффикс ветки: `test → v…t`, `main → v…s`, `release → v…`.
+
 ## Структура (`deploy/`)
 ```
-compose/   docker-compose.{staging,preprod,production,caddy,monitoring}.yml
-caddy/     Caddyfile + snippets/prod-upstream.caddy (активный цвет prod)
+compose/   docker-compose.{staging,stable,production,minio,caddy,monitoring}.yml
+caddy/     Caddyfile (сайты по {$*_HOST})
 monitoring/ prometheus/prometheus.yml + grafana/provisioning + dashboards
 env/       .env.*.example (на сервере → app.env, chmod 600)
 scripts/   deploy.sh rollback.sh health-check.sh notify-telegram.sh lib.sh bootstrap-server.sh
-systemd/   foodscanner-caddy.service, foodscanner-monitoring.service
+systemd/   foodscanner-{minio,caddy,monitoring}.service
 logrotate/ foodscanner
 ```
 Образы: `ghcr.io/<owner>/food-scanner-backend` и `-web`, теги `:<sha>` (неизменяемый) + `:<env>`.
+Подробные подключения (PWA/iOS/БД/MinIO/Grafana) — см. `deploy/CONNECTIONS.md`.
 
 ## 1. GitHub Secrets (Settings → Secrets → Actions)
 | Secret | Назначение |
@@ -42,12 +52,13 @@ logrotate/ foodscanner
 `GITHUB_TOKEN` — встроенный, используется для push/pull в GHCR (та же org). Пароли приложения
 (`JWT_SECRET`, `ADMIN_PASSWORD`, БД/MinIO) в Secrets **не нужны** — они только в `app.env` на сервере.
 
-Опционально создайте GitHub **Environments** `staging/preprod/production` (Settings → Environments)
+Опционально создайте GitHub **Environments** `staging/stable/production` (Settings → Environments)
 и навесьте на `production` required reviewers — тогда прод-деплой будет с ручным подтверждением.
 
 ## 2. DuckDNS
-Создайте 4 поддомена на IP сервера: `staging.*`, `preprod.*`, корневой (prod), `monitoring.*`
-(или отдельные `name`, `name-staging`, …). Откройте порты 80/443.
+Поддомены на IP сервера: `foodscanner` (prod), `foodscanner-staging`, `foodscanner-preprod`
+(используется окружением **stable**), `foodscanner-mon` (Grafana). Откройте порты 80/443.
+Хосты задаются в `caddy/app.env` (`PROD_HOST`/`STAGING_HOST`/`STABLE_HOST`/`MONITORING_HOST`).
 
 ## 3. Bootstrap сервера (один раз)
 ```bash

@@ -68,6 +68,24 @@ export const CompleteResponseSchema = z.object({
 });
 export type CompleteResponse = z.infer<typeof CompleteResponseSchema>;
 
+// Состояние черновика (GET /drafts/{id}) — для восстановления фото на клиенте.
+export const DraftPhotoSchema = z.object({
+  type: z.string(),
+  storageKey: z.string(),
+  capturedAt: z.string().optional().nullable(),
+});
+export const DraftDetailsSchema = z.object({
+  draftId: z.string(),
+  barcode: z.string(),
+  status: z.string(),
+  photos: z.array(DraftPhotoSchema),
+  uploadedCount: z.number(),
+  requiredCount: z.number(),
+  missingTypes: z.array(z.string()),
+  complete: z.boolean(),
+});
+export type DraftDetails = z.infer<typeof DraftDetailsSchema>;
+
 export const CatalogPhotoSchema = z.object({
   id: z.string().uuid(),
   type: z.string(),

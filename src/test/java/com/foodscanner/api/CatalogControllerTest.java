@@ -58,6 +58,7 @@ class CatalogControllerTest {
     @MockBean AddDraftPhotoUseCase            addDraftPhoto;
     @MockBean CompleteCatalogUseCase          completeCatalog;
     @MockBean FindCatalogEntryByBarcodeUseCase findByBarcode;
+    @MockBean GetDraftUseCase                  getDraft;
     @MockBean PhotoStorage                     photoStorage;
     @MockBean ImageProcessor                   imageProcessor;
     @MockBean PhotoStore                       photoStore;
@@ -159,6 +160,46 @@ class CatalogControllerTest {
                     .content(objectMapper.writeValueAsString(
                         new ScanBarcodeRequest("", UUID.randomUUID()))))
                 .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    @Nested
+    @DisplayName("GET /api/v1/drafts/{draftId}")
+    class GetDraft {
+
+        @Test
+        @DisplayName("200 — состояние черновика с фото и прогрессом")
+        void shouldReturnDraftState() throws Exception {
+            UUID draftId = UUID.randomUUID();
+            var photo = new com.foodscanner.application.result.DraftDetailsResult.Photo(
+                com.foodscanner.domain.model.PhotoType.FRONT, "photos/abc.jpg", null);
+            var result = new com.foodscanner.application.result.DraftDetailsResult(
+                draftId, "4607038310042", "OPEN", List.of(photo),
+                1, 4, Set.of(com.foodscanner.domain.model.PhotoType.BARCODE), false);
+            when(getDraft.execute(any(), any())).thenReturn(result);
+
+            mockMvc.perform(get("/api/v1/drafts/" + draftId)
+                    .requestAttr("authContributorId", UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.draftId").value(draftId.toString()))
+                .andExpect(jsonPath("$.status").value("OPEN"))
+                .andExpect(jsonPath("$.uploadedCount").value(1))
+                .andExpect(jsonPath("$.requiredCount").value(4))
+                .andExpect(jsonPath("$.complete").value(false))
+                .andExpect(jsonPath("$.photos[0].type").value("FRONT"))
+                .andExpect(jsonPath("$.photos[0].storageKey").value("photos/abc.jpg"));
+        }
+
+        @Test
+        @DisplayName("404 если черновик не найден")
+        void shouldReturn404WhenMissing() throws Exception {
+            UUID draftId = UUID.randomUUID();
+            when(getDraft.execute(any(), any()))
+                .thenThrow(new CatalogDraftNotFoundException(draftId));
+            mockMvc.perform(get("/api/v1/drafts/" + draftId)
+                    .requestAttr("authContributorId", UUID.randomUUID()))
+                .andExpect(status().isNotFound());
         }
     }
 

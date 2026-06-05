@@ -342,4 +342,27 @@ Features/
 
 ---
 
+## Инфраструктура и деплой (актуально, v1.4.0)
+
+**Клиенты:** PWA (`web/`) — основной; iOS (`ios/`) — legacy. Backend `/api/v1` без изменений
+контракта (актуальный API — `docs/API.md`).
+
+**CI/CD (один сервер, Ubuntu 4GB/2c/30GB):** GitHub Actions → GHCR → Docker Compose, in-place
+деплой с health-check и авто-rollback, HTTPS через Caddy + Let's Encrypt (DuckDNS), мониторинг
+Prometheus+Grafana, уведомления в Telegram. Без k8s/Jenkins/Ansible/Terraform.
+
+**Окружения** (своя БД, общий MinIO `minio-shared` с bucket на окружение):
+| Ветка | Окружение | Хост | Версия (Telegram) |
+|------|-----------|------|-------------------|
+| `test` | staging | foodscanner-staging.duckdns.org | `v1.4.0t` |
+| `main` | stable | foodscanner-preprod.duckdns.org | `v1.4.0s` |
+| `release` | production | foodscanner.duckdns.org | `v1.4.0` |
+
+**Версионирование:** файл `VERSION` в корне; PATCH на фикс (`1.4.0→1.4.1→…→1.4.10`),
+MINOR на крупную фичу/изменение API (`→1.5.0`).
+
+Подробности: `deploy/README.md` (runbook), `deploy/CONNECTIONS.md` (все подключения + API).
+
+---
+
 _Документ поддерживается вручную; детальный клиентский журнал — `ios/DEVELOPMENT.md`._

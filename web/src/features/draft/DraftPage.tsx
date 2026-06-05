@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PHOTO_TYPES, REQUIRED_PHOTO_TYPES, type PhotoType } from '@/api/types';
-import { addPhoto, complete } from '@/api/catalog';
+import { addPhoto, complete, fetchPhotoObjectUrl, getDraft } from '@/api/catalog';
 import { compressImage, readCapturedAt } from '@/lib/imageCompression';
 import { ApiError } from '@/api/client';
 import { useAppStore } from '@/store/appStore';
@@ -51,6 +51,30 @@ export function DraftPage() {
     const file = pickedFiles.current[type];
     if (file) enqueueUpload(type, file);
   }
+
+  // Восстановление при входе в черновик: подтягиваем уже загруженные фото с сервера.
+  useEffect(() => {
+    if (!draftId) return undefined;
+    let active = true;
+    getDraft(draftId)
+      .then((d) => {
+        if (!active || !d) return;
+        setUploaded(d.uploadedCount);
+        setServerComplete(d.complete);
+        for (const p of d.photos) {
+          const type = p.type as PhotoType;
+          setSlot(type, { status: 'done', progress: 1 });
+          fetchPhotoObjectUrl(p.storageKey, 'thumb')
+            .then((url) => (active ? setSlot(type, { previewUrl: url }) : URL.revokeObjectURL(url)))
+            .catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
 
   async function doUpload(type: PhotoType, file: File) {
     setError(null);

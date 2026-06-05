@@ -2,6 +2,10 @@
 
 Минималистичный нативный клиент к backend `food-scanner` (`/api/v1`).
 
+> Статус: **legacy.** Основной клиент — PWA (`web/`, развёрнут на
+> `https://foodscanner.duckdns.org`). iOS совместим с тем же API
+> (актуальный контракт — `docs/API.md`) и сохранён как референс.
+
 ## Запуск
 
 1. Подними backend: `./scripts/start.sh` (Spring Boot на `:8080` + Postgres).
