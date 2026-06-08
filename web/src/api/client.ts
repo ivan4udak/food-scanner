@@ -68,6 +68,9 @@ type TimedConfig = InternalAxiosRequestConfig & {
 const methodPath = (cfg?: { method?: string; url?: string }) =>
   `${(cfg?.method ?? 'GET').toUpperCase()} ${cfg?.url ?? ''}`;
 
+/** Heartbeat-эндпоинты: успешные вызовы не логируем (шум каждые 5с). Ошибки — логируем. */
+const isHealthEndpoint = (url?: string) => !!url && (url.endsWith('/ping') || url.endsWith('/health'));
+
 /** Trace-поля для шиппера логов (correlationId + метод/путь/статус/длительность). */
 function trace(cfg?: TimedConfig, extra?: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -99,16 +102,16 @@ api.interceptors.request.use((config) => {
   cfg._start = Date.now();
   if (!cfg._correlationId) cfg._correlationId = uuid();
   config.headers['X-Correlation-Id'] = cfg._correlationId;
-  if (!cfg._silent) {
+  if (!cfg._silent && !isHealthEndpoint(config.url)) {
     logger.debug('NETWORK', `→ ${methodPath(config)}`, trace(cfg, { auth: token ? 'Bearer ********' : undefined }));
   }
   return config;
 });
 
-// Ответ (успех): длительность + статус + размер.
+// Ответ (успех): длительность + статус + размер. Успешные ping/health не логируем (шум).
 api.interceptors.response.use((res) => {
   const cfg = res.config as TimedConfig;
-  if (cfg._silent) return res;
+  if (cfg._silent || isHealthEndpoint(cfg.url)) return res;
   const ms = cfg._start ? Date.now() - cfg._start : undefined;
   const size = responseSize(res);
   logger.info('NETWORK', `← ${res.status} ${res.statusText || 'OK'} ${methodPath(cfg)}`,

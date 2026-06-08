@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getLeaderboard, getPublicStats, type LeaderboardPeriod } from '@/api/stats';
 import { StatsCards } from '@/features/publicStats/StatsCards';
@@ -8,7 +8,14 @@ import { Page } from '@/components/Layout';
 
 /** Публичная страница статистики проекта (без авторизации). */
 export function PublicStatsPage() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<LeaderboardPeriod>('all');
+
+  /** Назад на страницу, откуда зашли; если истории нет (прямой переход/новая вкладка) — на главную. */
+  function goBack() {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/');
+  }
 
   const stats = useQuery({ queryKey: ['public-stats'], queryFn: getPublicStats });
   const board = useQuery({
@@ -20,9 +27,9 @@ export function PublicStatsPage() {
     <Page>
       <div className="topbar">
         <h1 style={{ fontSize: '1.35rem', margin: 0 }}>Food Scanner — статистика</h1>
-        <Link className="btn ghost" style={{ width: 'auto' }} to="/">
-          В приложение
-        </Link>
+        <button className="btn ghost" style={{ width: 'auto' }} onClick={goBack}>
+          ‹ Назад
+        </button>
       </div>
 
       {stats.isLoading && <p className="muted center">Загрузка статистики…</p>}
