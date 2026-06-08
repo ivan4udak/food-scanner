@@ -11,11 +11,25 @@ export const LOG_CATEGORIES = [
 export type LogCategory = (typeof LOG_CATEGORIES)[number];
 
 export interface LogEntry {
+  id: string; // uuid — client_log_id для серверной телеметрии
   timestamp: string; // ISO-8601
   level: LogLevel;
   category: LogCategory;
   message: string;
   details?: unknown;
+}
+
+/** UUID v4 с фолбэком (старые webview без crypto.randomUUID). */
+export function uuid(): string {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch {
+    /* ignore */
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 const LEVEL_ORDER: Record<LogLevel, number> = { TRACE: 10, DEBUG: 20, INFO: 30, WARN: 40, ERROR: 50 };
@@ -69,9 +83,18 @@ class Logger {
   private buf: LogEntry[] = [];
   private minLevel: LogLevel = defaultLevel();
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private listeners: ((e: LogEntry) => void)[] = [];
 
   constructor() {
     this.restore();
+  }
+
+  /** Подписка на новые записи (для отправки на backend). Возвращает отписку. */
+  onAppend(cb: (e: LogEntry) => void): () => void {
+    this.listeners.push(cb);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== cb);
+    };
   }
 
   setLevel(level: LogLevel): void {
@@ -89,6 +112,7 @@ class Logger {
   log(level: LogLevel, category: LogCategory, message: string, details?: unknown): void {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) return;
     const entry: LogEntry = {
+      id: uuid(),
       timestamp: new Date().toISOString(),
       level,
       category,
@@ -99,6 +123,13 @@ class Logger {
     if (this.buf.length > MEM_CAP) this.buf.splice(0, this.buf.length - MEM_CAP);
     this.toConsole(entry);
     this.schedulePersist();
+    for (const l of this.listeners) {
+      try {
+        l(entry);
+      } catch {
+        /* слушатель не должен ломать логирование */
+      }
+    }
   }
 
   trace(c: LogCategory, m: string, d?: unknown) { this.log('TRACE', c, m, d); }

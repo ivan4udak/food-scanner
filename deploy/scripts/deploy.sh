@@ -24,6 +24,7 @@ log "Деплой $ENVIRONMENT: backend=$BACKEND_IMAGE web=$WEB_IMAGE (sha=$GIT_
 
 # Запоминаем предыдущие образы для отката
 PREV_LINE="$(last_release "$ENV_DIR")"
+PREV_SHA="$(release_field "$PREV_LINE" 2 2>/dev/null || true)"
 PREV_BACKEND="$(release_field "$PREV_LINE" 3 2>/dev/null || true)"
 PREV_WEB="$(release_field "$PREV_LINE" 4 2>/dev/null || true)"
 
@@ -37,13 +38,20 @@ if "$SCRIPTS/health-check.sh" "backend-$ENVIRONMENT" 40 3; then
   notify_ok "$ENVIRONMENT" "$GIT_SHA"
 else
   log "❌ health-check не прошёл — откат"
+  notify_fail "$ENVIRONMENT" "$GIT_SHA"   # ❌ deploy failed (Rollback: started)
   if [[ -n "$PREV_BACKEND" ]]; then
     log "Откат к backend=$PREV_BACKEND web=$PREV_WEB"
     BACKEND_IMAGE="$PREV_BACKEND" WEB_IMAGE="${PREV_WEB:-$WEB_IMAGE}" docker compose up -d --remove-orphans
-    "$SCRIPTS/health-check.sh" "backend-$ENVIRONMENT" 20 3 || log "⚠ предыдущая версия тоже нездорова"
+    if "$SCRIPTS/health-check.sh" "backend-$ENVIRONMENT" 20 3; then
+      log "↩️ откат успешен → $PREV_SHA"
+      notify_rollback_ok "$ENVIRONMENT" "$PREV_SHA"
+    else
+      log "🚨 предыдущая версия тоже нездорова"
+      notify_rollback_fail "$ENVIRONMENT"
+    fi
   else
-    log "⚠ нет предыдущего релиза для отката"
+    log "🚨 нет предыдущего релиза для отката"
+    notify_rollback_fail "$ENVIRONMENT"
   fi
-  notify_fail "$ENVIRONMENT" "$GIT_SHA"
   exit 1
 fi

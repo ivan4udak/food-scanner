@@ -8,6 +8,7 @@ import { useInstall } from '@/features/install/useInstall';
 import { InstallInstructionsPage } from '@/features/install/InstallInstructionsPage';
 import { InstallReminderBanner } from '@/features/install/InstallReminderBanner';
 import { logger } from '@/logging/logger';
+import { startTelemetry } from '@/logging/telemetry';
 import { APP_VERSION } from '@/version';
 
 const queryClient = new QueryClient({
@@ -27,10 +28,11 @@ export default function App() {
   const iosReminder = ios && !standalone && dismissed;
   const showBanner = !standalone && !showInstallPage && (iosReminder || Boolean(deferred));
 
-  // Стартовый лог: версия + режим запуска.
+  // Стартовый лог: версия + режим запуска + запуск отправки телеметрии.
   useEffect(() => {
     logger.info('SYSTEM', `App start v${APP_VERSION}`, { standalone, ios });
     if (standalone) logger.info('PWA', 'Standalone mode');
+    startTelemetry();
   }, [standalone, ios]);
 
   useEffect(() => {
