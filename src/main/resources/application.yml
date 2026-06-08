@@ -79,6 +79,15 @@ storage:
     secret-key: ${MINIO_SECRET_KEY:foodscanner123}
     bucket:     ${MINIO_BUCKET:food-images}
 
+# ── Телеметрия (v1.7): retention клиентских логов/событий ────────────
+telemetry:
+  retention:
+    routine-days:       ${TELEMETRY_ROUTINE_DAYS:30}     # INFO/DEBUG/TRACE
+    important-days:     ${TELEMETRY_IMPORTANT_DAYS:90}    # WARN/ERROR
+    activity-days:      ${TELEMETRY_ACTIVITY_DAYS:30}
+    server-events-days: ${TELEMETRY_SERVER_EVENTS_DAYS:90}
+    cron:               ${TELEMETRY_RETENTION_CRON:0 30 3 * * *}  # ежедневно 03:30
+
 # ── Сервер ──────────────────────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8080}
