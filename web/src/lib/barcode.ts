@@ -56,7 +56,23 @@ export interface ScannerOptions {
   video: HTMLVideoElement;
   onResult: (r: BarcodeResult) => void;
   onError?: (e: unknown) => void;
+  /** Диагностические сообщения (поток/треки/размеры/play) для клиентского лога. */
+  onInfo?: (message: string, details?: unknown) => void;
   cooldownMs?: number;
+}
+
+/**
+ * iOS требует для inline-воспроизведения MediaStream: muted + playsinline,
+ * выставленные как СВОЙСТВА элемента (React не всегда ставит .muted), иначе
+ * автозапуск блокируется и видео остаётся чёрным.
+ */
+function prepareVideoElement(video: HTMLVideoElement): void {
+  video.muted = true;
+  video.defaultMuted = true;
+  video.setAttribute('muted', '');
+  video.setAttribute('playsinline', 'true');
+  video.setAttribute('autoplay', 'true');
+  video.playsInline = true;
 }
 
 export interface RunningScanner {
@@ -80,8 +96,18 @@ async function startNative(opts: ScannerOptions, gate: ReturnType<typeof createS
     video: { facingMode: 'environment' },
     audio: false,
   });
+  opts.onInfo?.('camera stream acquired', {
+    tracks: stream.getVideoTracks().map((t) => ({ label: t.label, state: t.readyState })),
+  });
+  prepareVideoElement(opts.video);
   opts.video.srcObject = stream;
-  await opts.video.play();
+  try {
+    await opts.video.play();
+  } catch (e) {
+    opts.onInfo?.('video.play() rejected', { name: (e as Error).name, message: (e as Error).message });
+    throw e;
+  }
+  opts.onInfo?.('video playing', { w: opts.video.videoWidth, h: opts.video.videoHeight });
 
   const detector = new window.BarcodeDetector!({ formats: NATIVE_FORMATS });
   let stopped = false;
@@ -115,6 +141,9 @@ async function startZxing(opts: ScannerOptions, gate: ReturnType<typeof createSc
   const reader = new BrowserMultiFormatReader();
   let controls: IScannerControls | null = null;
 
+  // iOS: muted+playsinline ДО привязки потока (ZXing сам зовёт play()).
+  prepareVideoElement(opts.video);
+
   controls = await reader.decodeFromConstraints(
     { video: { facingMode: 'environment' }, audio: false },
     opts.video,
@@ -129,6 +158,8 @@ async function startZxing(opts: ScannerOptions, gate: ReturnType<typeof createSc
       }
     },
   );
+
+  opts.onInfo?.('zxing started', { w: opts.video.videoWidth, h: opts.video.videoHeight });
 
   return {
     engine: 'zxing',
