@@ -160,12 +160,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Send Telegram
         env:
           TG: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
           VERSION_LABEL: ${{ needs.build-push.outputs.version }}
         run: |
           if [ -z "$TG" ] || [ -z "$CHAT" ]; then
@@ -181,9 +181,12 @@ jobs:
           fi
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           VER="${VERSION_LABEL:-${GITHUB_SHA:0:7}}"   # версия из VERSION, иначе SHA (если build не дошёл)
+          # Полный текст коммита (с усечением) — без parse_mode, поэтому символы вроде
+          # <noreply@…> в Co-Authored-By больше не ломают отправку (раньше HTML-парсер давал 400).
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -c 1500)
           # Заголовок: ветка + версия; ниже окружение, коммит, ссылка на run.
-          MSG=$(printf '%s — <b>%s</b> [%s]\nокружение: %s · %s\n%s\nrun: %s' \
+          MSG=$(printf '%s — %s [%s]\nокружение: %s · %s\n%s\nrun: %s' \
             "$HEAD" "$GITHUB_REF_NAME" "$VER" "$ENVN" "${GITHUB_SHA:0:7}" "$COMMIT_MSG" "$RUN_URL")
           curl -fsS -X POST "https://api.telegram.org/bot${TG}/sendMessage" \
-            -d chat_id="${CHAT}" -d parse_mode="HTML" -d disable_web_page_preview="true" \
+            -d chat_id="${CHAT}" -d disable_web_page_preview="true" \
             --data-urlencode text="${MSG}" >/dev/null
