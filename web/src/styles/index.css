@@ -244,3 +244,40 @@ body.install-banner-open .page { padding-bottom: calc(env(safe-area-inset-bottom
 .logview .lv-WARN { color: var(--warning); }
 .logview .lv-ERROR { color: var(--danger); }
 .logview .lv-DEBUG, .logview .lv-TRACE { color: var(--text-secondary); }
+
+/* ── Публичная статистика ── */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+.stat-value { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+.stat-label { margin-top: 4px; font-size: 0.8rem; color: var(--text-secondary); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.chip.active { color: #06130a; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+table.leaderboard { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.leaderboard th {
+  text-align: right; color: var(--text-secondary); font-weight: 500;
+  font-size: 0.78rem; padding: 6px 6px; border-bottom: 1px solid var(--border);
+}
+table.leaderboard th:nth-child(1), table.leaderboard th:nth-child(2) { text-align: left; }
+table.leaderboard td { padding: 9px 6px; border-bottom: 1px solid var(--border); }
+table.leaderboard tr:last-child td { border-bottom: none; }
+table.leaderboard td.rank { color: var(--text-secondary); width: 28px; }
+table.leaderboard td.who { font-weight: 600; word-break: break-word; }
+table.leaderboard td.num { text-align: right; color: var(--text-secondary); }
+table.leaderboard td.num.strong { color: var(--accent); font-weight: 700; }

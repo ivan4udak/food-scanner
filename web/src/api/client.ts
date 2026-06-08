@@ -2,7 +2,7 @@ import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig 
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { AuthResponseSchema, ServerErrorSchema } from '@/api/types';
-import { logger } from '@/logging/logger';
+import { logger, uuid } from '@/logging/logger';
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
 
@@ -57,10 +57,26 @@ export const api: AxiosInstance = axios.create({
 });
 
 /** Метаданные запроса для измерения длительности (живут в config). */
-type TimedConfig = InternalAxiosRequestConfig & { _start?: number; _retry?: boolean; _retried?: boolean };
+type TimedConfig = InternalAxiosRequestConfig & {
+  _start?: number;
+  _retry?: boolean;
+  _retried?: boolean;
+  _correlationId?: string;
+  _silent?: boolean; // телеметрия-запросы не логируем (иначе обратная связь)
+};
 
 const methodPath = (cfg?: { method?: string; url?: string }) =>
   `${(cfg?.method ?? 'GET').toUpperCase()} ${cfg?.url ?? ''}`;
+
+/** Trace-поля для шиппера логов (correlationId + метод/путь/статус/длительность). */
+function trace(cfg?: TimedConfig, extra?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    correlationId: cfg?._correlationId,
+    apiMethod: (cfg?.method ?? 'GET').toUpperCase(),
+    apiPath: `${API_BASE}${cfg?.url ?? ''}`,
+    ...extra,
+  };
+}
 
 /** Размер тела ответа в байтах (по content-length или длине строки). */
 function responseSize(res: { headers?: Record<string, unknown>; data?: unknown }): number | undefined {
@@ -75,28 +91,28 @@ function responseSize(res: { headers?: Record<string, unknown>; data?: unknown }
   return undefined;
 }
 
-// Запрос: добавляем Bearer (если есть) + логируем старт.
+// Запрос: добавляем Bearer (если есть) + X-Correlation-Id + логируем старт.
 api.interceptors.request.use((config) => {
+  const cfg = config as TimedConfig;
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
-  (config as TimedConfig)._start = Date.now();
-  logger.debug('NETWORK', `→ ${methodPath(config)}`, {
-    params: config.params,
-    auth: token ? 'Bearer ********' : undefined,
-  });
+  cfg._start = Date.now();
+  if (!cfg._correlationId) cfg._correlationId = uuid();
+  config.headers['X-Correlation-Id'] = cfg._correlationId;
+  if (!cfg._silent) {
+    logger.debug('NETWORK', `→ ${methodPath(config)}`, trace(cfg, { auth: token ? 'Bearer ********' : undefined }));
+  }
   return config;
 });
 
 // Ответ (успех): длительность + статус + размер.
 api.interceptors.response.use((res) => {
   const cfg = res.config as TimedConfig;
+  if (cfg._silent) return res;
   const ms = cfg._start ? Date.now() - cfg._start : undefined;
   const size = responseSize(res);
-  logger.info('NETWORK', `← ${res.status} ${res.statusText || 'OK'} ${methodPath(cfg)}`, {
-    ms,
-    size,
-    retried: cfg._retried || undefined,
-  });
+  logger.info('NETWORK', `← ${res.status} ${res.statusText || 'OK'} ${methodPath(cfg)}`,
+    trace(cfg, { httpStatus: res.status, durationMs: ms, size, retried: cfg._retried || undefined }));
   return res;
 });
 
@@ -132,10 +148,14 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const ms = original?._start ? Date.now() - original._start : undefined;
 
-    if (status) {
-      logger.warn('NETWORK', `← ${status} ${error.response?.statusText || ''} ${methodPath(original)}`, { ms });
-    } else {
-      logger.error('NETWORK', `× FAILED ${methodPath(original)}`, { ms, message: error.message });
+    if (!original?._silent) {
+      if (status) {
+        logger.warn('NETWORK', `← ${status} ${error.response?.statusText || ''} ${methodPath(original)}`,
+          trace(original, { httpStatus: status, durationMs: ms }));
+      } else {
+        logger.error('NETWORK', `× FAILED ${methodPath(original)}`,
+          trace(original, { durationMs: ms, message: error.message }));
+      }
     }
 
     if (status === 401 && original && !original._retry && !isAuthPath(original.url)) {

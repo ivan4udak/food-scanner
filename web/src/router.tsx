@@ -9,6 +9,7 @@ import { DraftPage } from '@/features/draft/DraftPage';
 import { LookupPage } from '@/features/lookup/LookupPage';
 import { CompletedPage } from '@/features/result/CompletedPage';
 import { AboutPage } from '@/features/about/AboutPage';
+import { PublicStatsPage } from '@/features/publicStats/PublicStatsPage';
 
 function RootLayout() {
   return (
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/recover', element: <RecoverPage /> },
+      { path: '/stats', element: <PublicStatsPage /> },
       { path: '/', element: protect(<ScanPage />) },
       { path: '/draft/:draftId', element: protect(<DraftPage />) },
       { path: '/product/:barcode', element: protect(<LookupPage />) },
