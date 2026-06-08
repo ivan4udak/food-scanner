@@ -232,6 +232,53 @@ legacy-без-username исключены.
 `{ "hidden": true|false }` → `200 { "hiddenFromLeaderboard": <bool> }`.
 Пользователь скрывает/показывает себя в публичном рейтинге.
 
+### GET /me/scans
+Свои сканы (только владельца). →
+```json
+[ { "barcode":"460...", "scanStatus":"COMPLETED", "catalogEntryId":"uuid",
+    "firstScannedAt":"…", "completedAt":"…", "photoCount":4, "ocrStatus":null } ]
+```
+`scanStatus` ∈ `DRAFT_OPEN | COMPLETED`. `ocrStatus` — задел под v1.10 (всегда `null`,
+в UI не показывается).
+
+### GET /me/scans/{barcode}
+Детали скана с готовыми URL фото; `404` если скан не найден/не принадлежит пользователю.
+```json
+{ "barcode":"460...", "catalogEntryId":"uuid", "firstScannedAt":"…", "completedAt":"…",
+  "photos":[ { "id":"uuid","type":"FRONT","storageKey":"photos/h.jpg",
+               "thumbUrl":"/api/v1/photos/photos/h.jpg?size=thumb",
+               "fullUrl":"/api/v1/photos/photos/h.jpg?size=full","capturedAt":"…" } ],
+  "ocrStatus":null }
+```
+Фото берутся из завершённой записи (`catalog_entry_photos`) либо из черновика (`draft_photos`).
+
+## 10. Админ-панель (Bearer + роль ADMIN/SUPER_ADMIN, v1.8)
+Доступ к `/api/v1/admin/**` разрешён только админам (гард `AdminGuardInterceptor`,
+роль из токена). Роль назначается по логину из `ADMIN_USERNAMES` (по умолчанию `admin`)
+при входе. Все эндпоинты — только чтение (операционная наблюдаемость).
+
+- `GET /admin/dashboard` → сводка: `usersTotal, onlineNow, activeToday, activeWeek,
+  scansToday, scansWeek, entriesToday, entriesWeek, photosToday, clientErrorsToday,
+  serverErrorsToday`. (online = активность за 5 мин; today = с UTC-полуночи.)
+- `GET /admin/users?sort=&limit=&offset=` → список пользователей: `id, username, role,
+  online, lastActivityAt, clientVersion, browser, os, deviceType, totalScans,
+  completedEntries, uploadedPhotos, clientErrors`. `sort` ∈
+  `lastActivityAt|completedEntries|uploadedPhotos|totalScans|clientErrors`.
+- `GET /admin/users/{id}` → карточка: `{ user, sessions[], recentScans[] }`; 404 если нет.
+- `GET /admin/users/{id}/logs?limit=&offset=` → клиентские логи пользователя.
+- `GET /admin/logs?contributorId=&sessionId=&level=&category=&event=&barcode=&screen=
+  &dateFrom=&dateTo=&limit=&offset=` → клиентские логи с фильтрами (полный контекст,
+  включая `metadataJson`, `correlationId`).
+- `GET /admin/errors?limit=` → `{ client: [клиентские WARN/ERROR за сегодня],
+  server: [серверные WARN/ERROR за сегодня] }`.
+- `GET /admin/catalog?limit=&offset=` → записи каталога: `catalogEntryId, barcode,
+  contributorId, author, createdAt, photoCount`.
+- `GET /admin/catalog/{barcode}` → деталь: `{ …, photos[type,storageKey,capturedAt],
+  relatedLogs[] }`; 404 если нет.
+- `GET /admin/trace/{correlationId}` → **сквозная трассировка**: client_logs +
+  server_events в одной временной линии (`source=CLIENT|SERVER, at, level, category,
+  event, message, method, path, httpStatus, durationMs`), отсортировано по времени.
+
 ---
 
 ## Серверные процессы

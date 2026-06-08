@@ -16,7 +16,7 @@ export function AboutPage() {
   const navigate = useNavigate();
   const connection = useConnection();
   const { data: health, isLoading: healthLoading } = useHealthQuery();
-  const { contributorId, username, signOut } = useAuthStore();
+  const { contributorId, username, signOut, isAdmin } = useAuthStore();
 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -124,7 +124,11 @@ export function AboutPage() {
             </button>
           </span>
         </div>
+        <button className="btn secondary" onClick={() => navigate('/my-scans')}>Мои сканы →</button>
         <button className="btn ghost" onClick={() => navigate('/stats')}>Публичная статистика →</button>
+        {isAdmin() && (
+          <button className="btn secondary" onClick={() => navigate('/admin')}>Админ-панель →</button>
+        )}
       </div>
 
       <div className="card">

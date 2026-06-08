@@ -12,6 +12,21 @@
 ## [Unreleased]
 - —
 
+## [1.8.0] — Админ-панель, «Мои сканы», роли
+- **Роли (API):** `ContributorRole` (USER/ADMIN/SUPER_ADMIN), Flyway V13 `role`.
+  Роль кладётся в JWT и проверяется `AdminGuardInterceptor` на `/api/v1/admin/**`.
+  Логины из `ADMIN_USERNAMES` (по умолчанию `admin`) получают ADMIN при входе.
+- **Admin read-API (Bearer + ADMIN):** `GET /admin/dashboard` (сводка),
+  `/admin/users` (+ карточка `/users/{id}`, логи `/users/{id}/logs`),
+  `/admin/logs` (фильтры), `/admin/errors`, `/admin/catalog` (+ деталь `/{barcode}`),
+  `/admin/trace/{correlationId}` — **сквозная трассировка** client_logs + server_events
+  в одной временной линии.
+- **«Мои сканы» (Bearer):** `GET /me/scans`, `GET /me/scans/{barcode}` — пользователь
+  видит только свои ШК и фото (thumb/full URL). `ocrStatus` зарезервирован под v1.10.
+- **PWA:** админ-панель `/admin` (дашборд, пользователи, логи, каталог, ошибки,
+  трассировка; гард по роли из JWT), страница «Мои сканы» `/my-scans`; ссылки в кабинете.
+- Backend 216 тестов (вкл. Testcontainers-IT read-адаптеров), фронт — тесты JWT/роли.
+
 ## [1.7.2] — Чистка логов и навигация статистики
 - **Логи:** успешные `GET /ping` и `GET /health` (heartbeat каждые 5с) больше не пишутся
   в клиентский лог — ни старт-запрос, ни ответ 200. Ошибки/таймауты health-эндпоинтов
