@@ -218,3 +218,29 @@ input:focus, select:focus { border-color: var(--accent-dim); }
 /* Когда снизу показана плашка установки — резерв места, чтобы она не перекрывала
    контент (например, кнопку ручного ввода ШК на экране сканирования). */
 body.install-banner-open .page { padding-bottom: calc(env(safe-area-inset-bottom) + 92px); }
+
+/* ── Диагностика: просмотр логов ── */
+.logview {
+  max-height: 320px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  -webkit-overflow-scrolling: touch;
+}
+.logview .logline {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary);
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.logview .logline:last-child { border-bottom: none; }
+.logview .lv-INFO { color: var(--text); }
+.logview .lv-WARN { color: var(--warning); }
+.logview .lv-ERROR { color: var(--danger); }
+.logview .lv-DEBUG, .logview .lv-TRACE { color: var(--text-secondary); }

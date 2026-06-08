@@ -2,6 +2,7 @@ import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig 
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { AuthResponseSchema, ServerErrorSchema } from '@/api/types';
+import { logger } from '@/logging/logger';
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
 
@@ -55,11 +56,48 @@ export const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Запрос: добавляем Bearer (если есть).
+/** Метаданные запроса для измерения длительности (живут в config). */
+type TimedConfig = InternalAxiosRequestConfig & { _start?: number; _retry?: boolean; _retried?: boolean };
+
+const methodPath = (cfg?: { method?: string; url?: string }) =>
+  `${(cfg?.method ?? 'GET').toUpperCase()} ${cfg?.url ?? ''}`;
+
+/** Размер тела ответа в байтах (по content-length или длине строки). */
+function responseSize(res: { headers?: Record<string, unknown>; data?: unknown }): number | undefined {
+  const len = res.headers?.['content-length'];
+  if (typeof len === 'string' && len) return Number(len);
+  try {
+    if (typeof res.data === 'string') return res.data.length;
+    if (res.data) return JSON.stringify(res.data).length;
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+// Запрос: добавляем Bearer (если есть) + логируем старт.
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  (config as TimedConfig)._start = Date.now();
+  logger.debug('NETWORK', `→ ${methodPath(config)}`, {
+    params: config.params,
+    auth: token ? 'Bearer ********' : undefined,
+  });
   return config;
+});
+
+// Ответ (успех): длительность + статус + размер.
+api.interceptors.response.use((res) => {
+  const cfg = res.config as TimedConfig;
+  const ms = cfg._start ? Date.now() - cfg._start : undefined;
+  const size = responseSize(res);
+  logger.info('NETWORK', `← ${res.status} ${res.statusText || 'OK'} ${methodPath(cfg)}`, {
+    ms,
+    size,
+    retried: cfg._retried || undefined,
+  });
+  return res;
 });
 
 const isAuthPath = (url?: string) => !!url && url.includes('/auth/');
@@ -68,15 +106,18 @@ const isAuthPath = (url?: string) => !!url && url.includes('/auth/');
 export async function refreshTokens(): Promise<string | null> {
   const refreshToken = useAuthStore.getState().refreshToken;
   if (!refreshToken) return null;
+  logger.info('AUTH', 'Token refresh started');
   try {
     const res = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
     const parsed = AuthResponseSchema.safeParse(res.data);
     if (parsed.success && parsed.data.accessToken && parsed.data.refreshToken) {
       useAuthStore.getState().setTokens(parsed.data.accessToken, parsed.data.refreshToken);
+      logger.info('AUTH', 'Token refresh success');
       return parsed.data.accessToken;
     }
+    logger.warn('AUTH', 'Token refresh: bad response');
   } catch {
-    /* ignore — обработается ниже как logout */
+    logger.warn('AUTH', 'Token refresh failed');
   }
   return null;
 }
@@ -87,8 +128,15 @@ let refreshPromise: Promise<string | null> | null = null;
 api.interceptors.response.use(
   (r) => r,
   async (error: AxiosError) => {
-    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const original = error.config as TimedConfig | undefined;
     const status = error.response?.status;
+    const ms = original?._start ? Date.now() - original._start : undefined;
+
+    if (status) {
+      logger.warn('NETWORK', `← ${status} ${error.response?.statusText || ''} ${methodPath(original)}`, { ms });
+    } else {
+      logger.error('NETWORK', `× FAILED ${methodPath(original)}`, { ms, message: error.message });
+    }
 
     if (status === 401 && original && !original._retry && !isAuthPath(original.url)) {
       original._retry = true;
@@ -100,8 +148,11 @@ api.interceptors.response.use(
       const newToken = await refreshPromise;
       if (newToken) {
         original.headers.Authorization = `Bearer ${newToken}`;
+        original._retried = true;
+        logger.info('NETWORK', `↻ retry ${methodPath(original)}`);
         return api(original);
       }
+      logger.warn('AUTH', 'Logout: refresh expired');
       useAuthStore.getState().signOut(); // refresh протух → выход
     }
 
