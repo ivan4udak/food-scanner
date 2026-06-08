@@ -20,6 +20,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     /** Имя request-атрибута с id аутентифицированного контрибьютора. */
     public static final String CONTRIBUTOR_ATTR = "authContributorId";
+    /** Имя request-атрибута с ролью (USER/ADMIN/SUPER_ADMIN) из токена. */
+    public static final String ROLE_ATTR = "authRole";
 
     private final TokenService tokenService;
 
@@ -35,6 +37,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         TokenService.AccessClaims claims = tokenService.verifyAccessToken(header.substring(7).trim());
         request.setAttribute(CONTRIBUTOR_ATTR, claims.contributorId());
+        request.setAttribute(ROLE_ATTR, claims.role());
         return true;
     }
 }

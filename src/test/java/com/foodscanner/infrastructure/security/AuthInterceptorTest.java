@@ -24,7 +24,7 @@ class AuthInterceptorTest {
     void valid() {
         UUID id = UUID.randomUUID();
         when(tokens.verifyAccessToken(eq("good")))
-            .thenReturn(new TokenService.AccessClaims(id, "alice"));
+            .thenReturn(new TokenService.AccessClaims(id, "alice", "USER"));
         var req = new MockHttpServletRequest();
         req.addHeader("Authorization", "Bearer good");
 

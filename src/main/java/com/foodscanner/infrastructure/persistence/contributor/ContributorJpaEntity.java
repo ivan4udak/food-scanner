@@ -41,6 +41,9 @@ public class ContributorJpaEntity {
     @Column(name = "hidden_from_leaderboard", nullable = false)
     private boolean hiddenFromLeaderboard;
 
+    @Column(name = "role", nullable = false, length = 16)
+    private String role;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -51,7 +54,7 @@ public class ContributorJpaEntity {
 
     public ContributorJpaEntity(UUID id, String nickname, String username, String passwordHash,
                                 int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
-                                int completedCatalogCount, boolean hiddenFromLeaderboard,
+                                int completedCatalogCount, boolean hiddenFromLeaderboard, String role,
                                 Instant createdAt, Instant updatedAt) {
         this.id                    = id;
         this.nickname              = nickname;
@@ -62,6 +65,7 @@ public class ContributorJpaEntity {
         this.resetPasswordUntil    = resetPasswordUntil;
         this.completedCatalogCount = completedCatalogCount;
         this.hiddenFromLeaderboard = hiddenFromLeaderboard;
+        this.role                  = role;
         this.createdAt             = createdAt;
         this.updatedAt             = updatedAt;
     }
@@ -75,6 +79,7 @@ public class ContributorJpaEntity {
     public Instant getResetPasswordUntil()    { return resetPasswordUntil; }
     public int     getCompletedCatalogCount() { return completedCatalogCount; }
     public boolean isHiddenFromLeaderboard()  { return hiddenFromLeaderboard; }
+    public String  getRole()                  { return role; }
     public Instant getCreatedAt()             { return createdAt; }
     public Instant getUpdatedAt()             { return updatedAt; }
 }
