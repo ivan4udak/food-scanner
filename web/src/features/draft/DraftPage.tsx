@@ -120,7 +120,7 @@ export function DraftPage() {
 
   return (
     <Page>
-      <TopBar title="Новый продукт" back />
+      <TopBar title="Новый продукт" back settings />
       {barcode && <p className="muted">Штрихкод: {barcode}</p>}
 
       <div className="card">

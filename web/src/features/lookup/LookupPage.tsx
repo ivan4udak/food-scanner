@@ -14,7 +14,7 @@ export function LookupPage() {
 
   return (
     <Page>
-      <TopBar title="Продукт" back />
+      <TopBar title="Продукт" back settings />
       <p className="muted">Штрихкод: {barcode}</p>
 
       {isError && <div className="error">Не удалось загрузить запись.</div>}
