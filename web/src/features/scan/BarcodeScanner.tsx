@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { startScanner, type RunningScanner, type ScanEngine } from '@/lib/barcode';
+import { logger } from '@/logging/logger';
 
 interface Props {
   onDetected: (value: string) => void;
@@ -23,10 +24,14 @@ export function BarcodeScanner({ onDetected, paused = false }: Props) {
     let scanner: RunningScanner | null = null;
     let cancelled = false;
 
+    logger.info('SCAN', 'Scanner opened');
     startScanner({
       video,
       cooldownMs: 4000,
-      onResult: (r) => onDetectedRef.current(r.value),
+      onResult: (r) => {
+        logger.info('SCAN', 'Barcode detected', { value: r.value });
+        onDetectedRef.current(r.value);
+      },
     })
       .then((s) => {
         if (cancelled) {
@@ -36,8 +41,12 @@ export function BarcodeScanner({ onDetected, paused = false }: Props) {
         scanner = s;
         setEngine(s.engine);
         setError(null);
+        logger.debug('SCAN', `Scanner engine: ${s.engine}`);
       })
-      .catch(() => setError('Нет доступа к камере. Введите штрихкод вручную.'));
+      .catch(() => {
+        logger.warn('SCAN', 'Camera unavailable');
+        setError('Нет доступа к камере. Введите штрихкод вручную.');
+      });
 
     return () => {
       cancelled = true;

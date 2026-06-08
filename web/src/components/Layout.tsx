@@ -9,9 +9,11 @@ interface TopBarProps {
   title: string;
   back?: boolean;
   right?: ReactNode;
+  /** Кнопка-шестерёнка справа → переход на экран «О приложении» (диагностика). */
+  settings?: boolean;
 }
 
-export function TopBar({ title, back, right }: TopBarProps) {
+export function TopBar({ title, back, right, settings }: TopBarProps) {
   const navigate = useNavigate();
   return (
     <div className="topbar">
@@ -23,7 +25,16 @@ export function TopBar({ title, back, right }: TopBarProps) {
         )}
         <h1 style={{ fontSize: '1.25rem', margin: 0 }}>{title}</h1>
       </div>
-      {right && <div className="actions">{right}</div>}
+      {(right || settings) && (
+        <div className="actions">
+          {right}
+          {settings && (
+            <button className="iconbtn" aria-label="Настройки" onClick={() => navigate('/about')}>
+              ⚙
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

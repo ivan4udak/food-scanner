@@ -7,6 +7,8 @@ import { isIOS, isStandalone } from '@/lib/platform';
 import { useInstall } from '@/features/install/useInstall';
 import { InstallInstructionsPage } from '@/features/install/InstallInstructionsPage';
 import { InstallReminderBanner } from '@/features/install/InstallReminderBanner';
+import { logger } from '@/logging/logger';
+import { APP_VERSION } from '@/version';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,10 +27,21 @@ export default function App() {
   const iosReminder = ios && !standalone && dismissed;
   const showBanner = !standalone && !showInstallPage && (iosReminder || Boolean(deferred));
 
+  // Стартовый лог: версия + режим запуска.
+  useEffect(() => {
+    logger.info('SYSTEM', `App start v${APP_VERSION}`, { standalone, ios });
+    if (standalone) logger.info('PWA', 'Standalone mode');
+  }, [standalone, ios]);
+
+  useEffect(() => {
+    if (showInstallPage) logger.info('PWA', 'Install instructions shown');
+  }, [showInstallPage]);
+
   // Пока показана нижняя плашка — резервируем место снизу, чтобы она не перекрывала
   // контент (например, кнопку ручного ввода ШК).
   useEffect(() => {
     document.body.classList.toggle('install-banner-open', showBanner);
+    if (showBanner) logger.info('PWA', 'Install banner shown');
     return () => document.body.classList.remove('install-banner-open');
   }, [showBanner]);
 

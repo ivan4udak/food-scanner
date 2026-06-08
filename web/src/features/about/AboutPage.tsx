@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 import { API_BASE } from '@/api/client';
 import { APP_VERSION, PLATFORM } from '@/version';
 import { Page, TopBar } from '@/components/Layout';
+import { logger, formatLogLine } from '@/logging/logger';
+import { browserInfo, buildDiagnosticsText, downloadLog } from '@/logging/diagnostics';
 
 /** Экран «О приложении» + диагностический пакет (паритет с iOS, Блок 20). */
 export function AboutPage() {
@@ -16,10 +18,17 @@ export function AboutPage() {
 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+  const [logTick, setLogTick] = useState(0); // принудительное обновление списка логов
 
   useEffect(() => {
     navigator.storage?.estimate?.().then((e) => setCacheSize(e.usage ?? 0)).catch(() => setCacheSize(null));
   }, []);
+
+  const connText = connectionLabel(connection);
+  const logCount = logger.count();
+  const lastLogs = showLogs ? logger.recent(100) : [];
+  void logTick; // зависимость для пересборки списка по кнопке «Обновить»
 
   const backendText = healthLoading ? 'Проверка…' : health ? 'Работает' : 'Недоступен';
   const storageText = healthLoading ? 'Проверка…' : !health ? '—' : health.storage === 'UP' ? 'Работает' : 'Недоступно';
@@ -28,26 +37,9 @@ export function AboutPage() {
 
   const cacheText = cacheSize == null ? '—' : formatBytes(cacheSize);
 
-  function buildDiagnostics(): string {
-    return [
-      'Food Scanner — диагностика',
-      `Время: ${new Date().toISOString()}`,
-      `Платформа: ${PLATFORM}`,
-      `Версия: ${APP_VERSION}`,
-      `User-Agent: ${navigator.userAgent}`,
-      `Base API: ${location.origin}${API_BASE}`,
-      `Связь: ${connectionLabel(connection)}`,
-      `Backend: ${backendText}`,
-      `Хранилище (MinIO): ${storageText}`,
-      `Кэш: ${cacheText}`,
-      `Логин: ${username ?? '—'}`,
-      `Contributor ID: ${contributorId ?? '—'}`,
-    ].join('\n');
-  }
-
   async function copyDiagnostics() {
     try {
-      await navigator.clipboard.writeText(buildDiagnostics());
+      await navigator.clipboard.writeText(buildDiagnosticsText(connText, 500));
       navigator.vibrate?.(10);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -99,9 +91,37 @@ export function AboutPage() {
         <div className="row"><span>Contributor ID</span><span className="value">{contributorId ?? '—'}</span></div>
       </div>
 
+      <div className="card">
+        <h2>Диагностика</h2>
+        <div className="row"><span>Версия</span><span className="value">{APP_VERSION} ({PLATFORM})</span></div>
+        <div className="row"><span>Браузер</span><span className="value">{browserInfo()}</span></div>
+        <div className="row"><span>Backend URL</span><span className="value">{location.origin}{API_BASE}</span></div>
+        <div className="row"><span>Состояние связи</span><span className="value"><span className={`dot ${connection}`} /> {connText}</span></div>
+        <div className="row"><span>Записей в логе</span><span className="value">{logCount}</span></div>
+
+        <div className="stack" style={{ marginTop: 12 }}>
+          <button className="btn secondary" onClick={() => { setShowLogs((v) => !v); setLogTick((t) => t + 1); }}>
+            {showLogs ? 'Скрыть лог' : 'Показать последние 100'}
+          </button>
+          {showLogs && (
+            <>
+              <button className="btn ghost" onClick={() => setLogTick((t) => t + 1)}>Обновить</button>
+              <div className="logview">
+                {lastLogs.length === 0
+                  ? <div className="muted">Лог пуст.</div>
+                  : lastLogs.map((e, i) => (
+                      <div key={i} className={`logline lv-${e.level}`}>{formatLogLine(e)}</div>
+                    ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       <button className="btn" onClick={copyDiagnostics}>
         {copied ? 'Скопировано ✓' : 'Скопировать диагностику'}
       </button>
+      <button className="btn secondary" onClick={() => downloadLog(connText)}>Скачать лог</button>
       <button className="btn danger" onClick={logout}>Выйти из аккаунта</button>
     </Page>
   );

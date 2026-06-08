@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { logger } from '@/logging/logger';
 
 const DISMISS_KEY = 'foodscanner.install.dismissed';
 const DISMISS_MS = 24 * 60 * 60 * 1000; // 24 часа
@@ -43,9 +44,13 @@ export function useInstall(): InstallState {
   useEffect(() => {
     const onPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault(); // не показывать встроенную мини-плашку
+      logger.info('PWA', 'Install prompt available');
       setDeferred(e);
     };
-    const onInstalled = () => setDeferred(null);
+    const onInstalled = () => {
+      logger.info('PWA', 'PWA installed');
+      setDeferred(null);
+    };
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
     return () => {
@@ -56,8 +61,10 @@ export function useInstall(): InstallState {
 
   const promptInstall = useCallback(async () => {
     if (!deferred) return;
+    logger.info('PWA', 'Install prompt requested');
     await deferred.prompt();
-    await deferred.userChoice.catch(() => undefined);
+    const choice = await deferred.userChoice.catch(() => undefined);
+    if (choice) logger.info('PWA', `Install choice: ${choice.outcome}`);
     setDeferred(null);
   }, [deferred]);
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Session } from '@/api/types';
+import { logger } from '@/logging/logger';
 
 /**
  * Сессия: профиль контрибьютора + токены (access/refresh).
@@ -29,18 +30,22 @@ export const useAuthStore = create<AuthState>()(
 
       isAuthenticated: () => Boolean(get().accessToken && get().contributorId),
 
-      signIn: (s) =>
+      signIn: (s) => {
+        logger.info('AUTH', 'Session established', { contributorId: s.contributorId, username: s.username });
         set({
           contributorId: s.contributorId,
           username: s.username,
           accessToken: s.accessToken,
           refreshToken: s.refreshToken,
-        }),
+        });
+      },
 
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
 
-      signOut: () =>
-        set({ contributorId: null, username: null, accessToken: null, refreshToken: null }),
+      signOut: () => {
+        logger.info('AUTH', 'Logout');
+        set({ contributorId: null, username: null, accessToken: null, refreshToken: null });
+      },
     }),
     { name: 'fs-auth' },
   ),

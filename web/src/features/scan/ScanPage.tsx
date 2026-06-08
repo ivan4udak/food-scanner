@@ -42,14 +42,7 @@ export function ScanPage() {
 
   return (
     <Page>
-      <TopBar
-        title="Сканировать"
-        right={
-          <button className="iconbtn" aria-label="О приложении" onClick={() => navigate('/about')}>
-            ⚙
-          </button>
-        }
-      />
+      <TopBar title="Сканировать" settings />
 
       <BarcodeScanner onDetected={handleBarcode} paused={!online || busy} />
 
