@@ -12,6 +12,26 @@
 ## [Unreleased]
 - —
 
+## [1.7.0] — Серверные клиентские логи, телеметрия и публичный dashboard
+- **Корреляция (API, аддитивно):** `CorrelationIdFilter` — заголовок `X-Correlation-Id`
+  (читается из запроса либо генерируется), `requestId`, оба в MDC; ответ возвращает
+  `X-Correlation-Id`. Клиент шлёт correlationId в каждом запросе.
+- **Приём телеметрии (Bearer):** `POST /api/v1/client-logs/batch`, `POST /api/v1/client/session`,
+  `POST /api/v1/client/activity`. Flyway V11: `client_logs` (+correlation/barcode/draft/entry/photo/api),
+  `client_sessions`, `client_activity`, `server_events`. Серверная повторная маскировка секретов;
+  успешные ping/health не сохраняются (heartbeat-шум). Retention: 30д обычные / 90д WARN+ERROR.
+- **Публичная статистика (без авторизации):** `GET /api/v1/public/stats`,
+  `GET /api/v1/public/leaderboard?period=all|today|week|month&limit`. Рейтинг по completedEntries
+  (затем фото, затем сканы); скрытые участники исключены. Страница PWA `/stats`.
+- **Кабинет:** `POST /api/v1/me/leaderboard-visibility` — opt-out из рейтинга. Flyway V12:
+  `contributors.hidden_from_leaderboard`.
+- **PWA:** отправка логов батчами (30с / 50 записей / WARN+ERROR / открытие диагностики) с backoff
+  и очередью в localStorage; снимок сессии и активность; клиентский отсев ping/health.
+- **CI/CD:** Telegram-уведомление о деплое теперь содержит Environment/Branch/Version/Commit +
+  Service URL и API URL окружения (единая карта `service_url_for_env` в `deploy/scripts/lib.sh`),
+  отдельные сообщения об успехе/провале/откате.
+- Backend 191 тест (вкл. Testcontainers), фронт 50 тестов — зелёные.
+
 ## [1.6.1] — Кнопка настроек на всех экранах
 - Шестерёнка ⚙ (переход на «О приложении» → Диагностика) добавлена в TopBar
   через проп `settings`; включена на экранах «Новый продукт» (черновик) и

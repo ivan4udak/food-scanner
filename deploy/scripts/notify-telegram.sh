@@ -9,6 +9,5 @@ MSG="${1:?usage: notify-telegram.sh <message>}"
 
 curl -fsS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
-  -d parse_mode="HTML" \
   -d disable_web_page_preview="true" \
   --data-urlencode text="${MSG}" >/dev/null

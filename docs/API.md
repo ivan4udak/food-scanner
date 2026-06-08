@@ -182,6 +182,58 @@ curl -H "Authorization: Bearer $ACCESS" "$API/photos/photos/<hash>.jpg?size=thum
 
 ---
 
+## 7. Телеметрия клиента (Bearer, v1.7)
+`contributorId` берётся из токена. Секреты (password/токены/Authorization/Cookie)
+маскируются повторно на сервере и **никогда** не сохраняются. Успешные `GET /ping`
+и `/health` в `client_logs`/`server_events` не попадают (heartbeat-шум).
+
+### POST /client-logs/batch
+Партия клиентских логов.
+```json
+{ "sessionId":"uuid", "clientVersion":"1.7.0", "pwaVersion":"1.7.0",
+  "logs":[ { "id":"uuid","timestamp":"2026-06-08T10:00:00Z","level":"INFO",
+             "category":"SCAN","event":"SCAN_RESULT","message":"Scan result NEW",
+             "screen":"ScannerPage","correlationId":"uuid","barcode":"460...",
+             "apiMethod":"POST","apiPath":"/api/v1/scan","httpStatus":200,
+             "durationMs":180,"metadata":{} } ] }
+```
+→ `200 { "status":"OK", "accepted": <int> }` (accepted — после отсева шума).
+
+### POST /client/session
+Снимок сессии (upsert по `sessionId`): `clientVersion,pwaVersion,browser,os,deviceType,
+language,timezone,screenWidth,screenHeight,hardwareConcurrency,deviceMemory,networkStatus,standalone`.
+→ `200 { "status":"OK" }`.
+
+### POST /client/activity
+Лёгкий heartbeat для online/last-activity: `{ sessionId, screen, online, timestamp }`.
+→ `200 { "status":"OK" }`.
+
+**Корреляция:** каждый запрос несёт `X-Correlation-Id` (клиент генерирует UUID; если
+не прислан — создаёт backend). Ответ возвращает тот же `X-Correlation-Id`. На сервере
+формируется `requestId`; значимые события пишутся в `server_events` для сквозной трассировки.
+
+## 8. Публичная статистика (без авторизации)
+### GET /public/stats
+```json
+{ "totals": {"scans":12000,"catalogEntries":3400,"photos":15000,"contributors":180},
+  "today":  {"scans":240,"catalogEntries":80,"photos":310} }
+```
+### GET /public/leaderboard?period=all|today|week|month&limit=10|50|100
+```json
+{ "period":"all",
+  "items":[ {"rank":1,"username":"ivan","completedEntries":120,"scans":340,
+             "uploadedPhotos":500,"score":120} ] }
+```
+Рейтинг: `score = completedEntries` (затем фото, затем сканы). Скрытые (opt-out) и
+legacy-без-username исключены.
+
+## 9. Аккаунт (Bearer)
+### POST /me/leaderboard-visibility
+`{ "hidden": true|false }` → `200 { "hiddenFromLeaderboard": <bool> }`.
+Пользователь скрывает/показывает себя в публичном рейтинге.
+
+---
+
 ## Серверные процессы
 - **Очистка мусора** (раз в час): незавершённые черновики (OPEN/ABANDONED) старше 24ч удаляются
   вместе с их фото в MinIO (объект удаляется, только если на него больше нет ссылок).
