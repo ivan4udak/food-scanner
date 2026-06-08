@@ -281,3 +281,27 @@ table.leaderboard td.rank { color: var(--text-secondary); width: 28px; }
 table.leaderboard td.who { font-weight: 600; word-break: break-word; }
 table.leaderboard td.num { text-align: right; color: var(--text-secondary); }
 table.leaderboard td.num.strong { color: var(--accent); font-weight: 700; }
+
+/* ── Админ-панель ── */
+table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.admin-table th {
+  text-align: right; color: var(--text-secondary); font-weight: 500; font-size: 0.72rem;
+  padding: 6px 6px; border-bottom: 1px solid var(--border);
+}
+table.admin-table th:first-child { text-align: left; }
+table.admin-table td { padding: 9px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.admin-table tr:last-child td { border-bottom: none; }
+table.admin-table td.who { font-weight: 600; word-break: break-word; }
+table.admin-table td.num { text-align: right; }
+table.admin-table td.num.strong { color: var(--accent); font-weight: 700; }
+table.admin-table td.sub, .admin-table .sub, td .sub { color: var(--text-secondary); font-size: 0.74rem; font-weight: 400; }
+tr.clickable, .clickable { cursor: pointer; }
+tr.clickable:active { background: var(--surface-2); }
+.badge-role {
+  margin-left: 6px; font-size: 0.64rem; font-weight: 700; color: #06130a;
+  background: var(--accent); border-radius: 6px; padding: 1px 5px; vertical-align: middle;
+}
+.logview .meta {
+  margin-top: 2px; color: var(--text-secondary); font-size: 0.68rem;
+  white-space: pre-wrap; word-break: break-all; opacity: 0.85;
+}
