@@ -13,6 +13,7 @@ import com.foodscanner.domain.exception.ContributorNotFoundException;
 import com.foodscanner.domain.exception.InvalidTokenException;
 import com.foodscanner.domain.exception.RecoveryNotAllowedException;
 import com.foodscanner.domain.model.Contributor;
+import com.foodscanner.domain.model.ContributorRole;
 import com.foodscanner.domain.model.RefreshToken;
 import com.foodscanner.domain.repository.ContributorRepository;
 import com.foodscanner.domain.repository.RefreshTokenRepository;
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Слой: application
@@ -42,15 +44,17 @@ public class AuthService implements AuthUseCase {
     private final TokenService            tokenService;
     private final RefreshTokenRepository  refreshTokens;
     private final Duration                refreshTtl;
+    private final Set<String>             adminUsernames;
 
     public AuthService(ContributorRepository repository, PasswordHasher hasher,
                        TokenService tokenService, RefreshTokenRepository refreshTokens,
-                       Duration refreshTtl) {
+                       Duration refreshTtl, Set<String> adminUsernames) {
         this.repository    = repository;
         this.hasher        = hasher;
         this.tokenService  = tokenService;
         this.refreshTokens = refreshTokens;
         this.refreshTtl    = refreshTtl;
+        this.adminUsernames = adminUsernames == null ? Set.of() : adminUsernames;
     }
 
     @Override
@@ -122,10 +126,19 @@ public class AuthService implements AuthUseCase {
     // ── helpers ───────────────────────────────────────────────
 
     private AuthSession issueSession(Contributor c) {
-        String access     = tokenService.issueAccessToken(c.getId(), c.getUsername());
+        applyAdminBootstrap(c);
+        String access     = tokenService.issueAccessToken(c.getId(), c.getUsername(), c.getRole().name());
         String refreshRaw  = randomToken();
         refreshTokens.save(RefreshToken.issue(c.getId(), sha256(refreshRaw), refreshTtl));
         return new AuthSession(c.getId(), c.getUsername(), access, refreshRaw);
+    }
+
+    /** Авто-назначение роли ADMIN логинам из ADMIN_USERNAMES (конфиг сервера). */
+    private void applyAdminBootstrap(Contributor c) {
+        if (c.getUsername() != null && adminUsernames.contains(c.getUsername()) && !c.isAdmin()) {
+            c.assignRole(ContributorRole.ADMIN);
+            repository.save(c);
+        }
     }
 
     private static String randomToken() {

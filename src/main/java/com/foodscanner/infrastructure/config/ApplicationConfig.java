@@ -63,9 +63,13 @@ public class ApplicationConfig {
                                    PasswordHasher passwordHasher,
                                    TokenService tokenService,
                                    RefreshTokenRepository refreshTokenRepository,
-                                   @Value("${jwt.refresh-ttl-days:30}") long refreshTtlDays) {
+                                   @Value("${jwt.refresh-ttl-days:30}") long refreshTtlDays,
+                                   @Value("${admin.usernames:}") String adminUsernamesCsv) {
+        java.util.Set<String> adminUsernames = java.util.Arrays.stream(adminUsernamesCsv.split(","))
+            .map(String::trim).filter(s -> !s.isEmpty())
+            .collect(java.util.stream.Collectors.toSet());
         return new AuthService(contributorRepository, passwordHasher, tokenService,
-            refreshTokenRepository, Duration.ofDays(refreshTtlDays));
+            refreshTokenRepository, Duration.ofDays(refreshTtlDays), adminUsernames);
     }
 
     @Bean

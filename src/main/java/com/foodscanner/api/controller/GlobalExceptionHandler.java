@@ -77,6 +77,13 @@ public class GlobalExceptionHandler {
             .body(new ErrorResponse(401, "Unauthorized", ex.getMessage()));
     }
 
+    @ExceptionHandler(com.foodscanner.domain.exception.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            com.foodscanner.domain.exception.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(new ErrorResponse(403, "Forbidden", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidAdminCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleAdmin(InvalidAdminCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
