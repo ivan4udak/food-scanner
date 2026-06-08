@@ -4,20 +4,30 @@ import { logger } from '@/logging/logger';
 
 interface Props {
   onDetected: (value: string) => void;
+  /** Пауза только ПриёмА результатов; камера-поток не останавливается (важно для iOS). */
   paused?: boolean;
 }
 
-/** Живое сканирование с камеры (BarcodeDetector → fallback ZXing). */
+/**
+ * Живое сканирование с камеры (BarcodeDetector → fallback ZXing).
+ *
+ * Камера запускается один раз при монтировании и живёт весь жизненный цикл
+ * экрана. `paused` лишь приостанавливает приём штрихкодов (например, на время
+ * сетевого запроса/деградации), НЕ пересоздавая поток — иначе на iOS частые
+ * stop/start оставляют чёрный кадр.
+ */
 export function BarcodeScanner({ onDetected, paused = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const onDetectedRef = useRef(onDetected);
   onDetectedRef.current = onDetected;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   const [engine, setEngine] = useState<ScanEngine | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Камера — один раз на монтирование (без зависимости от paused).
   useEffect(() => {
-    if (paused) return undefined;
     const video = videoRef.current;
     if (!video) return undefined;
 
@@ -28,7 +38,9 @@ export function BarcodeScanner({ onDetected, paused = false }: Props) {
     startScanner({
       video,
       cooldownMs: 4000,
+      onInfo: (m, d) => logger.debug('SCAN', m, d),
       onResult: (r) => {
+        if (pausedRef.current) return; // детект приостановлен — поток не трогаем
         logger.info('SCAN', 'Barcode detected', { value: r.value });
         onDetectedRef.current(r.value);
       },
@@ -41,18 +53,20 @@ export function BarcodeScanner({ onDetected, paused = false }: Props) {
         scanner = s;
         setEngine(s.engine);
         setError(null);
-        logger.debug('SCAN', `Scanner engine: ${s.engine}`);
+        logger.info('SCAN', `Scanner running (${s.engine})`);
       })
-      .catch(() => {
-        logger.warn('SCAN', 'Camera unavailable');
-        setError('Нет доступа к камере. Введите штрихкод вручную.');
+      .catch((e: unknown) => {
+        const err = e as Error;
+        logger.warn('SCAN', 'Camera unavailable', { name: err?.name, message: err?.message });
+        setError('Нет доступа к камере. Проверьте разрешение и введите штрихкод вручную.');
       });
 
     return () => {
       cancelled = true;
       scanner?.stop();
+      logger.debug('SCAN', 'Scanner closed');
     };
-  }, [paused]);
+  }, []);
 
   return (
     <div className="scanner">
