@@ -34,6 +34,7 @@ export function AdminUsersPage() {
 
       {q.isLoading && <p className="muted center">Загрузка…</p>}
       {q.data && (
+        <div className="table-scroll">
         <table className="admin-table">
           <thead>
             <tr><th>Пользователь</th><th>Активность</th><th title="Товаров">Тов.</th>
@@ -59,6 +60,7 @@ export function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

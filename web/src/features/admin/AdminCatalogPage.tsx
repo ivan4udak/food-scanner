@@ -13,6 +13,7 @@ export function AdminCatalogPage() {
       <h2>Каталог</h2>
       {q.isLoading && <p className="muted center">Загрузка…</p>}
       {q.data && (
+        <div className="table-scroll">
         <table className="admin-table">
           <thead><tr><th>ШК</th><th>Автор</th><th>Фото</th><th>Создано</th></tr></thead>
           <tbody>
@@ -26,6 +27,7 @@ export function AdminCatalogPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
