@@ -23,7 +23,6 @@ export function AdminCatalogDetailPage() {
         <h2>ШК {e.barcode}</h2>
         <div className="row"><span>Автор</span><span className="value">{e.author ?? '—'}</span></div>
         <div className="row"><span>Создано</span><span className="value">{dt(e.createdAt)}</span></div>
-        <div className="row"><span>Качество (без OCR)</span><span className="value">{e.qualityScore} / 100</span></div>
       </div>
 
       <div className="card">
