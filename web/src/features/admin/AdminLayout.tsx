@@ -26,6 +26,8 @@ export function AdminLayout() {
    *  - верхние вкладки админки → «О приложении».
    */
   const goBack = () => {
+    const errMatch = pathname.match(/^\/admin\/users\/([^/]+)\/errors$/);
+    if (errMatch) return navigate(`/admin/users/${errMatch[1]}`);
     if (/^\/admin\/(users|u)\/[^/]+$/.test(pathname)) return navigate('/admin/users');
     if (/^\/admin\/catalog\/[^/]+$/.test(pathname)) return navigate('/admin/catalog');
     if (/^\/admin\/trace\/[^/]+$/.test(pathname)) {

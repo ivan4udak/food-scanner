@@ -94,6 +94,19 @@ class AdminReadControllerTest {
     }
 
     @Test
+    @DisplayName("GET /admin/users/{id}/errors — ошибки пользователя")
+    void userErrors() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(admin.userErrors(eq(id), anyInt())).thenReturn(List.of(
+            new AdminClientLog(UUID.randomUUID(), id, "ivan", null, null, Instant.now(),
+                "ERROR", "PHOTO", "PHOTO_UPLOAD_FAILED", null, "fail", null, null, null, null, null, null, null)));
+        mockMvc.perform(get("/api/v1/admin/users/" + id + "/errors"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].level").value("ERROR"))
+            .andExpect(jsonPath("$[0].event").value("PHOTO_UPLOAD_FAILED"));
+    }
+
+    @Test
     @DisplayName("GET /admin/trace/{correlationId}")
     void trace() throws Exception {
         UUID corr = UUID.randomUUID();

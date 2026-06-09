@@ -24,6 +24,8 @@ public interface AdminReadUseCase {
 
     List<AdminClientLog> userLogs(UUID id, int limit, int offset);
 
+    List<AdminClientLog> userErrors(UUID id, int limit);
+
     List<AdminClientLog> logs(AdminLogFilter filter);
 
     List<AdminClientLog> clientErrors(int limit);

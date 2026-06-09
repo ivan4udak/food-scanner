@@ -33,6 +33,8 @@ public interface AdminReadPort {
 
     List<AdminClientLog> clientErrors(Instant since, int limit);
 
+    List<AdminClientLog> clientErrorsByUser(UUID contributorId, int limit);
+
     List<AdminServerEventRow> serverEventsByCorrelation(UUID correlationId);
 
     List<AdminServerEventRow> serverErrors(Instant since, int limit);

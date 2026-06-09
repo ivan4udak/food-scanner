@@ -77,6 +77,14 @@ class AdminQueryServiceTest {
     }
 
     @Test
+    void userErrorsDelegatesToPort() {
+        UUID id = UUID.randomUUID();
+        when(port.clientErrorsByUser(eq(id), anyInt())).thenReturn(List.of());
+        service.userErrors(id, 50);
+        verify(port).clientErrorsByUser(eq(id), eq(50));
+    }
+
+    @Test
     void usersClampsLimit() {
         when(port.users(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         service.users("completedEntries", 5000, 0);

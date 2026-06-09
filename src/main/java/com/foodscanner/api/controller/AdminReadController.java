@@ -65,6 +65,14 @@ public class AdminReadController {
         return admin.userLogs(id, limit, offset);
     }
 
+    /** Только ошибки (WARN/ERROR) клиента конкретного пользователя. */
+    @GetMapping("/users/{id}/errors")
+    public List<AdminClientLog> userErrors(
+            @PathVariable UUID id,
+            @RequestParam(name = "limit", defaultValue = "200") int limit) {
+        return admin.userErrors(id, limit);
+    }
+
     @GetMapping("/logs")
     public List<AdminClientLog> logs(
             @RequestParam(name = "contributorId", required = false) UUID contributorId,

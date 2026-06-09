@@ -25,6 +25,11 @@ export function AdminUserDetailPage() {
         <div className="row"><span>Версия клиента</span><span className="value">{u.clientVersion ?? '—'}</span></div>
         <div className="row"><span>Товаров / Фото / Сканов</span><span className="value">{u.completedEntries} / {u.uploadedPhotos} / {u.totalScans}</span></div>
         <div className="row"><span>Ошибок клиента</span><span className="value">{u.clientErrors}</span></div>
+        {u.clientErrors > 0 && (
+          <button className="btn secondary" onClick={() => navigate(`/admin/users/${id}/errors`)}>
+            Ошибки клиента ({u.clientErrors}) →
+          </button>
+        )}
       </div>
 
       <div className="card">

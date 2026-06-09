@@ -55,7 +55,21 @@ export function AdminUsersPage() {
                 <td className="num strong">{u.completedEntries}</td>
                 <td className="num">{u.uploadedPhotos}</td>
                 <td className="num">{u.totalScans}</td>
-                <td className="num" style={{ color: u.clientErrors ? 'var(--danger)' : undefined }}>{u.clientErrors}</td>
+                <td
+                  className="num"
+                  style={{
+                    color: u.clientErrors ? 'var(--danger)' : undefined,
+                    cursor: u.clientErrors ? 'pointer' : undefined,
+                    textDecoration: u.clientErrors ? 'underline' : undefined,
+                  }}
+                  onClick={(e) => {
+                    if (!u.clientErrors) return;
+                    e.stopPropagation();
+                    navigate(`/admin/users/${u.id}/errors`);
+                  }}
+                >
+                  {u.clientErrors}
+                </td>
               </tr>
             ))}
           </tbody>
