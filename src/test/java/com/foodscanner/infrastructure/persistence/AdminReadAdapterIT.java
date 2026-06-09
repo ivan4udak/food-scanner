@@ -73,6 +73,11 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(errors).hasSize(1);
         assertThat(errors.get(0).event()).isEqualTo("PHOTO_UPLOAD_FAILED");
 
+        // ошибки конкретного пользователя (только WARN/ERROR)
+        List<AdminClientLog> ivanErrors = port.clientErrorsByUser(ivan, 50);
+        assertThat(ivanErrors).hasSize(1);
+        assertThat(ivanErrors.get(0).event()).isEqualTo("PHOTO_UPLOAD_FAILED");
+
         // trace
         assertThat(port.clientLogsByCorrelation(corr)).hasSize(1);
         assertThat(port.serverEventsByCorrelation(corr)).hasSize(1);

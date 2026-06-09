@@ -70,6 +70,11 @@ public class AdminQueryService implements AdminReadUseCase {
     }
 
     @Override
+    public List<AdminClientLog> userErrors(UUID id, int limit) {
+        return port.clientErrorsByUser(id, clampLimit(limit));
+    }
+
+    @Override
     public List<AdminClientLog> logs(AdminLogFilter filter) {
         return port.clientLogs(filter);
     }

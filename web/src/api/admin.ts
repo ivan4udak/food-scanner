@@ -79,6 +79,8 @@ export const adminUserByName = (username: string) =>
   get<AdminUserDetail>(`/admin/users/by-username/${encodeURIComponent(username)}`);
 export const adminUserLogs = (id: string, limit = 200) =>
   get<AdminClientLog[]>(`/admin/users/${id}/logs`, { limit });
+export const adminUserErrors = (id: string, limit = 200) =>
+  get<AdminClientLog[]>(`/admin/users/${id}/errors`, { limit });
 export const adminLogs = (f: LogFilters) => get<AdminClientLog[]>('/admin/logs', f as Record<string, unknown>);
 export const adminErrors = (limit = 200) => get<AdminErrors>('/admin/errors', { limit });
 export const adminCatalog = (limit = 100, offset = 0) =>

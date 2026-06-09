@@ -213,6 +213,13 @@ public class AdminReadAdapter implements AdminReadPort {
             CLIENT_LOG_MAPPER, Timestamp.from(since), limit);
     }
 
+    @Override
+    public List<AdminClientLog> clientErrorsByUser(UUID contributorId, int limit) {
+        return jdbc.query(CLIENT_LOG_SELECT
+                + " WHERE l.contributor_id = ? AND l.level IN ('WARN','ERROR') ORDER BY l.\"timestamp\" DESC LIMIT ?",
+            CLIENT_LOG_MAPPER, contributorId, limit);
+    }
+
     private static final RowMapper<AdminClientLog> CLIENT_LOG_MAPPER = (rs, n) -> new AdminClientLog(
         uuid(rs, "id"), uuid(rs, "contributor_id"), str(rs, "username"), uuid(rs, "session_id"),
         uuid(rs, "correlation_id"), inst(rs, "timestamp"), str(rs, "level"), str(rs, "category"),

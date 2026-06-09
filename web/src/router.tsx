@@ -20,6 +20,7 @@ import { AdminCatalogDetailPage } from '@/features/admin/AdminCatalogDetailPage'
 import { AdminErrorsPage } from '@/features/admin/AdminErrorsPage';
 import { AdminTracePage } from '@/features/admin/AdminTracePage';
 import { AdminUserByNamePage } from '@/features/admin/AdminUserByNamePage';
+import { AdminUserErrorsPage } from '@/features/admin/AdminUserErrorsPage';
 import { MyScansPage } from '@/features/myScans/MyScansPage';
 import { MyScanDetailPage } from '@/features/myScans/MyScanDetailPage';
 
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
           { index: true, element: <AdminDashboardPage /> },
           { path: 'users', element: <AdminUsersPage /> },
           { path: 'users/:id', element: <AdminUserDetailPage /> },
+          { path: 'users/:id/errors', element: <AdminUserErrorsPage /> },
           { path: 'u/:username', element: <AdminUserByNamePage /> },
           { path: 'logs', element: <AdminLogsPage /> },
           { path: 'catalog', element: <AdminCatalogPage /> },

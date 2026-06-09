@@ -268,6 +268,7 @@ legacy-без-username исключены.
 - `GET /admin/users/by-username/{username}` → та же карточка по нику (для перехода
   из публичного рейтинга `/stats`); 404 если не найден.
 - `GET /admin/users/{id}/logs?limit=&offset=` → клиентские логи пользователя.
+- `GET /admin/users/{id}/errors?limit=` → только WARN/ERROR клиента этого пользователя.
 - `GET /admin/logs?contributorId=&sessionId=&level=&category=&event=&barcode=&screen=
   &dateFrom=&dateTo=&limit=&offset=` → клиентские логи с фильтрами (полный контекст,
   включая `metadataJson`, `correlationId`).
