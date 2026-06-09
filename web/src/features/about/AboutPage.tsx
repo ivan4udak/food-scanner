@@ -9,6 +9,7 @@ import { Page, TopBar, ABOUT_FROM_KEY } from '@/components/Layout';
 import { logger, formatLogLine } from '@/logging/logger';
 import { browserInfo, buildDiagnosticsText, downloadLog } from '@/logging/diagnostics';
 import { flushTelemetry } from '@/logging/telemetry';
+import { clearAppCaches, refreshServiceWorkers, estimateUsage } from '@/lib/cache';
 import { setLeaderboardVisibility } from '@/api/stats';
 
 /** Экран «О приложении» + диагностический пакет (паритет с iOS, Блок 20). */
@@ -19,6 +20,8 @@ export function AboutPage() {
   const { contributorId, username, signOut, isAdmin } = useAuthStore();
 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const [cacheBusy, setCacheBusy] = useState(false);
+  const [cacheCleared, setCacheCleared] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [logTick, setLogTick] = useState(0); // принудительное обновление списка логов
@@ -44,7 +47,7 @@ export function AboutPage() {
   }
 
   useEffect(() => {
-    navigator.storage?.estimate?.().then((e) => setCacheSize(e.usage ?? 0)).catch(() => setCacheSize(null));
+    estimateUsage().then(setCacheSize);
   }, []);
 
   const connText = connectionLabel(connection);
@@ -71,11 +74,18 @@ export function AboutPage() {
   }
 
   async function clearCache() {
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
+    if (cacheBusy) return;
+    setCacheBusy(true);
+    setCacheCleared(false);
+    try {
+      await clearAppCaches();
+      await refreshServiceWorkers();
+      setCacheSize(await estimateUsage());
+      setCacheCleared(true);
+      setTimeout(() => setCacheCleared(false), 2000);
+    } finally {
+      setCacheBusy(false);
     }
-    navigator.storage?.estimate?.().then((e) => setCacheSize(e.usage ?? 0));
   }
 
   function logout() {
@@ -108,7 +118,9 @@ export function AboutPage() {
       <div className="card">
         <h2>Кэш</h2>
         <div className="row"><span>Занято</span><span className="value">{cacheText}</span></div>
-        <button className="btn secondary" onClick={clearCache}>Очистить кэш</button>
+        <button className="btn secondary" onClick={clearCache} disabled={cacheBusy}>
+          {cacheBusy ? 'Очистка…' : cacheCleared ? 'Очищено ✓' : 'Очистить кэш'}
+        </button>
       </div>
 
       <div className="card">

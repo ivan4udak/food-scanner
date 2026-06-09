@@ -12,6 +12,12 @@
 ## [Unreleased]
 - —
 
+## [1.8.8] — Фикс кнопки «Очистить кэш»
+- «Очистить кэш» теперь реально чистит Cache Storage (Workbox), обновляет SW
+  и показывает прогресс/«Очищено ✓»; размер пересчитывается. Логика вынесена в
+  тестируемый `lib/cache.ts` (clearAppCaches/refreshServiceWorkers/estimateUsage).
+
+
 ## [1.8.7] — Управление ролями (супер-админ) и фикс «Назад» из «О приложении»
 - **Роли:** добавлен SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (по умолчанию
   `admin`) получают SUPER_ADMIN при входе; `ADMIN_USERNAMES` — ADMIN.
