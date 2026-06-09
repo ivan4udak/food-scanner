@@ -86,7 +86,6 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         String bc = barcodeStr2(entry);
         AdminCatalogRow cat = port.catalogByBarcode(bc).orElseThrow();
         assertThat(cat.author()).isEqualTo(usernameOf(ivan));
-        assertThat(cat.qualityScore()).isEqualTo(20); // 1 фото FRONT → 20
         assertThat(port.catalogPhotos(barcodeEntry)).hasSize(1);
     }
 

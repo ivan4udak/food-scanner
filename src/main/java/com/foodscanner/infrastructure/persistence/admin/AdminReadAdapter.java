@@ -251,15 +251,13 @@ public class AdminReadAdapter implements AdminReadPort {
     // ── Catalog ──────────────────────────────────────────────
     private static final String CATALOG_SELECT = """
         SELECT e.id, e.barcode, e.contributor_id, c.username AS author, e.created_at,
-               (SELECT count(*) FROM food_catalog.catalog_entry_photos p WHERE p.entry_id = e.id) AS photo_count,
-               ARRAY(SELECT DISTINCT type FROM food_catalog.catalog_entry_photos pt WHERE pt.entry_id = e.id) AS photo_types
+               (SELECT count(*) FROM food_catalog.catalog_entry_photos p WHERE p.entry_id = e.id) AS photo_count
         FROM food_catalog.catalog_entries e
         LEFT JOIN food_catalog.contributors c ON c.id = e.contributor_id
         """;
     private static final RowMapper<AdminCatalogRow> CATALOG_MAPPER = (rs, n) -> new AdminCatalogRow(
         uuid(rs, "id"), str(rs, "barcode"), uuid(rs, "contributor_id"), str(rs, "author"),
-        inst(rs, "created_at"), lng(rs, "photo_count"),
-        com.foodscanner.domain.policy.CatalogQualityPolicy.score(types(rs, "photo_types")));
+        inst(rs, "created_at"), lng(rs, "photo_count"));
 
     @Override
     public List<AdminCatalogRow> catalog(int limit, int offset) {
@@ -281,17 +279,6 @@ public class AdminReadAdapter implements AdminReadPort {
             (rs, n) -> new AdminCatalogDetail.Photo(
                 uuid(rs, "id"), str(rs, "type"), str(rs, "storage_key"), inst(rs, "created_at")),
             catalogEntryId);
-    }
-
-    /** Postgres-массив text → Set имён типов фото. */
-    private static java.util.Set<String> types(ResultSet rs, String col) throws SQLException {
-        java.sql.Array arr = rs.getArray(col);
-        if (arr == null) return java.util.Set.of();
-        Object raw = arr.getArray();
-        if (!(raw instanceof Object[] items)) return java.util.Set.of();
-        java.util.Set<String> out = new java.util.HashSet<>();
-        for (Object it : items) if (it != null) out.add(it.toString());
-        return out;
     }
 
     // ── helpers ──────────────────────────────────────────────
