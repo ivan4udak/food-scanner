@@ -20,6 +20,8 @@ import java.util.UUID;
 @Repository
 public class MeReadAdapter implements MeReadPort {
 
+    // Скан показываем только при наличии фото в черновике (или завершении) —
+    // пустые брошенные черновики остаются в БД, но не отображаются как скан.
     private static final String SCAN_SELECT = """
         SELECT d.barcode, d.status, d.id AS draft_id, e.id AS catalog_entry_id,
                d.created_at AS first_scanned_at, e.created_at AS completed_at,
@@ -28,6 +30,8 @@ public class MeReadAdapter implements MeReadPort {
         FROM food_catalog.catalog_drafts d
         LEFT JOIN food_catalog.catalog_entries e ON e.draft_id = d.id
         WHERE d.contributor_id = ?
+          AND (EXISTS (SELECT 1 FROM food_catalog.draft_photos dp2 WHERE dp2.draft_id = d.id)
+               OR EXISTS (SELECT 1 FROM food_catalog.catalog_entries ce WHERE ce.draft_id = d.id))
         """;
 
     private static final RowMapper<ScanData> SCAN_MAPPER = (rs, n) -> new ScanData(

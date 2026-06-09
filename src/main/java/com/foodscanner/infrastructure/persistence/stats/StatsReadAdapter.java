@@ -25,6 +25,15 @@ public class StatsReadAdapter implements StatsReadPort {
 
     private final JdbcTemplate jdbc;
 
+    /**
+     * Скан засчитывается только если в черновике есть хотя бы одно фото
+     * (или черновик завершён в запись каталога). Пустые брошенные черновики
+     * остаются в БД, но не учитываются как скан в статистике. Алиас черновика — d.
+     */
+    private static final String DRAFT_HAS_PHOTO =
+        "(EXISTS (SELECT 1 FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)"
+        + " OR EXISTS (SELECT 1 FROM food_catalog.catalog_entries ce WHERE ce.draft_id = d.id))";
+
     public StatsReadAdapter(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
@@ -32,11 +41,11 @@ public class StatsReadAdapter implements StatsReadPort {
     @Override
     public PublicStatsResult publicStats(Instant todayStart) {
         Timestamp start = Timestamp.from(todayStart);
-        long scans       = count("SELECT count(*) FROM food_catalog.catalog_drafts");
+        long scans       = count("SELECT count(*) FROM food_catalog.catalog_drafts d WHERE " + DRAFT_HAS_PHOTO);
         long entries     = count("SELECT count(*) FROM food_catalog.catalog_entries");
         long photos      = count("SELECT count(*) FROM food_catalog.catalog_entry_photos");
         long contributors = count("SELECT count(*) FROM food_catalog.contributors");
-        long scansToday   = count("SELECT count(*) FROM food_catalog.catalog_drafts WHERE created_at >= ?", start);
+        long scansToday   = count("SELECT count(*) FROM food_catalog.catalog_drafts d WHERE d.created_at >= ? AND " + DRAFT_HAS_PHOTO, start);
         long entriesToday = count("SELECT count(*) FROM food_catalog.catalog_entries WHERE created_at >= ?", start);
         long photosToday  = count("SELECT count(*) FROM food_catalog.catalog_entry_photos WHERE created_at >= ?", start);
 
@@ -49,7 +58,8 @@ public class StatsReadAdapter implements StatsReadPort {
     public List<LeaderboardRow> leaderboard(Instant since, int limit) {
         boolean filtered = since != null;
         String entryFilter = filtered ? " AND e.created_at >= ?" : "";
-        String draftFilter = filtered ? " AND d.created_at >= ?" : "";
+        // Скан в рейтинге — только черновики с фото (или завершённые); пустые не считаем.
+        String draftFilter = (filtered ? " AND d.created_at >= ?" : "") + " AND " + DRAFT_HAS_PHOTO;
         String photoFilter = filtered ? " AND p.created_at >= ?" : "";
 
         String sql = """

@@ -34,6 +34,9 @@ class StatsReadAdapterIT extends AbstractRepositoryIT {
         // bob (скрыт): 1 черновик → 1 запись (1 фото)
         UUID dB1 = draft(bob); UUID eB1 = entry(bob, dB1); photo(eB1);
 
+        // alice: брошенный черновик БЕЗ фото — остаётся в БД, но НЕ считается сканом.
+        draft(alice);
+
         List<LeaderboardRow> board = port.leaderboard(null, 10);
         List<String> usernames = board.stream().map(LeaderboardRow::username).toList();
         assertThat(usernames).contains(usernameOf(alice));
