@@ -139,6 +139,7 @@ jobs:
           WEB_IMAGE: ${{ needs.build-push.outputs.web_image }}
           GIT_SHA: ${{ github.sha }}
           ENVIRONMENT: ${{ needs.build-push.outputs.env_name }}
+          VERSION_LABEL: ${{ needs.build-push.outputs.version }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -146,11 +147,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: BACKEND_IMAGE,WEB_IMAGE,GIT_SHA,ENVIRONMENT,GHCR_USER,GHCR_TOKEN
+          envs: BACKEND_IMAGE,WEB_IMAGE,GIT_SHA,ENVIRONMENT,VERSION_LABEL,GHCR_USER,GHCR_TOKEN
           script_stop: true
           script: |
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            export BACKEND_IMAGE WEB_IMAGE GIT_SHA
+            export BACKEND_IMAGE WEB_IMAGE GIT_SHA VERSION_LABEL
             /opt/foodscanner/scripts/deploy.sh "$ENVIRONMENT"
             docker logout ghcr.io || true
 
@@ -171,22 +172,24 @@ jobs:
           if [ -z "$TG" ] || [ -z "$CHAT" ]; then
             echo "Нет Telegram-секретов — пропуск уведомления."; exit 0
           fi
+          # Единый источник карты окружение→URL (та же функция, что у серверных скриптов).
+          source deploy/scripts/lib.sh
           case "${GITHUB_REF_NAME}" in
             test) ENVN=staging ;; main) ENVN=stable ;; release) ENVN=production ;; *) ENVN="$GITHUB_REF_NAME" ;;
           esac
-          if [ "$DEPLOY_RESULT" = "success" ]; then
-            HEAD="✅ Deploy OK"
-          else
-            HEAD="❌ Deploy FAILED"
-          fi
+          SVC="$(service_url_for_env "$ENVN")"
+          API="$(api_url_for_env "$ENVN")"
+          VER="${VERSION_LABEL:-${GITHUB_SHA:0:7}}"
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          VER="${VERSION_LABEL:-${GITHUB_SHA:0:7}}"   # версия из VERSION, иначе SHA (если build не дошёл)
-          # Полный текст коммита (с усечением) — без parse_mode, поэтому символы вроде
-          # <noreply@…> в Co-Authored-By больше не ломают отправку (раньше HTML-парсер давал 400).
-          COMMIT_MSG=$(git log -1 --pretty=%B | head -c 1500)
-          # Заголовок: ветка + версия; ниже окружение, коммит, ссылка на run.
-          MSG=$(printf '%s — %s [%s]\nокружение: %s · %s\n%s\nrun: %s' \
-            "$HEAD" "$GITHUB_REF_NAME" "$VER" "$ENVN" "${GITHUB_SHA:0:7}" "$COMMIT_MSG" "$RUN_URL")
+          # Текст коммита (что изменилось) — для тестировщиков. Plain text, без parse_mode.
+          CHANGES=$(git log -1 --pretty=%B | head -c 1200)
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            MSG=$(printf '✅ Food Scanner deployed\n\nEnvironment: %s\nBranch: %s\nVersion: %s\nCommit: %s\n\nService: %s\nAPI: %s\n\nStatus: healthy\n\nChanges:\n%s' \
+              "$ENVN" "$GITHUB_REF_NAME" "$VER" "${GITHUB_SHA:0:7}" "$SVC" "$API" "$CHANGES")
+          else
+            MSG=$(printf '❌ Food Scanner deploy failed\n\nEnvironment: %s\nBranch: %s\nVersion: %s\nCommit: %s\n\nService: %s\nAPI: %s\n\nFailed step: %s\nrun: %s\n\nChanges:\n%s' \
+              "$ENVN" "$GITHUB_REF_NAME" "$VER" "${GITHUB_SHA:0:7}" "$SVC" "$API" "$DEPLOY_RESULT" "$RUN_URL" "$CHANGES")
+          fi
           curl -fsS -X POST "https://api.telegram.org/bot${TG}/sendMessage" \
             -d chat_id="${CHAT}" -d disable_web_page_preview="true" \
             --data-urlencode text="${MSG}" >/dev/null

@@ -56,13 +56,15 @@ public class ContributorRepositoryAdapter implements ContributorRepository {
         return new ContributorJpaEntity(
             c.getId(), c.getNickname(), c.getUsername(), c.getPasswordHash(),
             c.getFailedLoginAttempts(), c.getLockedUntil(), c.getResetPasswordUntil(),
-            c.getCompletedCatalogCount(), c.getCreatedAt(), c.getUpdatedAt());
+            c.getCompletedCatalogCount(), c.isHiddenFromLeaderboard(), c.getRole().name(),
+            c.getCreatedAt(), c.getUpdatedAt());
     }
 
     private Contributor toDomain(ContributorJpaEntity e) {
         return Contributor.reconstitute(
             e.getId(), e.getNickname(), e.getUsername(), e.getPasswordHash(),
             e.getFailedLoginAttempts(), e.getLockedUntil(), e.getResetPasswordUntil(),
-            e.getCompletedCatalogCount(), e.getCreatedAt(), e.getUpdatedAt());
+            e.getCompletedCatalogCount(), e.isHiddenFromLeaderboard(),
+            com.foodscanner.domain.model.ContributorRole.parse(e.getRole()), e.getCreatedAt(), e.getUpdatedAt());
     }
 }

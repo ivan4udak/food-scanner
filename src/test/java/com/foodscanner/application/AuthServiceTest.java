@@ -41,7 +41,7 @@ class AuthServiceTest {
         public boolean matches(String raw, String hash) { return hash != null && hash.equals("H:" + raw); }
     };
     private static final TokenService TOKENS = new TokenService() {
-        public String issueAccessToken(UUID id, String username) { return "access." + id; }
+        public String issueAccessToken(UUID id, String username, String role) { return "access." + id; }
         public AccessClaims verifyAccessToken(String token) { return null; }
     };
 
@@ -52,7 +52,7 @@ class AuthServiceTest {
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(repo.findByNickname(any())).thenReturn(Optional.empty());
         when(refreshRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        service = new AuthService(repo, FAKE, TOKENS, refreshRepo, Duration.ofDays(30));
+        service = new AuthService(repo, FAKE, TOKENS, refreshRepo, Duration.ofDays(30), java.util.Set.of());
     }
 
     private Contributor existing(String user, String pass) {

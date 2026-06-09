@@ -33,12 +33,15 @@ public final class Contributor {
     private       Instant lockedUntil;
     private       Instant resetPasswordUntil;
     private       int     completedCatalogCount;
+    private       boolean hiddenFromLeaderboard;
+    private       ContributorRole role;
     private final Instant createdAt;
     private       Instant updatedAt;
 
     private Contributor(UUID id, String nickname, String username, String passwordHash,
                         int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
-                        int completedCatalogCount, Instant createdAt, Instant updatedAt) {
+                        int completedCatalogCount, boolean hiddenFromLeaderboard, ContributorRole role,
+                        Instant createdAt, Instant updatedAt) {
         this.id                    = id;
         this.nickname              = nickname;
         this.username              = username;
@@ -47,6 +50,8 @@ public final class Contributor {
         this.lockedUntil           = lockedUntil;
         this.resetPasswordUntil    = resetPasswordUntil;
         this.completedCatalogCount = completedCatalogCount;
+        this.hiddenFromLeaderboard = hiddenFromLeaderboard;
+        this.role                  = role == null ? ContributorRole.USER : role;
         this.createdAt             = createdAt;
         this.updatedAt             = updatedAt;
     }
@@ -60,7 +65,7 @@ public final class Contributor {
         }
         Instant now = Instant.now();
         return new Contributor(UUID.randomUUID(), nickname.trim(), null, null,
-            0, null, null, 0, now, now);
+            0, null, null, 0, false, ContributorRole.USER, now, now);
     }
 
     /** vNext: создание с логином и BCrypt-хешем пароля. nickname = username. */
@@ -73,20 +78,23 @@ public final class Contributor {
         }
         Instant now = Instant.now();
         String u = username.trim();
-        return new Contributor(UUID.randomUUID(), u, u, passwordHash, 0, null, null, 0, now, now);
+        return new Contributor(UUID.randomUUID(), u, u, passwordHash, 0, null, null, 0, false,
+            ContributorRole.USER, now, now);
     }
 
     /** Восстановление из хранилища. Только для ContributorRepositoryAdapter. */
     public static Contributor reconstitute(
             UUID id, String nickname, String username, String passwordHash,
             int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
-            int completedCatalogCount, Instant createdAt, Instant updatedAt) {
+            int completedCatalogCount, boolean hiddenFromLeaderboard, ContributorRole role,
+            Instant createdAt, Instant updatedAt) {
         Objects.requireNonNull(id,        "id must not be null");
         Objects.requireNonNull(nickname,  "nickname must not be null");
         Objects.requireNonNull(createdAt, "createdAt must not be null");
         Objects.requireNonNull(updatedAt, "updatedAt must not be null");
         return new Contributor(id, nickname, username, passwordHash, failedLoginAttempts,
-            lockedUntil, resetPasswordUntil, completedCatalogCount, createdAt, updatedAt);
+            lockedUntil, resetPasswordUntil, completedCatalogCount, hiddenFromLeaderboard, role,
+            createdAt, updatedAt);
     }
 
     // ── Аутентификация ───────────────────────────────────────
@@ -181,6 +189,20 @@ public final class Contributor {
         touch();
     }
 
+    /** Управление видимостью в публичном рейтинге (opt-out). */
+    public void setHiddenFromLeaderboard(boolean hidden) {
+        this.hiddenFromLeaderboard = hidden;
+        touch();
+    }
+
+    /** Назначить роль (админ-бутстрап / управление ролями). */
+    public void assignRole(ContributorRole newRole) {
+        this.role = newRole == null ? ContributorRole.USER : newRole;
+        touch();
+    }
+
+    public boolean isAdmin() { return role.isAdmin(); }
+
     private void touch() { this.updatedAt = Instant.now(); }
 
     // ── Геттеры ──────────────────────────────────────────────
@@ -193,6 +215,8 @@ public final class Contributor {
     public Instant getLockedUntil()           { return lockedUntil; }
     public Instant getResetPasswordUntil()    { return resetPasswordUntil; }
     public int     getCompletedCatalogCount() { return completedCatalogCount; }
+    public boolean isHiddenFromLeaderboard()  { return hiddenFromLeaderboard; }
+    public ContributorRole getRole()          { return role; }
     public Instant getCreatedAt()             { return createdAt; }
     public Instant getUpdatedAt()             { return updatedAt; }
 

@@ -27,11 +27,12 @@ public class JwtTokenService implements TokenService {
     }
 
     @Override
-    public String issueAccessToken(UUID contributorId, String username) {
+    public String issueAccessToken(UUID contributorId, String username, String role) {
         Date now = new Date();
         return Jwts.builder()
             .subject(contributorId.toString())
             .claim("username", username)
+            .claim("role", role == null ? "USER" : role)
             .issuedAt(now)
             .expiration(new Date(now.getTime() + accessTtl.toMillis()))
             .signWith(key)
@@ -43,7 +44,9 @@ public class JwtTokenService implements TokenService {
         try {
             Claims c = Jwts.parser().verifyWith(key).build()
                 .parseSignedClaims(token).getPayload();
-            return new AccessClaims(UUID.fromString(c.getSubject()), c.get("username", String.class));
+            String role = c.get("role", String.class);
+            return new AccessClaims(UUID.fromString(c.getSubject()), c.get("username", String.class),
+                role == null ? "USER" : role);
         } catch (Exception e) {
             throw new InvalidTokenException("Invalid access token");
         }

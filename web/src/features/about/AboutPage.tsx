@@ -8,18 +8,40 @@ import { APP_VERSION, PLATFORM } from '@/version';
 import { Page, TopBar } from '@/components/Layout';
 import { logger, formatLogLine } from '@/logging/logger';
 import { browserInfo, buildDiagnosticsText, downloadLog } from '@/logging/diagnostics';
+import { flushTelemetry } from '@/logging/telemetry';
+import { setLeaderboardVisibility } from '@/api/stats';
 
 /** Экран «О приложении» + диагностический пакет (паритет с iOS, Блок 20). */
 export function AboutPage() {
   const navigate = useNavigate();
   const connection = useConnection();
   const { data: health, isLoading: healthLoading } = useHealthQuery();
-  const { contributorId, username, signOut } = useAuthStore();
+  const { contributorId, username, signOut, isAdmin } = useAuthStore();
 
   const [cacheSize, setCacheSize] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [logTick, setLogTick] = useState(0); // принудительное обновление списка логов
+  const [hiddenFromBoard, setHiddenFromBoard] = useState<boolean | null>(null);
+  const [boardBusy, setBoardBusy] = useState(false);
+
+  async function toggleLeaderboard(next: boolean) {
+    setBoardBusy(true);
+    try {
+      const result = await setLeaderboardVisibility(next);
+      setHiddenFromBoard(result);
+    } catch {
+      /* состояние не меняем */
+    } finally {
+      setBoardBusy(false);
+    }
+  }
+
+  function openLogs() {
+    flushTelemetry(); // досылаем накопленное на сервер при открытии диагностики
+    setShowLogs((v) => !v);
+    setLogTick((t) => t + 1);
+  }
 
   useEffect(() => {
     navigator.storage?.estimate?.().then((e) => setCacheSize(e.usage ?? 0)).catch(() => setCacheSize(null));
@@ -89,6 +111,24 @@ export function AboutPage() {
         <h2>Аккаунт</h2>
         <div className="row"><span>Логин</span><span className="value">{username ?? '—'}</span></div>
         <div className="row"><span>Contributor ID</span><span className="value">{contributorId ?? '—'}</span></div>
+        <div className="row">
+          <span>Скрыть меня из рейтинга</span>
+          <span className="value">
+            <button
+              className={`btn ${hiddenFromBoard ? 'secondary' : 'ghost'}`}
+              style={{ width: 'auto', padding: '8px 14px' }}
+              disabled={boardBusy}
+              onClick={() => toggleLeaderboard(!hiddenFromBoard)}
+            >
+              {hiddenFromBoard ? 'Скрыт' : 'Виден'}
+            </button>
+          </span>
+        </div>
+        <button className="btn secondary" onClick={() => navigate('/my-scans')}>Мои сканы →</button>
+        <button className="btn ghost" onClick={() => navigate('/stats')}>Публичная статистика →</button>
+        {isAdmin() && (
+          <button className="btn secondary" onClick={() => navigate('/admin')}>Админ-панель →</button>
+        )}
       </div>
 
       <div className="card">
@@ -100,7 +140,7 @@ export function AboutPage() {
         <div className="row"><span>Записей в логе</span><span className="value">{logCount}</span></div>
 
         <div className="stack" style={{ marginTop: 12 }}>
-          <button className="btn secondary" onClick={() => { setShowLogs((v) => !v); setLogTick((t) => t + 1); }}>
+          <button className="btn secondary" onClick={openLogs}>
             {showLogs ? 'Скрыть лог' : 'Показать последние 100'}
           </button>
           {showLogs && (

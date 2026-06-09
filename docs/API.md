@@ -182,6 +182,105 @@ curl -H "Authorization: Bearer $ACCESS" "$API/photos/photos/<hash>.jpg?size=thum
 
 ---
 
+## 7. Телеметрия клиента (Bearer, v1.7)
+`contributorId` берётся из токена. Секреты (password/токены/Authorization/Cookie)
+маскируются повторно на сервере и **никогда** не сохраняются. Успешные `GET /ping`
+и `/health` в `client_logs`/`server_events` не попадают (heartbeat-шум).
+
+### POST /client-logs/batch
+Партия клиентских логов.
+```json
+{ "sessionId":"uuid", "clientVersion":"1.7.0", "pwaVersion":"1.7.0",
+  "logs":[ { "id":"uuid","timestamp":"2026-06-08T10:00:00Z","level":"INFO",
+             "category":"SCAN","event":"SCAN_RESULT","message":"Scan result NEW",
+             "screen":"ScannerPage","correlationId":"uuid","barcode":"460...",
+             "apiMethod":"POST","apiPath":"/api/v1/scan","httpStatus":200,
+             "durationMs":180,"metadata":{} } ] }
+```
+→ `200 { "status":"OK", "accepted": <int> }` (accepted — после отсева шума).
+
+### POST /client/session
+Снимок сессии (upsert по `sessionId`): `clientVersion,pwaVersion,browser,os,deviceType,
+language,timezone,screenWidth,screenHeight,hardwareConcurrency,deviceMemory,networkStatus,standalone`.
+→ `200 { "status":"OK" }`.
+
+### POST /client/activity
+Лёгкий heartbeat для online/last-activity: `{ sessionId, screen, online, timestamp }`.
+→ `200 { "status":"OK" }`.
+
+**Корреляция:** каждый запрос несёт `X-Correlation-Id` (клиент генерирует UUID; если
+не прислан — создаёт backend). Ответ возвращает тот же `X-Correlation-Id`. На сервере
+формируется `requestId`; значимые события пишутся в `server_events` для сквозной трассировки.
+
+## 8. Публичная статистика (без авторизации)
+### GET /public/stats
+```json
+{ "totals": {"scans":12000,"catalogEntries":3400,"photos":15000,"contributors":180},
+  "today":  {"scans":240,"catalogEntries":80,"photos":310} }
+```
+### GET /public/leaderboard?period=all|today|week|month&limit=10|50|100
+```json
+{ "period":"all",
+  "items":[ {"rank":1,"username":"ivan","completedEntries":120,"scans":340,
+             "uploadedPhotos":500,"score":120} ] }
+```
+Рейтинг: `score = completedEntries` (затем фото, затем сканы). Скрытые (opt-out) и
+legacy-без-username исключены.
+
+## 9. Аккаунт (Bearer)
+### POST /me/leaderboard-visibility
+`{ "hidden": true|false }` → `200 { "hiddenFromLeaderboard": <bool> }`.
+Пользователь скрывает/показывает себя в публичном рейтинге.
+
+### GET /me/scans
+Свои сканы (только владельца). →
+```json
+[ { "barcode":"460...", "scanStatus":"COMPLETED", "catalogEntryId":"uuid",
+    "firstScannedAt":"…", "completedAt":"…", "photoCount":4, "ocrStatus":null } ]
+```
+`scanStatus` ∈ `DRAFT_OPEN | COMPLETED`. `ocrStatus` — задел под v1.10 (всегда `null`,
+в UI не показывается).
+
+### GET /me/scans/{barcode}
+Детали скана с готовыми URL фото; `404` если скан не найден/не принадлежит пользователю.
+```json
+{ "barcode":"460...", "catalogEntryId":"uuid", "firstScannedAt":"…", "completedAt":"…",
+  "photos":[ { "id":"uuid","type":"FRONT","storageKey":"photos/h.jpg",
+               "thumbUrl":"/api/v1/photos/photos/h.jpg?size=thumb",
+               "fullUrl":"/api/v1/photos/photos/h.jpg?size=full","capturedAt":"…" } ],
+  "ocrStatus":null }
+```
+Фото берутся из завершённой записи (`catalog_entry_photos`) либо из черновика (`draft_photos`).
+
+## 10. Админ-панель (Bearer + роль ADMIN/SUPER_ADMIN, v1.8)
+Доступ к `/api/v1/admin/**` разрешён только админам (гард `AdminGuardInterceptor`,
+роль из токена). Роль назначается по логину из `ADMIN_USERNAMES` (по умолчанию `admin`)
+при входе. Все эндпоинты — только чтение (операционная наблюдаемость).
+
+- `GET /admin/dashboard` → сводка: `usersTotal, onlineNow, activeToday, activeWeek,
+  scansToday, scansWeek, entriesToday, entriesWeek, photosToday, clientErrorsToday,
+  serverErrorsToday`. (online = активность за 5 мин; today = с UTC-полуночи.)
+- `GET /admin/users?sort=&limit=&offset=` → список пользователей: `id, username, role,
+  online, lastActivityAt, clientVersion, browser, os, deviceType, totalScans,
+  completedEntries, uploadedPhotos, clientErrors`. `sort` ∈
+  `lastActivityAt|completedEntries|uploadedPhotos|totalScans|clientErrors`.
+- `GET /admin/users/{id}` → карточка: `{ user, sessions[], recentScans[] }`; 404 если нет.
+- `GET /admin/users/{id}/logs?limit=&offset=` → клиентские логи пользователя.
+- `GET /admin/logs?contributorId=&sessionId=&level=&category=&event=&barcode=&screen=
+  &dateFrom=&dateTo=&limit=&offset=` → клиентские логи с фильтрами (полный контекст,
+  включая `metadataJson`, `correlationId`).
+- `GET /admin/errors?limit=` → `{ client: [клиентские WARN/ERROR за сегодня],
+  server: [серверные WARN/ERROR за сегодня] }`.
+- `GET /admin/catalog?limit=&offset=` → записи каталога: `catalogEntryId, barcode,
+  contributorId, author, createdAt, photoCount`.
+- `GET /admin/catalog/{barcode}` → деталь: `{ …, photos[type,storageKey,capturedAt],
+  relatedLogs[] }`; 404 если нет.
+- `GET /admin/trace/{correlationId}` → **сквозная трассировка**: client_logs +
+  server_events в одной временной линии (`source=CLIENT|SERVER, at, level, category,
+  event, message, method, path, httpStatus, durationMs`), отсортировано по времени.
+
+---
+
 ## Серверные процессы
 - **Очистка мусора** (раз в час): незавершённые черновики (OPEN/ABANDONED) старше 24ч удаляются
   вместе с их фото в MinIO (объект удаляется, только если на него больше нет ссылок).

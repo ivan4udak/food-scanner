@@ -55,9 +55,12 @@ spring:
       max-file-size:    ${MAX_FILE_SIZE:25MB}
       max-request-size: ${MAX_REQUEST_SIZE:25MB}
 
-# ── Админ (сброс паролей) ────────────────────────────────────────────
+# ── Админ ────────────────────────────────────────────────────────────
 admin:
   password: ${ADMIN_PASSWORD:admin}
+  # Логины (через запятую), получающие роль ADMIN автоматически при входе.
+  # По умолчанию — учётка "admin" (переопределяется ADMIN_USERNAMES в проде).
+  usernames: ${ADMIN_USERNAMES:admin}
 
 # ── JWT ──────────────────────────────────────────────────────────────
 jwt:
@@ -78,6 +81,15 @@ storage:
     access-key: ${MINIO_ACCESS_KEY:foodscanner}
     secret-key: ${MINIO_SECRET_KEY:foodscanner123}
     bucket:     ${MINIO_BUCKET:food-images}
+
+# ── Телеметрия (v1.7): retention клиентских логов/событий ────────────
+telemetry:
+  retention:
+    routine-days:       ${TELEMETRY_ROUTINE_DAYS:30}     # INFO/DEBUG/TRACE
+    important-days:     ${TELEMETRY_IMPORTANT_DAYS:90}    # WARN/ERROR
+    activity-days:      ${TELEMETRY_ACTIVITY_DAYS:30}
+    server-events-days: ${TELEMETRY_SERVER_EVENTS_DAYS:90}
+    cron:               ${TELEMETRY_RETENTION_CRON:0 30 3 * * *}  # ежедневно 03:30
 
 # ── Сервер ──────────────────────────────────────────────────────────
 server:

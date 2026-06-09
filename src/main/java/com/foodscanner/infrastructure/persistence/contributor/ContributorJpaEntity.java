@@ -38,6 +38,12 @@ public class ContributorJpaEntity {
     @Column(name = "completed_catalog_count", nullable = false)
     private int completedCatalogCount;
 
+    @Column(name = "hidden_from_leaderboard", nullable = false)
+    private boolean hiddenFromLeaderboard;
+
+    @Column(name = "role", nullable = false, length = 16)
+    private String role;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -48,7 +54,8 @@ public class ContributorJpaEntity {
 
     public ContributorJpaEntity(UUID id, String nickname, String username, String passwordHash,
                                 int failedLoginAttempts, Instant lockedUntil, Instant resetPasswordUntil,
-                                int completedCatalogCount, Instant createdAt, Instant updatedAt) {
+                                int completedCatalogCount, boolean hiddenFromLeaderboard, String role,
+                                Instant createdAt, Instant updatedAt) {
         this.id                    = id;
         this.nickname              = nickname;
         this.username              = username;
@@ -57,6 +64,8 @@ public class ContributorJpaEntity {
         this.lockedUntil           = lockedUntil;
         this.resetPasswordUntil    = resetPasswordUntil;
         this.completedCatalogCount = completedCatalogCount;
+        this.hiddenFromLeaderboard = hiddenFromLeaderboard;
+        this.role                  = role;
         this.createdAt             = createdAt;
         this.updatedAt             = updatedAt;
     }
@@ -69,6 +78,8 @@ public class ContributorJpaEntity {
     public Instant getLockedUntil()           { return lockedUntil; }
     public Instant getResetPasswordUntil()    { return resetPasswordUntil; }
     public int     getCompletedCatalogCount() { return completedCatalogCount; }
+    public boolean isHiddenFromLeaderboard()  { return hiddenFromLeaderboard; }
+    public String  getRole()                  { return role; }
     public Instant getCreatedAt()             { return createdAt; }
     public Instant getUpdatedAt()             { return updatedAt; }
 }

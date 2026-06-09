@@ -12,6 +12,61 @@
 ## [Unreleased]
 - —
 
+## [1.8.0] — Админ-панель, «Мои сканы», роли
+- **Роли (API):** `ContributorRole` (USER/ADMIN/SUPER_ADMIN), Flyway V13 `role`.
+  Роль кладётся в JWT и проверяется `AdminGuardInterceptor` на `/api/v1/admin/**`.
+  Логины из `ADMIN_USERNAMES` (по умолчанию `admin`) получают ADMIN при входе.
+- **Admin read-API (Bearer + ADMIN):** `GET /admin/dashboard` (сводка),
+  `/admin/users` (+ карточка `/users/{id}`, логи `/users/{id}/logs`),
+  `/admin/logs` (фильтры), `/admin/errors`, `/admin/catalog` (+ деталь `/{barcode}`),
+  `/admin/trace/{correlationId}` — **сквозная трассировка** client_logs + server_events
+  в одной временной линии.
+- **«Мои сканы» (Bearer):** `GET /me/scans`, `GET /me/scans/{barcode}` — пользователь
+  видит только свои ШК и фото (thumb/full URL). `ocrStatus` зарезервирован под v1.10.
+- **PWA:** админ-панель `/admin` (дашборд, пользователи, логи, каталог, ошибки,
+  трассировка; гард по роли из JWT), страница «Мои сканы» `/my-scans`; ссылки в кабинете.
+- Backend 216 тестов (вкл. Testcontainers-IT read-адаптеров), фронт — тесты JWT/роли.
+
+## [1.7.2] — Чистка логов и навигация статистики
+- **Логи:** успешные `GET /ping` и `GET /health` (heartbeat каждые 5с) больше не пишутся
+  в клиентский лог — ни старт-запрос, ни ответ 200. Ошибки/таймауты health-эндпоинтов
+  по-прежнему логируются. Локальная диагностика и скачанный лог стали читаемыми
+  (раньше шум ping/health забивал последние 100 записей).
+- **`/stats`:** кнопка в шапке стала «‹ Назад» и возвращает на страницу, с которой
+  открыли статистику (`navigate(-1)`), а не всегда на экран сканирования. При прямом
+  заходе (новая вкладка, нет истории) — на главную.
+
+## [1.7.1] — Фикс: чёрный экран камеры на iOS (standalone PWA)
+- Камера сканера запускается один раз при монтировании и живёт весь жизненный цикл
+  экрана; `paused` (нет сети/идёт запрос) приостанавливает только приём штрихкодов,
+  не пересоздавая поток. Раньше при «degraded»/сетевых колебаниях поток рвался и
+  пересоздавался — на iOS это оставляло чёрный кадр.
+- iOS-специфика видео: `muted`+`playsinline` выставляются как свойства элемента
+  (не только атрибуты React), `play()` с обработкой ошибки.
+- Диагностика: логи `camera stream acquired` (треки), `video playing` (размеры),
+  `video.play() rejected`, имя/сообщение ошибки в `Camera unavailable` —
+  чтобы причина была видна в клиентском логе.
+
+## [1.7.0] — Серверные клиентские логи, телеметрия и публичный dashboard
+- **Корреляция (API, аддитивно):** `CorrelationIdFilter` — заголовок `X-Correlation-Id`
+  (читается из запроса либо генерируется), `requestId`, оба в MDC; ответ возвращает
+  `X-Correlation-Id`. Клиент шлёт correlationId в каждом запросе.
+- **Приём телеметрии (Bearer):** `POST /api/v1/client-logs/batch`, `POST /api/v1/client/session`,
+  `POST /api/v1/client/activity`. Flyway V11: `client_logs` (+correlation/barcode/draft/entry/photo/api),
+  `client_sessions`, `client_activity`, `server_events`. Серверная повторная маскировка секретов;
+  успешные ping/health не сохраняются (heartbeat-шум). Retention: 30д обычные / 90д WARN+ERROR.
+- **Публичная статистика (без авторизации):** `GET /api/v1/public/stats`,
+  `GET /api/v1/public/leaderboard?period=all|today|week|month&limit`. Рейтинг по completedEntries
+  (затем фото, затем сканы); скрытые участники исключены. Страница PWA `/stats`.
+- **Кабинет:** `POST /api/v1/me/leaderboard-visibility` — opt-out из рейтинга. Flyway V12:
+  `contributors.hidden_from_leaderboard`.
+- **PWA:** отправка логов батчами (30с / 50 записей / WARN+ERROR / открытие диагностики) с backoff
+  и очередью в localStorage; снимок сессии и активность; клиентский отсев ping/health.
+- **CI/CD:** Telegram-уведомление о деплое теперь содержит Environment/Branch/Version/Commit +
+  Service URL и API URL окружения (единая карта `service_url_for_env` в `deploy/scripts/lib.sh`),
+  отдельные сообщения об успехе/провале/откате.
+- Backend 191 тест (вкл. Testcontainers), фронт 50 тестов — зелёные.
+
 ## [1.6.1] — Кнопка настроек на всех экранах
 - Шестерёнка ⚙ (переход на «О приложении» → Диагностика) добавлена в TopBar
   через проп `settings`; включена на экранах «Новый продукт» (черновик) и
