@@ -28,7 +28,7 @@ export function AdminLayout() {
         </button>
       </div>
 
-      <nav className="chips" style={{ overflowX: 'auto' }}>
+      <nav className="chips tabs-row">
         {TABS.map((t) => (
           <NavLink
             key={t.to}

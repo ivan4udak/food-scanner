@@ -80,6 +80,31 @@ export interface RunningScanner {
   engine: ScanEngine;
 }
 
+/**
+ * Видео-ограничения: задняя камера в высоком разрешении — мелкие/дальние ШК
+ * читаются заметно лучше дефолтных ~640×480.
+ */
+function videoConstraints(): MediaTrackConstraints {
+  return {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+  };
+}
+
+/** Непрерывный автофокус, если поддерживается — не нужно подводить ШК вплотную. */
+async function enableContinuousFocus(video: HTMLVideoElement): Promise<void> {
+  try {
+    const stream = video.srcObject as MediaStream | null;
+    const track = stream?.getVideoTracks?.()[0];
+    if (track) {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] } as unknown as MediaTrackConstraints);
+    }
+  } catch {
+    /* устройство не поддерживает — не критично */
+  }
+}
+
 /** Запускает непрерывное сканирование с задней камеры. */
 export async function startScanner(opts: ScannerOptions): Promise<RunningScanner> {
   const gate = createScanGate(opts.cooldownMs ?? 1500);
@@ -93,7 +118,7 @@ export async function startScanner(opts: ScannerOptions): Promise<RunningScanner
 
 async function startNative(opts: ScannerOptions, gate: ReturnType<typeof createScanGate>): Promise<RunningScanner> {
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'environment' },
+    video: videoConstraints(),
     audio: false,
   });
   opts.onInfo?.('camera stream acquired', {
@@ -107,6 +132,7 @@ async function startNative(opts: ScannerOptions, gate: ReturnType<typeof createS
     opts.onInfo?.('video.play() rejected', { name: (e as Error).name, message: (e as Error).message });
     throw e;
   }
+  await enableContinuousFocus(opts.video);
   opts.onInfo?.('video playing', { w: opts.video.videoWidth, h: opts.video.videoHeight });
 
   const detector = new window.BarcodeDetector!({ formats: NATIVE_FORMATS });
@@ -122,7 +148,7 @@ async function startNative(opts: ScannerOptions, gate: ReturnType<typeof createS
     } catch (e) {
       opts.onError?.(e);
     }
-    if (!stopped) setTimeout(tick, 200);
+    if (!stopped) setTimeout(tick, 120); // ~8 проверок/сек
   };
   void tick();
 
@@ -138,14 +164,29 @@ async function startNative(opts: ScannerOptions, gate: ReturnType<typeof createS
 
 async function startZxing(opts: ScannerOptions, gate: ReturnType<typeof createScanGate>): Promise<RunningScanner> {
   const { BrowserMultiFormatReader } = await import('@zxing/browser');
-  const reader = new BrowserMultiFormatReader();
+  const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+
+  // Ограничиваем форматы (товарные ШК) + TRY_HARDER — быстрее и чувствительнее,
+  // чем перебор всех форматов на каждом кадре.
+  const hints = new Map<number, unknown>();
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF, BarcodeFormat.QR_CODE,
+  ]);
+  hints.set(DecodeHintType.TRY_HARDER, true);
+
+  // delayBetweenScanAttempts 100мс (дефолт 500 = всего 2 попытки/сек → «долго думает»).
+  const reader = new BrowserMultiFormatReader(hints as never, {
+    delayBetweenScanAttempts: 100,
+    delayBetweenScanSuccess: 1000,
+  });
   let controls: IScannerControls | null = null;
 
   // iOS: muted+playsinline ДО привязки потока (ZXing сам зовёт play()).
   prepareVideoElement(opts.video);
 
   controls = await reader.decodeFromConstraints(
-    { video: { facingMode: 'environment' }, audio: false },
+    { video: videoConstraints(), audio: false },
     opts.video,
     (result, err) => {
       if (result) {
@@ -159,6 +200,7 @@ async function startZxing(opts: ScannerOptions, gate: ReturnType<typeof createSc
     },
   );
 
+  await enableContinuousFocus(opts.video);
   opts.onInfo?.('zxing started', { w: opts.video.videoWidth, h: opts.video.videoHeight });
 
   return {

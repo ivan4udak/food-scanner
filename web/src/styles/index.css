@@ -269,6 +269,11 @@ body.install-banner-open .page { padding-bottom: calc(env(safe-area-inset-bottom
 }
 .chip.active { color: #06130a; background: var(--accent); border-color: var(--accent); font-weight: 600; }
 
+/* Навигация-табы: один ряд с горизонтальным скроллом — пункты не переносятся
+   и не «прыгают» между строками при смене активного. */
+.tabs-row { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tabs-row .chip { flex: 0 0 auto; }
+
 table.leaderboard { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 table.leaderboard th {
   text-align: right; color: var(--text-secondary); font-weight: 500;
