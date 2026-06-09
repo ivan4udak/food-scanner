@@ -12,6 +12,16 @@
 ## [Unreleased]
 - —
 
+## [1.10.0] — OCR foundation: контракт и слой данных
+- **Контракт OCR** (`docs/OCR.md`): статусы 0–5, RabbitMQ-топология, схемы job/result,
+  модель данных. Согласованный стек: RabbitMQ + EasyOCR (за портом OcrEngine), тот же сервер.
+- **Backend (foundation, без брокера/движка):** Flyway V14 `ocr_jobs`; domain `OcrStatus`(0–5)
+  + `OcrJob`; репозиторий + JPA-адаптер. При загрузке фото `INGREDIENTS`/`NUTRITION`
+  создаётся OCR-задача (QUEUED) — `EnqueueOcrService`, хук в `POST /drafts/{id}/photos`.
+- Следующий срез (v1.10.1): RabbitMQ + OCR-сервис (FastAPI, заглушка движка) → end-to-end статусы.
+- Backend 232 теста (вкл. Testcontainers-IT OcrJob/jsonb).
+
+
 ## [1.9.1] — Убран quality score до OCR
 - Оценка качества записи по типам/числу фото признана несправедливой (размер
   упаковки ≠ полнота информации) и удалена из админ-каталога вместе с
