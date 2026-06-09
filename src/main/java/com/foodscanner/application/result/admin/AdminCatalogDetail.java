@@ -14,6 +14,7 @@ public record AdminCatalogDetail(
         UUID contributorId,
         String author,
         Instant createdAt,
+        int qualityScore,
         List<Photo> photos,
         List<AdminClientLog> relatedLogs
 ) {

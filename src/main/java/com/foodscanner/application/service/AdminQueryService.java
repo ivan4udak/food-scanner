@@ -98,6 +98,7 @@ public class AdminQueryService implements AdminReadUseCase {
     public Optional<AdminCatalogDetail> catalogDetail(String barcode) {
         return port.catalogByBarcode(barcode).map(row -> new AdminCatalogDetail(
             row.catalogEntryId(), row.barcode(), row.contributorId(), row.author(), row.createdAt(),
+            row.qualityScore(),
             port.catalogPhotos(row.catalogEntryId()),
             port.clientLogsByBarcode(barcode, 200)));
     }
