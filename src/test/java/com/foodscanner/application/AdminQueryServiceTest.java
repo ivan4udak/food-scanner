@@ -64,6 +64,19 @@ class AdminQueryServiceTest {
     }
 
     @Test
+    void userDetailByUsernameAssembles() {
+        UUID id = UUID.randomUUID();
+        AdminUserRow row = new AdminUserRow(id, "ivan", "USER", true, Instant.now(),
+            "1.8.0", "Safari", "iOS", "mobile", 3, 1, 5, 0);
+        when(port.userByUsername(eq("ivan"), any())).thenReturn(Optional.of(row));
+        when(port.sessions(eq(id), anyInt())).thenReturn(List.of());
+        when(port.scans(eq(id), anyInt())).thenReturn(List.of());
+
+        assertThat(service.userDetailByUsername("ivan")).isPresent()
+            .get().extracting(d -> d.user().username()).isEqualTo("ivan");
+    }
+
+    @Test
     void usersClampsLimit() {
         when(port.users(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         service.users("completedEntries", 5000, 0);

@@ -50,6 +50,13 @@ public class AdminReadController {
         return admin.userDetail(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Поиск пользователя по нику (для перехода из публичного рейтинга /stats). */
+    @GetMapping("/users/by-username/{username}")
+    public ResponseEntity<AdminUserDetail> userByName(@PathVariable String username) {
+        return admin.userDetailByUsername(username).map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/users/{id}/logs")
     public List<AdminClientLog> userLogs(
             @PathVariable UUID id,

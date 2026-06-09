@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getMyScanDetail } from '@/api/me';
 import { AuthedImage } from '@/components/AuthedImage';
+import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { Page, TopBar } from '@/components/Layout';
 
 function dt(iso: string | null): string {
@@ -13,6 +15,7 @@ function dt(iso: string | null): string {
 /** Детали скана: фото пользователя. OCR-блок не показываем до v1.10. */
 export function MyScanDetailPage() {
   const { barcode = '' } = useParams();
+  const [zoom, setZoom] = useState<string | null>(null);
   const q = useQuery({ queryKey: ['my-scan', barcode], queryFn: () => getMyScanDetail(barcode) });
 
   return (
@@ -37,7 +40,7 @@ export function MyScanDetailPage() {
             ) : (
               <div className="photo-grid">
                 {q.data.photos.map((p) => (
-                  <div className="slot done" key={p.id}>
+                  <div className="slot done zoomable" key={p.id} onClick={() => setZoom(p.storageKey)}>
                     <AuthedImage storageKey={p.storageKey} size="thumb" alt={p.type} />
                     <span className="badge">{p.type}</span>
                   </div>
@@ -47,6 +50,8 @@ export function MyScanDetailPage() {
           </div>
         </>
       )}
+
+      {zoom && <PhotoLightbox storageKey={zoom} onClose={() => setZoom(null)} />}
     </Page>
   );
 }

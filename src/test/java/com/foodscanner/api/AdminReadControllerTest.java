@@ -77,6 +77,23 @@ class AdminReadControllerTest {
     }
 
     @Test
+    @DisplayName("GET /admin/users/by-username/{username} — 200 / 404")
+    void userByName() throws Exception {
+        UUID id = UUID.randomUUID();
+        AdminUserRow row = new AdminUserRow(id, "ivan", "ADMIN", true, Instant.now(),
+            "1.8.0", "Safari", "iOS", "mobile", 3, 1, 5, 0);
+        when(admin.userDetailByUsername(eq("ivan")))
+            .thenReturn(Optional.of(new AdminUserDetail(row, List.of(), List.of())));
+        mockMvc.perform(get("/api/v1/admin/users/by-username/ivan"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.username").value("ivan"));
+
+        when(admin.userDetailByUsername(eq("ghost"))).thenReturn(Optional.empty());
+        mockMvc.perform(get("/api/v1/admin/users/by-username/ghost"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("GET /admin/trace/{correlationId}")
     void trace() throws Exception {
         UUID corr = UUID.randomUUID();
