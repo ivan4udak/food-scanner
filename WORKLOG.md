@@ -366,3 +366,24 @@ MINOR на крупную фичу/изменение API (`→1.5.0`).
 ---
 
 _Документ поддерживается вручную; детальный клиентский журнал — `ios/DEVELOPMENT.md`._
+
+---
+
+## Статус v1.5–v1.8.7 (PWA-эпики; источник истины — CHANGELOG.md)
+
+- **v1.5** — восстановление черновика (`GET /drafts/{id}`).
+- **v1.6** — клиентский логгер (уровни/категории, кольцевой буфер, маскировка) + экран «Диагностика».
+- **v1.7** — серверная телеметрия: `client_logs/client_sessions/client_activity/server_events` (Flyway V11),
+  эндпоинты `client-logs/batch`, `client/session`, `client/activity`; `CorrelationIdFilter` (X-Correlation-Id);
+  публичная статистика `/stats` (`public/stats`, `public/leaderboard`) + opt-out (V12); шиппер логов на клиенте.
+- **v1.8** — роли (V13, ContributorRole), админка `/admin` (dashboard, users+карточка, logs с фильтрами,
+  catalog+деталь, errors, trace `/admin/trace/{correlationId}`), «Мои сканы» `/me/scans`.
+  Доработки 1.8.1–1.8.7: drill-down из /stats по нику, полноразмерные фото, presence GREATEST(session,activity),
+  иерархический «Назад», правило «скан = только с фото», страница ошибок пользователя,
+  **управление ролями супер-админом** + фикс «Назад» из «О приложении».
+
+Тесты: backend 227 (вкл. Testcontainers), фронт 53. Развёрнуто: staging=1.8.7, stable=1.8.0.
+
+## Дорожная карта далее
+v1.9 — расширенная аналитика + подготовка протоколов OCR (без OCR-кода). v1.10 — OCR-микросервис
+(HTTP-контракт + internal job table, статусы 0–5, raw text/parsed ingredients/nutrition). v2.0 — анализ пользы/вреда.
