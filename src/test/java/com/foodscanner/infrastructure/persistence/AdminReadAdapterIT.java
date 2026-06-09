@@ -37,6 +37,9 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         clientLog(ivan, "ERROR", "PHOTO", "PHOTO_UPLOAD_FAILED", null, null);
         serverEvent(ivan, "INFO", "SCAN_COMPLETED", corr);
 
+        // Брошенный черновик без фото — остаётся в БД, но не считается сканом.
+        draft(ivan);
+
         // dashboard
         AdminDashboard d = port.dashboard(now.minus(1, ChronoUnit.HOURS),
             now.minus(7, ChronoUnit.DAYS), now.minus(5, ChronoUnit.MINUTES));

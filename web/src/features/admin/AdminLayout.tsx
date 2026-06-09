@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { Page } from '@/components/Layout';
 
@@ -14,10 +14,25 @@ const TABS = [
 export function AdminLayout() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   if (!isAdmin()) return <Navigate to="/" replace />;
 
-  const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate('/'));
+  /**
+   * Иерархический «Назад»:
+   *  - карточка пользователя (/admin/users/:id, /admin/u/:name) → список «Пользователи»;
+   *  - карточка каталога (/admin/catalog/:barcode) → список «Каталог»;
+   *  - трассировка → по истории (открывается из разных мест);
+   *  - верхние вкладки админки → «О приложении».
+   */
+  const goBack = () => {
+    if (/^\/admin\/(users|u)\/[^/]+$/.test(pathname)) return navigate('/admin/users');
+    if (/^\/admin\/catalog\/[^/]+$/.test(pathname)) return navigate('/admin/catalog');
+    if (/^\/admin\/trace\/[^/]+$/.test(pathname)) {
+      return window.history.length > 1 ? navigate(-1) : navigate('/admin');
+    }
+    return navigate('/about');
+  };
 
   return (
     <Page>

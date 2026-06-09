@@ -33,7 +33,11 @@ public class AdminReadAdapter implements AdminReadPort {
                       WHERE ca.contributor_id = c.id)
                ) AS last_activity_at,
                s.client_version, s.browser, s.os, s.device_type,
-               (SELECT count(*) FROM food_catalog.catalog_drafts d WHERE d.contributor_id = c.id) AS total_scans,
+               (SELECT count(*) FROM food_catalog.catalog_drafts d
+                  WHERE d.contributor_id = c.id
+                    AND (EXISTS (SELECT 1 FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)
+                         OR EXISTS (SELECT 1 FROM food_catalog.catalog_entries ce WHERE ce.draft_id = d.id))
+               ) AS total_scans,
                (SELECT count(*) FROM food_catalog.catalog_entries e WHERE e.contributor_id = c.id) AS completed_entries,
                (SELECT count(*) FROM food_catalog.catalog_entry_photos p
                   JOIN food_catalog.catalog_entries e2 ON e2.id = p.entry_id
@@ -61,6 +65,11 @@ public class AdminReadAdapter implements AdminReadPort {
         FROM food_catalog.server_events
         """;
 
+    /** Скан засчитывается только при наличии фото в черновике (или завершении). Алиас — d. */
+    private static final String DRAFT_HAS_PHOTO =
+        "(EXISTS (SELECT 1 FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)"
+        + " OR EXISTS (SELECT 1 FROM food_catalog.catalog_entries ce WHERE ce.draft_id = d.id))";
+
     private final JdbcTemplate jdbc;
 
     public AdminReadAdapter(JdbcTemplate jdbc) {
@@ -78,8 +87,8 @@ public class AdminReadAdapter implements AdminReadPort {
             presenceCount(online),
             presenceCount(today),
             presenceCount(week),
-            count("SELECT count(*) FROM food_catalog.catalog_drafts WHERE created_at >= ?", today),
-            count("SELECT count(*) FROM food_catalog.catalog_drafts WHERE created_at >= ?", week),
+            count("SELECT count(*) FROM food_catalog.catalog_drafts d WHERE d.created_at >= ? AND " + DRAFT_HAS_PHOTO, today),
+            count("SELECT count(*) FROM food_catalog.catalog_drafts d WHERE d.created_at >= ? AND " + DRAFT_HAS_PHOTO, week),
             count("SELECT count(*) FROM food_catalog.catalog_entries WHERE created_at >= ?", today),
             count("SELECT count(*) FROM food_catalog.catalog_entries WHERE created_at >= ?", week),
             count("SELECT count(*) FROM food_catalog.catalog_entry_photos WHERE created_at >= ?", today),
@@ -152,8 +161,8 @@ public class AdminReadAdapter implements AdminReadPort {
                             (SELECT count(*) FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)) AS photo_count
             FROM food_catalog.catalog_drafts d
             LEFT JOIN food_catalog.catalog_entries e ON e.draft_id = d.id
-            WHERE d.contributor_id = ?
-            ORDER BY d.created_at DESC LIMIT ?""",
+            WHERE d.contributor_id = ? AND %s
+            ORDER BY d.created_at DESC LIMIT ?""".formatted(DRAFT_HAS_PHOTO),
             (rs, n) -> {
                 UUID entryId = uuid(rs, "catalog_entry_id");
                 String rawStatus = str(rs, "status");
