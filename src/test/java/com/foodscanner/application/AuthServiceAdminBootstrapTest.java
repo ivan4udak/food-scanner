@@ -39,7 +39,8 @@ class AuthServiceAdminBootstrapTest {
         RefreshTokenRepository refreshRepo = mock(RefreshTokenRepository.class);
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(refreshRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        service = new AuthService(repo, HASHER, TOKENS, refreshRepo, Duration.ofDays(30), Set.of("alice"));
+        service = new AuthService(repo, HASHER, TOKENS, refreshRepo, Duration.ofDays(30),
+            Set.of("alice"), Set.of("boss"));
     }
 
     @Test
@@ -60,5 +61,15 @@ class AuthServiceAdminBootstrapTest {
         service.login(new LoginCommand("bob", "pw"));
 
         assertThat(bob.isAdmin()).isFalse();
+    }
+
+    @Test
+    void promotesConfiguredSuperAdminOnLogin() {
+        Contributor boss = Contributor.createWithCredentials("boss", "H:pw");
+        when(repo.findByUsername("boss")).thenReturn(Optional.of(boss));
+
+        service.login(new LoginCommand("boss", "pw"));
+
+        assertThat(boss.getRole()).isEqualTo(com.foodscanner.domain.model.ContributorRole.SUPER_ADMIN);
     }
 }

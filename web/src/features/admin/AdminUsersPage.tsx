@@ -60,7 +60,6 @@ export function AdminUsersPage() {
                   style={{
                     color: u.clientErrors ? 'var(--danger)' : undefined,
                     cursor: u.clientErrors ? 'pointer' : undefined,
-                    textDecoration: u.clientErrors ? 'underline' : undefined,
                   }}
                   onClick={(e) => {
                     if (!u.clientErrors) return;

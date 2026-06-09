@@ -64,12 +64,17 @@ public class ApplicationConfig {
                                    TokenService tokenService,
                                    RefreshTokenRepository refreshTokenRepository,
                                    @Value("${jwt.refresh-ttl-days:30}") long refreshTtlDays,
-                                   @Value("${admin.usernames:}") String adminUsernamesCsv) {
-        java.util.Set<String> adminUsernames = java.util.Arrays.stream(adminUsernamesCsv.split(","))
+                                   @Value("${admin.usernames:}") String adminUsernamesCsv,
+                                   @Value("${admin.super-usernames:admin}") String superUsernamesCsv) {
+        return new AuthService(contributorRepository, passwordHasher, tokenService,
+            refreshTokenRepository, Duration.ofDays(refreshTtlDays),
+            csvToSet(adminUsernamesCsv), csvToSet(superUsernamesCsv));
+    }
+
+    private static java.util.Set<String> csvToSet(String csv) {
+        return java.util.Arrays.stream(csv.split(","))
             .map(String::trim).filter(s -> !s.isEmpty())
             .collect(java.util.stream.Collectors.toSet());
-        return new AuthService(contributorRepository, passwordHasher, tokenService,
-            refreshTokenRepository, Duration.ofDays(refreshTtlDays), adminUsernames);
     }
 
     @Bean

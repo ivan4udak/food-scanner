@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Session } from '@/api/types';
 import { logger } from '@/logging/logger';
-import { isAdminToken } from '@/lib/jwt';
+import { isAdminToken, isSuperAdminToken } from '@/lib/jwt';
 
 /**
  * Сессия: профиль контрибьютора + токены (access/refresh).
@@ -17,6 +17,7 @@ interface AuthState {
 
   isAuthenticated: () => boolean;
   isAdmin: () => boolean;
+  isSuperAdmin: () => boolean;
   signIn: (session: Session) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
   signOut: () => void;
@@ -32,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
 
       isAuthenticated: () => Boolean(get().accessToken && get().contributorId),
       isAdmin: () => isAdminToken(get().accessToken),
+      isSuperAdmin: () => isSuperAdminToken(get().accessToken),
 
       signIn: (s) => {
         logger.info('AUTH', 'Session established', { contributorId: s.contributorId, username: s.username });
