@@ -32,3 +32,7 @@ export function isAdminToken(token: string | null): boolean {
   const r = roleFromToken(token);
   return r === 'ADMIN' || r === 'SUPER_ADMIN';
 }
+
+export function isSuperAdminToken(token: string | null): boolean {
+  return roleFromToken(token) === 'SUPER_ADMIN';
+}

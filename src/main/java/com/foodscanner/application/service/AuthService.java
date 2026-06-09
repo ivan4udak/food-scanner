@@ -45,16 +45,19 @@ public class AuthService implements AuthUseCase {
     private final RefreshTokenRepository  refreshTokens;
     private final Duration                refreshTtl;
     private final Set<String>             adminUsernames;
+    private final Set<String>             superAdminUsernames;
 
     public AuthService(ContributorRepository repository, PasswordHasher hasher,
                        TokenService tokenService, RefreshTokenRepository refreshTokens,
-                       Duration refreshTtl, Set<String> adminUsernames) {
+                       Duration refreshTtl, Set<String> adminUsernames,
+                       Set<String> superAdminUsernames) {
         this.repository    = repository;
         this.hasher        = hasher;
         this.tokenService  = tokenService;
         this.refreshTokens = refreshTokens;
         this.refreshTtl    = refreshTtl;
         this.adminUsernames = adminUsernames == null ? Set.of() : adminUsernames;
+        this.superAdminUsernames = superAdminUsernames == null ? Set.of() : superAdminUsernames;
     }
 
     @Override
@@ -133,9 +136,18 @@ public class AuthService implements AuthUseCase {
         return new AuthSession(c.getId(), c.getUsername(), access, refreshRaw);
     }
 
-    /** Авто-назначение роли ADMIN логинам из ADMIN_USERNAMES (конфиг сервера). */
+    /**
+     * Авто-назначение ролей по конфигу сервера при входе:
+     *  - логины из ADMIN_SUPER_USERNAMES → SUPER_ADMIN (могут менять роли);
+     *  - логины из ADMIN_USERNAMES → ADMIN (доступ к админке без раздачи ролей).
+     */
     private void applyAdminBootstrap(Contributor c) {
-        if (c.getUsername() != null && adminUsernames.contains(c.getUsername()) && !c.isAdmin()) {
+        String u = c.getUsername();
+        if (u == null) return;
+        if (superAdminUsernames.contains(u) && c.getRole() != ContributorRole.SUPER_ADMIN) {
+            c.assignRole(ContributorRole.SUPER_ADMIN);
+            repository.save(c);
+        } else if (adminUsernames.contains(u) && !c.isAdmin()) {
             c.assignRole(ContributorRole.ADMIN);
             repository.save(c);
         }

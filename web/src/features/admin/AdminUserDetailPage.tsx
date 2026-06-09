@@ -1,25 +1,55 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { adminUser, adminUserLogs } from '@/api/admin';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { adminUser, adminUserLogs, setUserRole } from '@/api/admin';
+import { useAuthStore } from '@/store/authStore';
 import { LogTable } from '@/features/admin/LogTable';
 import { dt } from '@/features/admin/fmt';
 
-/** Карточка пользователя: профиль, сессии, сканы, логи. */
+const ROLES = ['USER', 'ADMIN', 'SUPER_ADMIN'];
+
+/** Карточка пользователя: профиль, роль (для супер-админа), сессии, сканы, логи. */
 export function AdminUserDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
+  const qc = useQueryClient();
   const user = useQuery({ queryKey: ['admin-user', id], queryFn: () => adminUser(id), refetchInterval: 20_000 });
   const logs = useQuery({ queryKey: ['admin-user-logs', id], queryFn: () => adminUserLogs(id, 200) });
+  const [roleDraft, setRoleDraft] = useState<string>('');
+
+  const roleMutation = useMutation({
+    mutationFn: (role: string) => setUserRole(id, role),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-user', id] }),
+  });
 
   if (user.isLoading) return <p className="muted center">Загрузка…</p>;
   if (user.isError || !user.data) return <p className="error center">Пользователь не найден.</p>;
   const { user: u, sessions, recentScans } = user.data;
+  const selectedRole = roleDraft || u.role;
 
   return (
     <div className="stack">
       <div className="card">
         <h2><span className={`dot ${u.online ? 'online' : 'offline'}`} /> {u.username}</h2>
         <div className="row"><span>Роль</span><span className="value">{u.role}</span></div>
+        {isSuperAdmin() && (
+          <div className="field" style={{ marginTop: 8 }}>
+            <label>Сменить роль (супер-админ)</label>
+            <select value={selectedRole} onChange={(e) => setRoleDraft(e.target.value)}>
+              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <button
+              className="btn secondary"
+              style={{ marginTop: 8 }}
+              disabled={roleMutation.isPending || selectedRole === u.role}
+              onClick={() => roleMutation.mutate(selectedRole)}
+            >
+              {roleMutation.isPending ? '…' : 'Применить роль'}
+            </button>
+            {roleMutation.isError && <span className="error">Не удалось сменить роль.</span>}
+          </div>
+        )}
         <div className="row"><span>Последняя активность</span><span className="value">{dt(u.lastActivityAt)}</span></div>
         <div className="row"><span>Устройство</span><span className="value">{u.os} · {u.browser} · {u.deviceType}</span></div>
         <div className="row"><span>Версия клиента</span><span className="value">{u.clientVersion ?? '—'}</span></div>

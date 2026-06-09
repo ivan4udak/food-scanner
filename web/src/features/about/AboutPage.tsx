@@ -5,7 +5,7 @@ import { useConnection, connectionLabel } from '@/components/ConnectionContext';
 import { useAuthStore } from '@/store/authStore';
 import { API_BASE } from '@/api/client';
 import { APP_VERSION, PLATFORM } from '@/version';
-import { Page, TopBar } from '@/components/Layout';
+import { Page, TopBar, ABOUT_FROM_KEY } from '@/components/Layout';
 import { logger, formatLogLine } from '@/logging/logger';
 import { browserInfo, buildDiagnosticsText, downloadLog } from '@/logging/diagnostics';
 import { flushTelemetry } from '@/logging/telemetry';
@@ -85,7 +85,11 @@ export function AboutPage() {
 
   return (
     <Page>
-      <TopBar title="О приложении" back />
+      <TopBar
+        title="О приложении"
+        back
+        onBack={() => navigate(sessionStorage.getItem(ABOUT_FROM_KEY) || '/')}
+      />
 
       <div className="card">
         <h2>Версии</h2>

@@ -52,7 +52,7 @@ class AuthServiceTest {
         when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         when(repo.findByNickname(any())).thenReturn(Optional.empty());
         when(refreshRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        service = new AuthService(repo, FAKE, TOKENS, refreshRepo, Duration.ofDays(30), java.util.Set.of());
+        service = new AuthService(repo, FAKE, TOKENS, refreshRepo, Duration.ofDays(30), java.util.Set.of(), java.util.Set.of());
     }
 
     private Contributor existing(String user, String pass) {

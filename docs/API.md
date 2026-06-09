@@ -269,6 +269,7 @@ legacy-без-username исключены.
   из публичного рейтинга `/stats`); 404 если не найден.
 - `GET /admin/users/{id}/logs?limit=&offset=` → клиентские логи пользователя.
 - `GET /admin/users/{id}/errors?limit=` → только WARN/ERROR клиента этого пользователя.
+- `POST /admin/users/{id}/role` `{ "role":"USER|ADMIN|SUPER_ADMIN" }` → смена роли. **Только SUPER_ADMIN** (ADMIN → 403). Логины из `ADMIN_SUPER_USERNAMES` (по умолчанию `admin`) — супер-админы; из `ADMIN_USERNAMES` — админы.
 - `GET /admin/logs?contributorId=&sessionId=&level=&category=&event=&barcode=&screen=
   &dateFrom=&dateTo=&limit=&offset=` → клиентские логи с фильтрами (полный контекст,
   включая `metadataJson`, `correlationId`).

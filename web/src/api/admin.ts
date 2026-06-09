@@ -88,3 +88,9 @@ export const adminCatalog = (limit = 100, offset = 0) =>
 export const adminCatalogDetail = (barcode: string) =>
   get<AdminCatalogDetail>(`/admin/catalog/${encodeURIComponent(barcode)}`);
 export const adminTrace = (correlationId: string) => get<TraceItem[]>(`/admin/trace/${correlationId}`);
+
+/** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */
+export async function setUserRole(id: string, role: string): Promise<string> {
+  const res = await api.post(`/admin/users/${id}/role`, { role });
+  return (res.data?.role as string) ?? role;
+}
