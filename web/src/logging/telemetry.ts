@@ -24,7 +24,7 @@ const PENDING_KEY = 'foodscanner.tx.pending';
 const MAX_PENDING = 2000;
 const CHUNK = 200;
 const FLUSH_INTERVAL_MS = 30_000;
-const ACTIVITY_INTERVAL_MS = 60_000;
+const ACTIVITY_INTERVAL_MS = 30_000; // heartbeat присутствия (онлайн-окно на сервере — 5 мин)
 
 // ── Идентификатор сессии (стабилен между перезагрузками вкладки) ──
 function loadSessionId(): string {
@@ -217,11 +217,20 @@ export function startTelemetry(): void {
 
   window.setInterval(() => void flush(), FLUSH_INTERVAL_MS);
   window.setInterval(activityTick, ACTIVITY_INTERVAL_MS);
-  window.addEventListener('online', () => void flush());
+  window.addEventListener('online', () => {
+    activityTick();
+    void flush();
+  });
+  // Вернулись на вкладку/приложение — сразу обновляем присутствие.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') activityTick();
+  });
+  window.addEventListener('focus', activityTick);
 
-  // Первичная сессия и попытка отправить накопленное.
+  // Первичная сессия + первый heartbeat сразу (чтобы присутствие появилось без задержки).
   window.setTimeout(() => {
     if (canSend() && !sessionSent) reportSession();
+    activityTick();
     void flush();
   }, 1500);
 }

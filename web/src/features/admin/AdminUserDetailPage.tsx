@@ -8,7 +8,7 @@ import { dt } from '@/features/admin/fmt';
 export function AdminUserDetailPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const user = useQuery({ queryKey: ['admin-user', id], queryFn: () => adminUser(id) });
+  const user = useQuery({ queryKey: ['admin-user', id], queryFn: () => adminUser(id), refetchInterval: 20_000 });
   const logs = useQuery({ queryKey: ['admin-user-logs', id], queryFn: () => adminUserLogs(id, 200) });
 
   if (user.isLoading) return <p className="muted center">Загрузка…</p>;

@@ -16,7 +16,11 @@ const SORTS = [
 export function AdminUsersPage() {
   const navigate = useNavigate();
   const [sort, setSort] = useState('lastActivityAt');
-  const q = useQuery({ queryKey: ['admin-users', sort], queryFn: () => adminUsers(sort, 200) });
+  const q = useQuery({
+    queryKey: ['admin-users', sort],
+    queryFn: () => adminUsers(sort, 200),
+    refetchInterval: 20_000, // присутствие обновляется без перезагрузки
+  });
 
   return (
     <div className="card">
@@ -39,9 +43,12 @@ export function AdminUsersPage() {
             {q.data.map((u) => (
               <tr key={u.id} className="clickable" onClick={() => navigate(`/admin/users/${u.id}`)}>
                 <td className="who">
-                  <span className={`dot ${u.online ? 'online' : 'offline'}`} /> {u.username}
-                  {u.role !== 'USER' && <span className="badge-role">{u.role}</span>}
-                  <div className="sub">{u.os} · {u.browser} · {u.clientVersion ?? '—'}</div>
+                  <div className="who-line">
+                    <span className={`dot ${u.online ? 'online' : 'offline'}`} />
+                    <span className="uname">{u.username}</span>
+                    {u.role !== 'USER' && <span className="badge-role">{u.role}</span>}
+                  </div>
+                  <div className="sub">{u.os ?? '—'} · {u.browser ?? '—'} · {u.clientVersion ?? '—'}</div>
                 </td>
                 <td className="sub">{dt(u.lastActivityAt)}</td>
                 <td className="num strong">{u.completedEntries}</td>

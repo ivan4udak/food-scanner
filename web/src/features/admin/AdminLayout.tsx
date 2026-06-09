@@ -17,12 +17,14 @@ export function AdminLayout() {
 
   if (!isAdmin()) return <Navigate to="/" replace />;
 
+  const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate('/'));
+
   return (
     <Page>
       <div className="topbar">
         <h1 style={{ fontSize: '1.3rem', margin: 0 }}>Админ-панель</h1>
-        <button className="btn ghost" style={{ width: 'auto' }} onClick={() => navigate('/')}>
-          ‹ В приложение
+        <button className="btn ghost" style={{ width: 'auto' }} onClick={goBack}>
+          ‹ Назад
         </button>
       </div>
 

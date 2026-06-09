@@ -15,11 +15,13 @@ interface TopBarProps {
 
 export function TopBar({ title, back, right, settings }: TopBarProps) {
   const navigate = useNavigate();
+  // Назад — на предыдущую страницу; если истории нет (прямой заход) — на главную.
+  const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate('/'));
   return (
     <div className="topbar">
       <div className="actions">
         {back && (
-          <button className="iconbtn" aria-label="Назад" onClick={() => navigate(-1)}>
+          <button className="iconbtn" aria-label="Назад" onClick={goBack}>
             ‹
           </button>
         )}
