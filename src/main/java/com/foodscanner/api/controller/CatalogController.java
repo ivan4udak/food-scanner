@@ -45,6 +45,7 @@ public class CatalogController {
     private final PhotoStorage                    photoStorage;
     private final ImageProcessor                  imageProcessor;
     private final com.foodscanner.application.port.PhotoStore photoStore;
+    private final com.foodscanner.application.usecase.EnqueueOcrUseCase enqueueOcr;
 
     /** Имя request-атрибута с id аутентифицированного пользователя (ставит AuthInterceptor). */
     private static final String AUTH_CONTRIBUTOR = "authContributorId";
@@ -65,7 +66,9 @@ public class CatalogController {
             CatalogApiMapper mapper,
             PhotoStorage photoStorage,
             ImageProcessor imageProcessor,
-            com.foodscanner.application.port.PhotoStore photoStore) {
+            com.foodscanner.application.port.PhotoStore photoStore,
+            com.foodscanner.application.usecase.EnqueueOcrUseCase enqueueOcr) {
+        this.enqueueOcr          = enqueueOcr;
         this.registerContributor = registerContributor;
         this.scanBarcode         = scanBarcode;
         this.addDraftPhoto       = addDraftPhoto;
@@ -153,10 +156,14 @@ public class CatalogController {
 
         Instant captured = parseInstant(capturedAt);
 
-        return ResponseEntity.ok(
-            mapper.toResponse(
-                addDraftPhoto.execute(
-                    mapper.toCommand(draftId, contributorId, photoType, objectKey, captured))));
+        AddDraftPhotoResponse response = mapper.toResponse(
+            addDraftPhoto.execute(
+                mapper.toCommand(draftId, contributorId, photoType, objectKey, captured)));
+
+        // v1.10: для фото с текстом (INGREDIENTS/NUTRITION) ставим OCR-задачу (QUEUED).
+        enqueueOcr.execute(draftId, objectKey, photoType);
+
+        return ResponseEntity.ok(response);
     }
 
     /**

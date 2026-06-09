@@ -62,6 +62,7 @@ class CatalogControllerTest {
     @MockBean PhotoStorage                     photoStorage;
     @MockBean ImageProcessor                   imageProcessor;
     @MockBean PhotoStore                       photoStore;
+    @MockBean com.foodscanner.application.usecase.EnqueueOcrUseCase enqueueOcr;
 
     // ──────────────────────────────────────────────
     @Nested
