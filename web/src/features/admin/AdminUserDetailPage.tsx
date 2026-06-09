@@ -30,6 +30,7 @@ export function AdminUserDetailPage() {
       <div className="card">
         <h2>Сканы</h2>
         {recentScans.length === 0 ? <p className="muted">Нет.</p> : (
+          <div className="table-scroll">
           <table className="admin-table">
             <thead><tr><th>ШК</th><th>Статус</th><th>Фото</th><th>Когда</th></tr></thead>
             <tbody>
@@ -43,12 +44,14 @@ export function AdminUserDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       <div className="card">
         <h2>Сессии</h2>
         {sessions.length === 0 ? <p className="muted">Нет.</p> : (
+          <div className="table-scroll">
           <table className="admin-table">
             <thead><tr><th>Начало</th><th>Активность</th><th>Устройство</th></tr></thead>
             <tbody>
@@ -61,6 +64,7 @@ export function AdminUserDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
