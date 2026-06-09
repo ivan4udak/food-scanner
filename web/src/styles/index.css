@@ -292,6 +292,10 @@ table.admin-table th:first-child { text-align: left; }
 table.admin-table td { padding: 9px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
 table.admin-table tr:last-child td { border-bottom: none; }
 table.admin-table td.who { font-weight: 600; word-break: break-word; }
+.who-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.who-line .uname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.who-line .dot, .who-line .badge-role { flex: 0 0 auto; }
+.who-line .badge-role { margin-left: 0; }
 table.admin-table td.num { text-align: right; }
 table.admin-table td.num.strong { color: var(--accent); font-weight: 700; }
 table.admin-table td.sub, .admin-table .sub, td .sub { color: var(--text-secondary); font-size: 0.74rem; font-weight: 400; }

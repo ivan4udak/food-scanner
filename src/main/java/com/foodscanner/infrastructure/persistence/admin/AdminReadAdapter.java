@@ -27,7 +27,12 @@ public class AdminReadAdapter implements AdminReadPort {
     /** Поля строки пользователя (используется и в списке, и в карточке). */
     private static final String USER_SELECT = """
         SELECT c.id, c.username, c.role,
-               s.last_seen_at AS last_activity_at, s.client_version, s.browser, s.os, s.device_type,
+               GREATEST(
+                   s.last_seen_at,
+                   (SELECT max(ca.occurred_at) FROM food_catalog.client_activity ca
+                      WHERE ca.contributor_id = c.id)
+               ) AS last_activity_at,
+               s.client_version, s.browser, s.os, s.device_type,
                (SELECT count(*) FROM food_catalog.catalog_drafts d WHERE d.contributor_id = c.id) AS total_scans,
                (SELECT count(*) FROM food_catalog.catalog_entries e WHERE e.contributor_id = c.id) AS completed_entries,
                (SELECT count(*) FROM food_catalog.catalog_entry_photos p
@@ -70,9 +75,9 @@ public class AdminReadAdapter implements AdminReadPort {
         Timestamp online = Timestamp.from(onlineSince);
         return new AdminDashboard(
             count("SELECT count(*) FROM food_catalog.contributors"),
-            count("SELECT count(DISTINCT contributor_id) FROM food_catalog.client_sessions WHERE last_seen_at >= ?", online),
-            count("SELECT count(DISTINCT contributor_id) FROM food_catalog.client_sessions WHERE last_seen_at >= ?", today),
-            count("SELECT count(DISTINCT contributor_id) FROM food_catalog.client_sessions WHERE last_seen_at >= ?", week),
+            presenceCount(online),
+            presenceCount(today),
+            presenceCount(week),
             count("SELECT count(*) FROM food_catalog.catalog_drafts WHERE created_at >= ?", today),
             count("SELECT count(*) FROM food_catalog.catalog_drafts WHERE created_at >= ?", week),
             count("SELECT count(*) FROM food_catalog.catalog_entries WHERE created_at >= ?", today),
@@ -264,6 +269,16 @@ public class AdminReadAdapter implements AdminReadPort {
     private long count(String sql, Object... args) {
         Long v = jdbc.queryForObject(sql, Long.class, args);
         return v == null ? 0L : v;
+    }
+
+    /** Присутствие = сессии ИЛИ heartbeat-активность за окно (устойчиво к незавершённой сессии). */
+    private long presenceCount(Timestamp since) {
+        return count("""
+            SELECT count(DISTINCT contributor_id) FROM (
+                SELECT contributor_id FROM food_catalog.client_sessions WHERE last_seen_at >= ?
+                UNION ALL
+                SELECT contributor_id FROM food_catalog.client_activity WHERE occurred_at >= ?
+            ) x""", since, since);
     }
 
     private static void addEq(StringBuilder sql, List<Object> args, String col, Object value) {

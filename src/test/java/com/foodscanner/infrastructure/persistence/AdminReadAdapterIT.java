@@ -81,6 +81,31 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(port.catalogPhotos(barcodeEntry)).hasSize(1);
     }
 
+    @Test
+    void presenceFromActivityEvenWithoutSession() {
+        Instant now = Instant.now();
+        UUID user = contributor("act_" + UUID.randomUUID());
+        // Только heartbeat-активность, строки сессии нет (например, /client/session не дошёл)
+        activity(user, now);
+
+        AdminUserRow row = port.user(user, now.minus(5, ChronoUnit.MINUTES)).orElseThrow();
+        assertThat(row.online()).isTrue();
+        assertThat(row.lastActivityAt()).isNotNull();
+
+        AdminDashboard d = port.dashboard(now.minus(1, ChronoUnit.HOURS),
+            now.minus(7, ChronoUnit.DAYS), now.minus(5, ChronoUnit.MINUTES));
+        assertThat(d.onlineNow()).isGreaterThanOrEqualTo(1);
+    }
+
+    private void activity(UUID c, Instant at) {
+        Timestamp ts = Timestamp.from(at);
+        jdbc.update("""
+            INSERT INTO food_catalog.client_activity
+              (id,contributor_id,session_id,screen,online,occurred_at,received_at)
+            VALUES (?,?,?,?,?,?,?)""",
+            UUID.randomUUID(), c, UUID.randomUUID(), "ScannerPage", true, ts, ts);
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private String usernameOf(UUID id) {
         return jdbc.queryForObject("SELECT username FROM food_catalog.contributors WHERE id=?", String.class, id);
