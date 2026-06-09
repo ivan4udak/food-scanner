@@ -44,12 +44,12 @@ export interface AdminServerEventRow {
 
 export interface AdminCatalogRow {
   catalogEntryId: string; barcode: string; contributorId: string | null;
-  author: string | null; createdAt: string; photoCount: number;
+  author: string | null; createdAt: string; photoCount: number; qualityScore: number;
 }
 
 export interface AdminCatalogDetail {
   catalogEntryId: string; barcode: string; contributorId: string | null; author: string | null;
-  createdAt: string;
+  createdAt: string; qualityScore: number;
   photos: { id: string; type: string; storageKey: string; capturedAt: string | null }[];
   relatedLogs: AdminClientLog[];
 }

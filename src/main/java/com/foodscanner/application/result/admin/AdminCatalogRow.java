@@ -13,5 +13,6 @@ public record AdminCatalogRow(
         UUID contributorId,
         String author,
         Instant createdAt,
-        long photoCount
+        long photoCount,
+        int qualityScore
 ) {}

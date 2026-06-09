@@ -15,13 +15,14 @@ export function AdminCatalogPage() {
       {q.data && (
         <div className="table-scroll">
         <table className="admin-table">
-          <thead><tr><th>ШК</th><th>Автор</th><th>Фото</th><th>Создано</th></tr></thead>
+          <thead><tr><th>ШК</th><th>Автор</th><th>Фото</th><th title="Качество 0–100">Кач.</th><th>Создано</th></tr></thead>
           <tbody>
             {q.data.map((e) => (
               <tr key={e.catalogEntryId} className="clickable" onClick={() => navigate(`/admin/catalog/${encodeURIComponent(e.barcode)}`)}>
                 <td className="who">{e.barcode}</td>
                 <td className="sub">{e.author ?? '—'}</td>
                 <td className="num">{e.photoCount}</td>
+                <td className="num strong">{e.qualityScore}</td>
                 <td className="sub">{dt(e.createdAt)}</td>
               </tr>
             ))}
