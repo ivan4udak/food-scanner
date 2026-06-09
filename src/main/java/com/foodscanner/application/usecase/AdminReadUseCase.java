@@ -20,6 +20,8 @@ public interface AdminReadUseCase {
 
     Optional<AdminUserDetail> userDetail(UUID id);
 
+    Optional<AdminUserDetail> userDetailByUsername(String username);
+
     List<AdminClientLog> userLogs(UUID id, int limit, int offset);
 
     List<AdminClientLog> logs(AdminLogFilter filter);

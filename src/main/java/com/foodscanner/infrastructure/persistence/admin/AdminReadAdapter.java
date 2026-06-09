@@ -96,6 +96,12 @@ public class AdminReadAdapter implements AdminReadPort {
         return rows.stream().findFirst();
     }
 
+    @Override
+    public Optional<AdminUserRow> userByUsername(String username, Instant onlineSince) {
+        String sql = USER_SELECT + " WHERE c.username = ?";
+        return jdbc.query(sql, userMapper(onlineSince), username).stream().findFirst();
+    }
+
     private RowMapper<AdminUserRow> userMapper(Instant onlineSince) {
         return (rs, n) -> {
             Instant last = inst(rs, "last_activity_at");

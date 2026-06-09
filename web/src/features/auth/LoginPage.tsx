@@ -103,6 +103,9 @@ export function LoginPage() {
           Нет аккаунта? <Link to="/register">Создать</Link>
         </p>
       )}
+      <p className="center">
+        <Link to="/stats">Статистика проекта →</Link>
+      </p>
       <div className="grow" />
     </Page>
   );

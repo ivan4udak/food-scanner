@@ -19,6 +19,8 @@ public interface AdminReadPort {
 
     Optional<AdminUserRow> user(UUID id, Instant onlineSince);
 
+    Optional<AdminUserRow> userByUsername(String username, Instant onlineSince);
+
     List<AdminSessionRow> sessions(UUID contributorId, int limit);
 
     List<AdminScanRow> scans(UUID contributorId, int limit);

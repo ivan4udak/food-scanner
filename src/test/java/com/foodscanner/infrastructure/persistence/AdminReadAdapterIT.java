@@ -48,6 +48,11 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         // users
         AdminUserRow row = port.user(ivan, now.minus(5, ChronoUnit.MINUTES)).orElseThrow();
         assertThat(row.online()).isTrue();
+
+        // поиск по нику (для перехода из /stats)
+        AdminUserRow byName = port.userByUsername(usernameOf(ivan), now.minus(5, ChronoUnit.MINUTES)).orElseThrow();
+        assertThat(byName.id()).isEqualTo(ivan);
+        assertThat(port.userByUsername("no-such-user", now)).isEmpty();
         assertThat(row.completedEntries()).isEqualTo(1);
         assertThat(row.uploadedPhotos()).isEqualTo(1);
         assertThat(row.totalScans()).isEqualTo(1);

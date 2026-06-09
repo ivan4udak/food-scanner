@@ -48,10 +48,19 @@ public class AdminQueryService implements AdminReadUseCase {
 
     @Override
     public Optional<AdminUserDetail> userDetail(UUID id) {
-        return port.user(id, onlineSince()).map(user -> new AdminUserDetail(
+        return port.user(id, onlineSince()).map(this::assembleDetail);
+    }
+
+    @Override
+    public Optional<AdminUserDetail> userDetailByUsername(String username) {
+        return port.userByUsername(username, onlineSince()).map(this::assembleDetail);
+    }
+
+    private AdminUserDetail assembleDetail(AdminUserRow user) {
+        return new AdminUserDetail(
             user,
-            port.sessions(id, SESSIONS_LIMIT),
-            port.scans(id, RECENT_SCANS_LIMIT)));
+            port.sessions(user.id(), SESSIONS_LIMIT),
+            port.scans(user.id(), RECENT_SCANS_LIMIT));
     }
 
     @Override

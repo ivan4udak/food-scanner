@@ -265,6 +265,8 @@ legacy-без-username исключены.
   completedEntries, uploadedPhotos, clientErrors`. `sort` ∈
   `lastActivityAt|completedEntries|uploadedPhotos|totalScans|clientErrors`.
 - `GET /admin/users/{id}` → карточка: `{ user, sessions[], recentScans[] }`; 404 если нет.
+- `GET /admin/users/by-username/{username}` → та же карточка по нику (для перехода
+  из публичного рейтинга `/stats`); 404 если не найден.
 - `GET /admin/users/{id}/logs?limit=&offset=` → клиентские логи пользователя.
 - `GET /admin/logs?contributorId=&sessionId=&level=&category=&event=&barcode=&screen=
   &dateFrom=&dateTo=&limit=&offset=` → клиентские логи с фильтрами (полный контекст,

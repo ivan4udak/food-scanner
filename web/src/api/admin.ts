@@ -75,6 +75,8 @@ export const adminDashboard = () => get<AdminDashboard>('/admin/dashboard');
 export const adminUsers = (sort?: string, limit = 100, offset = 0) =>
   get<AdminUserRow[]>('/admin/users', { sort, limit, offset });
 export const adminUser = (id: string) => get<AdminUserDetail>(`/admin/users/${id}`);
+export const adminUserByName = (username: string) =>
+  get<AdminUserDetail>(`/admin/users/by-username/${encodeURIComponent(username)}`);
 export const adminUserLogs = (id: string, limit = 200) =>
   get<AdminClientLog[]>(`/admin/users/${id}/logs`, { limit });
 export const adminLogs = (f: LogFilters) => get<AdminClientLog[]>('/admin/logs', f as Record<string, unknown>);

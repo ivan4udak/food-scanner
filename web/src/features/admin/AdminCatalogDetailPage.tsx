@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { adminCatalogDetail } from '@/api/admin';
 import { AuthedImage } from '@/components/AuthedImage';
+import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { LogTable } from '@/features/admin/LogTable';
 import { dt } from '@/features/admin/fmt';
 
-/** Деталь записи каталога: фото + связанные клиентские логи. */
+/** Деталь записи каталога: фото (клик → полное качество) + связанные логи. */
 export function AdminCatalogDetailPage() {
   const { barcode = '' } = useParams();
+  const [zoom, setZoom] = useState<string | null>(null);
   const q = useQuery({ queryKey: ['admin-catalog', barcode], queryFn: () => adminCatalogDetail(barcode) });
 
   if (q.isLoading) return <p className="muted center">Загрузка…</p>;
@@ -26,7 +29,7 @@ export function AdminCatalogDetailPage() {
         <h2>Фото ({e.photos.length})</h2>
         <div className="photo-grid">
           {e.photos.map((p) => (
-            <div className="slot done" key={p.id}>
+            <div className="slot done zoomable" key={p.id} onClick={() => setZoom(p.storageKey)}>
               <AuthedImage storageKey={p.storageKey} size="thumb" alt={p.type} />
               <span className="badge">{p.type}</span>
             </div>
@@ -38,6 +41,8 @@ export function AdminCatalogDetailPage() {
         <h2>Связанные логи</h2>
         <LogTable logs={e.relatedLogs} />
       </div>
+
+      {zoom && <PhotoLightbox storageKey={zoom} onClose={() => setZoom(null)} />}
     </div>
   );
 }

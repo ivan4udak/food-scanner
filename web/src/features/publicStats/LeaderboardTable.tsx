@@ -12,10 +12,12 @@ interface Props {
   period: LeaderboardPeriod;
   onPeriod: (p: LeaderboardPeriod) => void;
   loading?: boolean;
+  /** Для админа: ник кликабелен → переход к пользователю. */
+  onUser?: (username: string) => void;
 }
 
 /** Таблица рейтинга участников + переключатель периода. */
-export function LeaderboardTable({ board, period, onPeriod, loading }: Props) {
+export function LeaderboardTable({ board, period, onPeriod, loading, onUser }: Props) {
   return (
     <div className="card">
       <h2>Рейтинг участников</h2>
@@ -51,7 +53,13 @@ export function LeaderboardTable({ board, period, onPeriod, loading }: Props) {
             {board.items.map((it) => (
               <tr key={it.rank}>
                 <td className="rank">{it.rank}</td>
-                <td className="who">{it.username}</td>
+                <td className="who">
+                  {onUser ? (
+                    <button className="linklike" onClick={() => onUser(it.username)}>{it.username}</button>
+                  ) : (
+                    it.username
+                  )}
+                </td>
                 <td className="num strong">{it.completedEntries}</td>
                 <td className="num">{it.uploadedPhotos}</td>
                 <td className="num">{it.scans}</td>
