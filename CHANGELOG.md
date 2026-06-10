@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.10.8] — OCR result visibility: карточка задачи /admin/ocr/{jobId}
+- **API**: `GET /admin/ocr/{jobId}` — полная карточка (полный rawText/parsedIngredients/parsedNutrition,
+  confidence, lifecycle active/superseded/orphaned, publish published_at/attempts/last_publish_error). 404 если нет.
+- **Админка**: страница `/admin/ocr/:jobId` — статус с цветом, полный rawText + копирование, фото (lightbox),
+  кликабельные ШК→каталог и автор→пользователь, reprocess для 3/5; кнопка «детали» в таблице OCR. Polling до финала.
+- Порт `AdminReadPort.ocrById` + native SQL; use-case `ocrDetail`. Иерархия «Назад» для `/admin/ocr/:jobId` уже была.
+- Тесты: AdminReadControllerTest (200/404), AdminReadAdapterIT.ocrById; `mvn verify` = surefire + 22 IT; фронт vitest 63.
+- Дальше: **v1.11.0 реальный движок EasyOCR** (raw text/confidence; парсинг состава/КБЖУ — позже).
+
 ## [1.10.7] — OCR reprocess (статусы 3/5 → переотправка)
 - **API**: `POST /admin/ocr/{jobId}/reprocess` — для PHOTO_UNREADABLE(3)/ERROR(5) создаёт новую QUEUED-задачу
   для того же фото (storageKey/photoType/draft/entry), замещает старую (`supersede` по id), публикует.
