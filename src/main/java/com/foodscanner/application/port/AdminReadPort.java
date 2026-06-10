@@ -51,4 +51,10 @@ public interface AdminReadPort {
 
     /** Сводка OCR-задач по статусам (zero-fill). */
     AdminOcrSummary ocrSummary();
+
+    /** OCR-задачи по штрих-коду (через draft/entry), свежие сверху — для карточки каталога. */
+    List<AdminOcrRow> ocrJobsByBarcode(String barcode, int limit);
+
+    /** OCR-задачи пользователя (автор draft/entry), свежие сверху — для карточки пользователя. */
+    List<AdminOcrRow> ocrJobsByUser(UUID contributorId, int limit);
 }

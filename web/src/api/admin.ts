@@ -25,6 +25,7 @@ export interface AdminScanRow {
 
 export interface AdminUserDetail {
   user: AdminUserRow; sessions: AdminSessionRow[]; recentScans: AdminScanRow[];
+  ocrJobs: AdminOcrRow[];
 }
 
 export interface AdminClientLog {
@@ -52,6 +53,7 @@ export interface AdminCatalogDetail {
   createdAt: string;
   photos: { id: string; type: string; storageKey: string; capturedAt: string | null }[];
   relatedLogs: AdminClientLog[];
+  ocrJobs: AdminOcrRow[];
 }
 
 export interface TraceItem {
@@ -90,19 +92,22 @@ export const adminCatalogDetail = (barcode: string) =>
 export const adminTrace = (correlationId: string) => get<TraceItem[]>(`/admin/trace/${correlationId}`);
 
 export interface AdminOcrRow {
-  jobId: string; barcode: string | null; draftId: string | null; catalogEntryId: string | null;
+  jobId: string; barcode: string | null; contributorId: string | null; author: string | null;
+  draftId: string | null; catalogEntryId: string | null;
   photoType: string; storageKey: string; statusCode: number; status: string; attempts: number;
+  active: boolean; orphaned: boolean;
   updatedAt: string | null; errorCode: string | null; errorMessage: string | null;
   rawTextPreview: string | null;
 }
 
 export interface AdminOcrSummary {
-  total: number;
+  total: number; queueSize: number; oldestQueuedAgeSeconds: number;
   byStatus: { code: number; status: string; count: number }[];
 }
 
-export const adminOcr = (status?: number, barcode?: string, limit = 100, offset = 0) =>
-  get<AdminOcrRow[]>('/admin/ocr', { status, barcode, limit, offset });
+export const adminOcr = (
+  status?: number, barcode?: string, showInactive = false, showOrphaned = false, limit = 200, offset = 0,
+) => get<AdminOcrRow[]>('/admin/ocr', { status, barcode, showInactive, showOrphaned, limit, offset });
 export const adminOcrSummary = () => get<AdminOcrSummary>('/admin/ocr/summary');
 
 /** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */

@@ -83,7 +83,7 @@ class AdminReadControllerTest {
         AdminUserRow row = new AdminUserRow(id, "ivan", "ADMIN", true, Instant.now(),
             "1.8.0", "Safari", "iOS", "mobile", 3, 1, 5, 0);
         when(admin.userDetailByUsername(eq("ivan")))
-            .thenReturn(Optional.of(new AdminUserDetail(row, List.of(), List.of())));
+            .thenReturn(Optional.of(new AdminUserDetail(row, List.of(), List.of(), List.of())));
         mockMvc.perform(get("/api/v1/admin/users/by-username/ivan"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user.username").value("ivan"));

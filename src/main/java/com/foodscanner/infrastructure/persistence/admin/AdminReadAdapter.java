@@ -356,6 +356,18 @@ public class AdminReadAdapter implements AdminReadPort {
         return new AdminOcrSummary(total, queueSize, oldestAge, byStatus);
     }
 
+    @Override
+    public List<AdminOcrRow> ocrJobsByBarcode(String barcode, int limit) {
+        return jdbc.query(OCR_SELECT + " WHERE COALESCE(d.barcode, e.barcode) = ?"
+            + " ORDER BY oj.updated_at DESC LIMIT ?", OCR_MAPPER, barcode, limit);
+    }
+
+    @Override
+    public List<AdminOcrRow> ocrJobsByUser(UUID contributorId, int limit) {
+        return jdbc.query(OCR_SELECT + " WHERE COALESCE(d.contributor_id, e.contributor_id) = ?"
+            + " ORDER BY oj.updated_at DESC LIMIT ?", OCR_MAPPER, contributorId, limit);
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private long count(String sql, Object... args) {
         Long v = jdbc.queryForObject(sql, Long.class, args);

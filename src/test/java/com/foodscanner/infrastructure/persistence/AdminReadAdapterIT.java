@@ -131,6 +131,10 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(row.photoType()).isEqualTo("INGREDIENTS");
         assertThat(row.rawTextPreview()).contains("Состав");
 
+        // блоки для карточек: по barcode и по пользователю
+        assertThat(port.ocrJobsByBarcode(bc, 50)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobsByUser(ivan, 50)).anyMatch(r -> r.jobId().equals(jobId));
+
         assertThat(port.ocrJobs(2, null, false, false, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
         assertThat(port.ocrJobs(5, null, false, false, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
         assertThat(port.ocrJobs(null, bc, false, false, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));

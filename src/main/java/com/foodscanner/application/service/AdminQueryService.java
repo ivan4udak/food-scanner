@@ -60,7 +60,8 @@ public class AdminQueryService implements AdminReadUseCase {
         return new AdminUserDetail(
             user,
             port.sessions(user.id(), SESSIONS_LIMIT),
-            port.scans(user.id(), RECENT_SCANS_LIMIT));
+            port.scans(user.id(), RECENT_SCANS_LIMIT),
+            port.ocrJobsByUser(user.id(), RECENT_SCANS_LIMIT));
     }
 
     @Override
@@ -99,7 +100,8 @@ public class AdminQueryService implements AdminReadUseCase {
         return port.catalogByBarcode(barcode).map(row -> new AdminCatalogDetail(
             row.catalogEntryId(), row.barcode(), row.contributorId(), row.author(), row.createdAt(),
             port.catalogPhotos(row.catalogEntryId()),
-            port.clientLogsByBarcode(barcode, 200)));
+            port.clientLogsByBarcode(barcode, 200),
+            port.ocrJobsByBarcode(barcode, 50)));
     }
 
     @Override
