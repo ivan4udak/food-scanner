@@ -93,6 +93,14 @@ telemetry:
     server-events-days: ${TELEMETRY_SERVER_EVENTS_DAYS:90}
     cron:               ${TELEMETRY_RETENTION_CRON:0 30 3 * * *}  # ежедневно 03:30
 
+# ── OCR (v1.10): очередь задач. По умолчанию ВЫКЛ — брокер не подключается. ─
+ocr:
+  amqp:
+    enabled: ${OCR_AMQP_ENABLED:false}
+  exchange:      ${OCR_EXCHANGE:ocr}
+  jobs-queue:    ${OCR_JOBS_QUEUE:ocr.jobs}
+  results-queue: ${OCR_RESULTS_QUEUE:ocr.results}
+
 # ── Сервер ──────────────────────────────────────────────────────────
 server:
   port: ${SERVER_PORT:8080}

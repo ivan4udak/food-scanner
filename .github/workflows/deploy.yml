@@ -49,6 +49,7 @@ jobs:
       env_name: ${{ steps.meta.outputs.env_name }}
       backend_image: ${{ steps.meta.outputs.backend_image }}
       web_image: ${{ steps.meta.outputs.web_image }}
+      ocr_image: ${{ steps.meta.outputs.ocr_image }}
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +67,7 @@ jobs:
           SHA="${GITHUB_SHA::12}"
           BE="${REGISTRY}/${OWNER}/food-scanner-backend"
           WE="${REGISTRY}/${OWNER}/food-scanner-web"
+          OC="${REGISTRY}/${OWNER}/food-scanner-ocr"
           # Версия: базовый номер из файла VERSION + суффикс ветки (t=test, чисто=release).
           BASE="$(cat VERSION 2>/dev/null | tr -d ' \n' || echo 0.0.0)"
           case "${GITHUB_REF_NAME}" in
@@ -78,10 +80,12 @@ jobs:
             echo "env_name=$ENVN"
             echo "backend_repo=$BE"
             echo "web_repo=$WE"
+            echo "ocr_repo=$OC"
             echo "sha=$SHA"
             echo "version=$VER"
             echo "backend_image=${BE}:${SHA}"
             echo "web_image=${WE}:${SHA}"
+            echo "ocr_image=${OC}:${SHA}"
           } >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
@@ -126,6 +130,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build & push OCR-service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ocr-service
+          file: ./ocr-service/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.ocr_repo }}:${{ steps.meta.outputs.sha }}
+            ${{ steps.meta.outputs.ocr_repo }}:${{ steps.meta.outputs.env_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # ── 3. Deploy по SSH (сервер только тянет готовые образы) ────────────
   deploy:
     needs: build-push
@@ -137,6 +153,7 @@ jobs:
         env:
           BACKEND_IMAGE: ${{ needs.build-push.outputs.backend_image }}
           WEB_IMAGE: ${{ needs.build-push.outputs.web_image }}
+          OCR_IMAGE: ${{ needs.build-push.outputs.ocr_image }}
           GIT_SHA: ${{ github.sha }}
           ENVIRONMENT: ${{ needs.build-push.outputs.env_name }}
           VERSION_LABEL: ${{ needs.build-push.outputs.version }}
@@ -147,11 +164,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          envs: BACKEND_IMAGE,WEB_IMAGE,GIT_SHA,ENVIRONMENT,VERSION_LABEL,GHCR_USER,GHCR_TOKEN
+          envs: BACKEND_IMAGE,WEB_IMAGE,OCR_IMAGE,GIT_SHA,ENVIRONMENT,VERSION_LABEL,GHCR_USER,GHCR_TOKEN
           script_stop: true
           script: |
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            export BACKEND_IMAGE WEB_IMAGE GIT_SHA VERSION_LABEL
+            export BACKEND_IMAGE WEB_IMAGE OCR_IMAGE GIT_SHA VERSION_LABEL
             /opt/foodscanner/scripts/deploy.sh "$ENVIRONMENT"
             docker logout ghcr.io || true
 
