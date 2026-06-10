@@ -12,6 +12,13 @@
 ## [Unreleased]
 - —
 
+## [1.10.6] — закрытие долга: photoCount черновика + IT в CI-гейте
+- **Fix**: `/me/scans` (список) — `photoCount` черновика считался всегда 0 (COALESCE брал count записи=0
+  для черновика без entry). Заменено на `CASE WHEN e.id IS NULL THEN draft_photos ELSE entry_photos`.
+- **CI-гейт**: добавлен `maven-failsafe-plugin` (integration-test+verify) — `*IT` (Testcontainers) теперь
+  гоняются в `mvn verify`. Раньше целый пласт IT не исполнялся (баг photoCount поэтому не ловился).
+- Проверено: `mvn verify` = 240 surefire + 21 IT зелёные.
+
 ## [1.10.5] — OCR readiness в «Мои сканы» (API + клиент)
 - **API**: `GET /me/scans/{barcode}` += `ocr[]` (per photoType: statusCode/status/confidence/updatedAt/error*/rawTextPreview).
   Аддитивно; поле `ocrStatus` сохранено. Порт `MeReadPort.ocrForScan` (active-задачи по draft/entry, CAST для null).
