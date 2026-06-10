@@ -60,7 +60,34 @@ class MeReadAdapterIT extends AbstractRepositoryIT {
         assertThat(port.scan(me, doneBc)).isPresent();
     }
 
+    @Test
+    void ocrForScanReturnsActiveJobsByDraftOrEntry() {
+        UUID me = contributor();
+        String bc = "ocr" + System.nanoTime();
+        UUID d = draft(me, bc, "OPEN");
+        ocrJob(d, null, "INGREDIENTS", (short) 2, true);   // active → виден
+        ocrJob(d, null, "NUTRITION", (short) 0, true);     // active → виден
+        ocrJob(d, null, "INGREDIENTS", (short) 5, false);  // inactive → скрыт
+
+        List<MeReadPort.OcrData> ocr = port.ocrForScan(d, null);
+        assertThat(ocr).hasSize(2);
+        assertThat(ocr).extracting(MeReadPort.OcrData::photoType)
+            .containsExactlyInAnyOrder("INGREDIENTS", "NUTRITION");
+
+        // null draftId + null entryId → пусто (CAST(null) безопасен)
+        assertThat(port.ocrForScan(null, null)).isEmpty();
+    }
+
     // ── helpers ──────────────────────────────────────────────
+    private void ocrJob(UUID draftId, UUID entryId, String type, short status, boolean active) {
+        Timestamp now = Timestamp.from(Instant.now());
+        jdbc.update("""
+            INSERT INTO food_catalog.ocr_jobs
+              (id,draft_id,catalog_entry_id,storage_key,photo_type,status,attempts,active,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,1,?,?,?)""",
+            UUID.randomUUID(), draftId, entryId, "photos/" + UUID.randomUUID(), type, status, active, now, now);
+    }
+
     private UUID contributor() {
         UUID id = UUID.randomUUID();
         Timestamp now = Timestamp.from(Instant.now());

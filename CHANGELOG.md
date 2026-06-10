@@ -12,6 +12,14 @@
 ## [Unreleased]
 - —
 
+## [1.10.5] — OCR readiness в «Мои сканы» (API + клиент)
+- **API**: `GET /me/scans/{barcode}` += `ocr[]` (per photoType: statusCode/status/confidence/updatedAt/error*/rawTextPreview).
+  Аддитивно; поле `ocrStatus` сохранено. Порт `MeReadPort.ocrForScan` (active-задачи по draft/entry, CAST для null).
+- **Клиент**: блок «Распознавание» в карточке скана с подписями/цветом статуса (QUEUED = «Ожидает распознавания», не ошибка);
+  пустой блок не показывается; polling 5s с остановкой на финальном статусе (нет QUEUED/IN_PROGRESS).
+- Тесты: MyScansServiceTest (маппинг OCR), MeScansControllerTest, MeReadAdapterIT (ocrForScan active/null); фронт vitest 63.
+- Дальше: v1.10.6 OCR result visibility (полный rawText/копирование в админке), v1.11.0 реальный EasyOCR.
+
 ## [1.10.4] — OCR lifecycle hardening + backpressure + admin UX
 - **Lifecycle** (V15): `ocr_jobs` += active/superseded_*/orphaned_*/published_at/publish_attempts/last_publish_error.
   Supersede — активна только последняя задача (draft, photoType); orphan — задачи удалённых черновиков

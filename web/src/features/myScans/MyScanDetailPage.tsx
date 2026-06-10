@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getMyScanDetail } from '@/api/me';
+import { getMyScanDetail, type MyScanOcr } from '@/api/me';
 import { AuthedImage } from '@/components/AuthedImage';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { Page, TopBar } from '@/components/Layout';
@@ -12,11 +12,27 @@ function dt(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-/** Детали скана: фото пользователя. OCR-блок не показываем до v1.10. */
+// Клиентская подпись/цвет статуса OCR (QUEUED — ожидание, не ошибка).
+const OCR_LABEL: Record<number, string> = {
+  0: 'Ожидает распознавания', 1: 'Распознаётся…', 2: 'Требует проверки',
+  3: 'Не читается', 4: 'Распознано', 5: 'Ошибка распознавания',
+};
+const OCR_COLOR: Record<number, string> = {
+  0: '#9aa0a6', 1: '#9aa0a6', 2: '#f9ab00', 3: '#ea4335', 4: '#34a853', 5: '#ea4335',
+};
+const isActiveOcr = (s: number) => s === 0 || s === 1;
+
+/** Детали скана: фото + OCR-статусы (polling до финала). */
 export function MyScanDetailPage() {
   const { barcode = '' } = useParams();
   const [zoom, setZoom] = useState<string | null>(null);
-  const q = useQuery({ queryKey: ['my-scan', barcode], queryFn: () => getMyScanDetail(barcode) });
+  const q = useQuery({
+    queryKey: ['my-scan', barcode],
+    queryFn: () => getMyScanDetail(barcode),
+    // пока есть незавершённые OCR (QUEUED/IN_PROGRESS) — опрашиваем; иначе останавливаемся
+    refetchInterval: (query) =>
+      (query.state.data?.ocr ?? []).some((o: MyScanOcr) => isActiveOcr(o.statusCode)) ? 5000 : false,
+  });
 
   return (
     <Page>
@@ -48,6 +64,24 @@ export function MyScanDetailPage() {
               </div>
             )}
           </div>
+
+          {q.data.ocr.length > 0 && (
+            <div className="card">
+              <h2>Распознавание</h2>
+              {q.data.ocr.map((o) => (
+                <div className="row" key={o.photoType}>
+                  <span>{o.photoType}</span>
+                  <span className="value">
+                    <span style={{
+                      display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                      background: OCR_COLOR[o.statusCode] ?? '#9aa0a6', marginRight: 6,
+                    }} />
+                    {OCR_LABEL[o.statusCode] ?? o.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 

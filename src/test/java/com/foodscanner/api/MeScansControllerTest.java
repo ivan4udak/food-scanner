@@ -59,7 +59,7 @@ class MeScansControllerTest {
             "460", UUID.randomUUID(), Instant.now(), Instant.now(),
             List.of(new MeScanDetail.Photo(UUID.randomUUID(), "FRONT", "photos/h.jpg",
                 "/api/v1/photos/photos/h.jpg?size=thumb", "/api/v1/photos/photos/h.jpg?size=full", null)),
-            null)));
+            List.of(), null)));
         mockMvc.perform(get("/api/v1/me/scans/460").requestAttr("authContributorId", ME))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.barcode").value("460"))

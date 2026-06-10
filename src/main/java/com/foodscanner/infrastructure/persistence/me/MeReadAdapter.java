@@ -77,6 +77,24 @@ public class MeReadAdapter implements MeReadPort {
             ORDER BY dp.type, dp.created_at DESC""", PHOTO_MAPPER, contributorId, barcode);
     }
 
+    @Override
+    public List<OcrData> ocrForScan(UUID draftId, UUID catalogEntryId) {
+        // CAST для null-параметров (Postgres не выводит тип у голого ?); null = условие ложно
+        return jdbc.query("""
+            SELECT photo_type, status, confidence, updated_at,
+                   left(raw_text, 200) AS raw_text_preview, error_code, error_message
+            FROM food_catalog.ocr_jobs
+            WHERE active = true
+              AND (draft_id = CAST(? AS uuid) OR catalog_entry_id = CAST(? AS uuid))
+            ORDER BY updated_at DESC""",
+            OCR_MAPPER, draftId, catalogEntryId);
+    }
+
+    private static final RowMapper<OcrData> OCR_MAPPER = (rs, n) -> new OcrData(
+        rs.getString("photo_type"), rs.getInt("status"), (Double) rs.getObject("confidence"),
+        inst(rs, "updated_at"), rs.getString("raw_text_preview"),
+        rs.getString("error_code"), rs.getString("error_message"));
+
     // ── helpers ──────────────────────────────────────────────
     private static UUID uuid(ResultSet rs, String col) throws SQLException {
         String s = rs.getString(col);

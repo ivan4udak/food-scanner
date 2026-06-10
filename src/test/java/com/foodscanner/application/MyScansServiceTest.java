@@ -53,6 +53,23 @@ class MyScansServiceTest {
         MeScanDetail.Photo p = detail.photos().get(0);
         assertThat(p.thumbUrl()).isEqualTo("/api/v1/photos/photos/hash.jpg?size=thumb");
         assertThat(p.fullUrl()).isEqualTo("/api/v1/photos/photos/hash.jpg?size=full");
+        assertThat(detail.ocr()).isEmpty(); // нет OCR — пустой список, не null
+    }
+
+    @Test
+    void detailIncludesOcrJobsWithStatusName() {
+        when(port.scan(ME, "460")).thenReturn(Optional.of(
+            new ScanData("460", "COMPLETED", null, UUID.randomUUID(), Instant.now(), Instant.now(), 1)));
+        when(port.photos(ME, "460")).thenReturn(List.of());
+        when(port.ocrForScan(any(), any())).thenReturn(List.of(
+            new MeReadPort.OcrData("INGREDIENTS", 2, null, Instant.now(), "Состав…", null, "stub")));
+
+        MeScanDetail detail = service.detail(ME, "460").orElseThrow();
+
+        assertThat(detail.ocr()).hasSize(1);
+        assertThat(detail.ocr().get(0).photoType()).isEqualTo("INGREDIENTS");
+        assertThat(detail.ocr().get(0).statusCode()).isEqualTo(2);
+        assertThat(detail.ocr().get(0).status()).isEqualTo("NEEDS_REVIEW");
     }
 
     @Test
