@@ -12,6 +12,20 @@
 ## [Unreleased]
 - —
 
+## [1.10.4] — OCR lifecycle hardening + backpressure + admin UX
+- **Lifecycle** (V15): `ocr_jobs` += active/superseded_*/orphaned_*/published_at/publish_attempts/last_publish_error.
+  Supersede — активна только последняя задача (draft, photoType); orphan — задачи удалённых черновиков
+  помечаются неактивными в cleanup.
+- **Backpressure**: `OcrJobPublisher.publish()→boolean` (best-effort, upload не падает); `OcrRepublishJob`
+  переотправляет зависшие QUEUED (под `ocr.amqp.enabled`); ocr-service `prefetch=OCR_WORKER_CONCURRENCY` (деф. 1).
+  Метрики `ocr_queue_size`, `ocr_queue_oldest_age_seconds`.
+- **Admin OCR**: default-view active & !orphaned + `showInactive/showOrphaned`; summary += queueSize/oldestQueuedAge
+  + предупреждение о росте очереди; OCR-блок в `/admin/catalog/{barcode}` и `/admin/users/{id}`;
+  кликабельность (ШК→каталог, автор→пользователь); live-refresh + индикатор «Обновлено».
+- **Nav-fix**: `/about?returnTo=` + возврат через `replace` — нет цикла /about ↔ admin leaf; иерархический «Назад» (`lib/nav`).
+- Тесты: backend 239 surefire + IT (lifecycle/active-view/byBarcode-byUser); фронт vitest 63 (incl nav).
+- Дальше: v1.10.5 OCR data/API/client readiness (поля ocr* в /me/scans + клиентский статус «Ожидает распознавания»).
+
 ## [1.10.3] — admin OCR: страница /admin/ocr
 - **`/admin/ocr`** — наблюдаемость OCR в админке: сводка по статусам (кликабельные чипы-фильтры),
   поиск по ШК, список задач (ШК/тип/статус/попытки/обновлено/ошибка/превью rawText).

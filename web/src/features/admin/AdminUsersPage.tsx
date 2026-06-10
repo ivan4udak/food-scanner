@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { adminUsers } from '@/api/admin';
 import { dt } from '@/features/admin/fmt';
+import { LastUpdated } from '@/features/admin/LastUpdated';
 
 const SORTS = [
   { id: 'lastActivityAt', label: 'Активность' },
@@ -24,6 +25,7 @@ export function AdminUsersPage() {
 
   return (
     <div className="card">
+      <LastUpdated updatedAt={q.dataUpdatedAt} isFetching={q.isFetching} onRefresh={() => q.refetch()} />
       <div className="chips">
         {SORTS.map((s) => (
           <button key={s.id} className={`chip ${s.id === sort ? 'active' : ''}`} onClick={() => setSort(s.id)}>

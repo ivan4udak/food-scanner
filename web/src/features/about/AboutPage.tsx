@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useHealthQuery } from '@/hooks/queries';
 import { useConnection, connectionLabel } from '@/components/ConnectionContext';
 import { useAuthStore } from '@/store/authStore';
 import { API_BASE } from '@/api/client';
 import { APP_VERSION, PLATFORM } from '@/version';
-import { Page, TopBar, ABOUT_FROM_KEY } from '@/components/Layout';
+import { Page, TopBar } from '@/components/Layout';
+import { aboutReturnTarget } from '@/lib/nav';
 import { logger, formatLogLine } from '@/logging/logger';
 import { browserInfo, buildDiagnosticsText, downloadLog } from '@/logging/diagnostics';
 import { flushTelemetry } from '@/logging/telemetry';
@@ -15,6 +16,7 @@ import { setLeaderboardVisibility } from '@/api/stats';
 /** Экран «О приложении» + диагностический пакет (паритет с iOS, Блок 20). */
 export function AboutPage() {
   const navigate = useNavigate();
+  const routerLoc = useLocation();
   const connection = useConnection();
   const { data: health, isLoading: healthLoading } = useHealthQuery();
   const { contributorId, username, signOut, isAdmin } = useAuthStore();
@@ -98,7 +100,7 @@ export function AboutPage() {
       <TopBar
         title="О приложении"
         back
-        onBack={() => navigate(sessionStorage.getItem(ABOUT_FROM_KEY) || '/')}
+        onBack={() => navigate(aboutReturnTarget(routerLoc.search), { replace: true })}
       />
 
       <div className="card">

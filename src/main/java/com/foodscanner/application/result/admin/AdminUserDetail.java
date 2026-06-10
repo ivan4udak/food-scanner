@@ -9,5 +9,6 @@ import java.util.List;
 public record AdminUserDetail(
         AdminUserRow user,
         List<AdminSessionRow> sessions,
-        List<AdminScanRow> recentScans
+        List<AdminScanRow> recentScans,
+        List<AdminOcrRow> ocrJobs
 ) {}

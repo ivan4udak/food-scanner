@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "ocr.amqp.enabled", havingValue = "false", matchIfMissing = true)
 public class NoOpOcrJobPublisher implements OcrJobPublisher {
     @Override
-    public void publish(OcrJob job) {
-        // no-op
+    public boolean publish(OcrJob job) {
+        return false; // брокер выключен — задача остаётся QUEUED
     }
 }

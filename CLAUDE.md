@@ -12,7 +12,7 @@ Backend Spring Boot 3 / Java 21 / Postgres / Flyway / MinIO / JWT, DDD + Ports&A
 ## Версионирование (СТРОГО)
 Источник истины: `VERSION` (корень) = `web/package.json` = `web/src/version.ts` = верх `CHANGELOG.md`. Git-теги заморожены на v1.4.0 — НЕ ориентир.
 Перед бампом проверить все 4 источника, взять максимум, **никогда не переиспользовать версию**. PATCH=фикс, MINOR=фича/API.
-**Текущая: 1.10.1.** Следующая фикс → 1.10.2.
+**Текущая: 1.10.4.** Следующая фикс → 1.10.5.
 
 ## Git author policy
 Коммиты только от владельца (`Volk <m-ore@list.ru>`). НЕ добавлять Co-Authored-By: Claude / Generated with Claude / любые AI-пометки. Перед коммитом сверять `git config user.name/email`.
@@ -32,13 +32,14 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
   - **Активирован на staging** (заглушка): rabbitmq-staging + ocr-staging, контур upload→QUEUED→publish→ocr→NEEDS_REVIEW(2) доказан. Runbook `docs/OCR_ROLLOUT.md`.
   - v1.10.2 ✅ observability — Prometheus `ocr_jobs{status,code}` (/actuator/prometheus → Grafana).
   - v1.10.3 ✅ admin OCR — страница `/admin/ocr` (summary-чипы/фильтры/список) + API `/admin/ocr[/summary]`.
-  - Дальше: OCR-блок в catalog/users detail (v1.10.3.x), затем EasyOCR срезами v1.10.4 raw → v1.10.5 ingredients → v1.10.6 nutrition → v1.10.7 retry/DLQ/reprocess.
+  - v1.10.4 ✅ lifecycle hardening (active/superseded/orphaned) + backpressure (republish, concurrency=1/prefetch=1, queue-метрики) + admin UX (OCR-блоки в catalog/users, кликабельность, live-refresh) + nav-fix (/about returnTo, без цикла).
+  - Дальше (план пользователя): v1.10.5 OCR data/API/client readiness (поля ocr* в /me/scans + клиентский статус), v1.10.6 OCR result visibility, **v1.11.0 реальный движок EasyOCR** (raw text; парсинг состава/КБЖУ — позже).
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.10.1 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
-Ожидает: продвинуть 1.8.1–1.10.1 в main по подтверждению. **stable/production не трогать.**
+staging(test)=1.10.4 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
+Ожидает: продвинуть 1.8.1–1.10.4 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы
 Низкая многословность. Читать только связанные файлы, не пересканировать дерево, не дублировать абстракции, держать границы DDD, минимум правок, TDD. Формат ответа: PLAN / CHANGES / TESTS / RESULT.

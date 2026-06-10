@@ -5,6 +5,7 @@ import { adminCatalogDetail } from '@/api/admin';
 import { AuthedImage } from '@/components/AuthedImage';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { LogTable } from '@/features/admin/LogTable';
+import { OcrJobsTable } from '@/features/admin/OcrJobsTable';
 import { dt } from '@/features/admin/fmt';
 
 /** Деталь записи каталога: фото (клик → полное качество) + связанные логи. */
@@ -35,6 +36,11 @@ export function AdminCatalogDetailPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="card">
+        <h2>OCR ({e.ocrJobs.length})</h2>
+        <OcrJobsTable jobs={e.ocrJobs} showBarcode={false} />
       </div>
 
       <div className="card">

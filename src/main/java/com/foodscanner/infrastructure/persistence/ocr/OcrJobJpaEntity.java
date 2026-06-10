@@ -62,6 +62,31 @@ public class OcrJobJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    // ── Жизненный цикл (v1.10.4) — заполняются отдельными операциями, не конструктором ──
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(name = "superseded_at")
+    private Instant supersededAt;
+
+    @Column(name = "superseded_by", columnDefinition = "uuid")
+    private UUID supersededBy;
+
+    @Column(nullable = false)
+    private boolean orphaned = false;
+
+    @Column(name = "orphaned_at")
+    private Instant orphanedAt;
+
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
+    @Column(name = "publish_attempts", nullable = false)
+    private int publishAttempts = 0;
+
+    @Column(name = "last_publish_error", columnDefinition = "text")
+    private String lastPublishError;
+
     protected OcrJobJpaEntity() {}
 
     public OcrJobJpaEntity(UUID id, UUID draftId, UUID catalogEntryId, String storageKey, String photoType,
@@ -100,4 +125,12 @@ public class OcrJobJpaEntity {
     public String getErrorMessage() { return errorMessage; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public boolean isActive() { return active; }
+    public Instant getSupersededAt() { return supersededAt; }
+    public UUID getSupersededBy() { return supersededBy; }
+    public boolean isOrphaned() { return orphaned; }
+    public Instant getOrphanedAt() { return orphanedAt; }
+    public Instant getPublishedAt() { return publishedAt; }
+    public int getPublishAttempts() { return publishAttempts; }
+    public String getLastPublishError() { return lastPublishError; }
 }

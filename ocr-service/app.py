@@ -20,6 +20,8 @@ RABBIT_URL = os.environ.get("RABBIT_URL", "amqp://guest:guest@rabbitmq:5672/")
 JOBS_QUEUE = os.environ.get("OCR_JOBS_QUEUE", "ocr.jobs")
 RESULTS_QUEUE = os.environ.get("OCR_RESULTS_QUEUE", "ocr.results")
 EXCHANGE = os.environ.get("OCR_EXCHANGE", "ocr")
+# backpressure: worker берёт не больше задач, чем может обработать (prefetch=concurrency)
+WORKER_CONCURRENCY = max(1, int(os.environ.get("OCR_WORKER_CONCURRENCY", "1")))
 
 app = FastAPI(title="food-scanner-ocr")
 _state = {"engine": "stub", "consumed": 0, "broker": False}
@@ -82,10 +84,10 @@ def _consume_loop():
             conn = pika.BlockingConnection(pika.URLParameters(RABBIT_URL))
             ch = conn.channel()
             _declare(ch)
-            ch.basic_qos(prefetch_count=4)
+            ch.basic_qos(prefetch_count=WORKER_CONCURRENCY)
             ch.basic_consume(queue=JOBS_QUEUE, on_message_callback=_handle)
             _state["broker"] = True
-            print(f"[ocr] consuming {JOBS_QUEUE}", flush=True)
+            print(f"[ocr] consuming {JOBS_QUEUE} (concurrency={WORKER_CONCURRENCY})", flush=True)
             ch.start_consuming()
         except Exception as e:  # брокер недоступен — ретрай
             _state["broker"] = False

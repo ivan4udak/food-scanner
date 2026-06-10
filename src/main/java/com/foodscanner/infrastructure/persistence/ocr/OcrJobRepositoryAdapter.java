@@ -4,10 +4,13 @@ import com.foodscanner.domain.model.ocr.OcrJob;
 import com.foodscanner.domain.model.ocr.OcrStatus;
 import com.foodscanner.domain.repository.OcrJobRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Слой: infrastructure. Адаптер OcrJobRepository → JPA. */
@@ -21,9 +24,59 @@ public class OcrJobRepositoryAdapter implements OcrJobRepository {
     }
 
     @Override
+    @Transactional
     public OcrJob save(OcrJob job) {
-        jpa.save(toJpa(job));
+        if (jpa.existsById(job.id())) {
+            // обновляем только результат-поля — lifecycle (active/orphaned/publish*) не трогаем
+            jpa.updateResult(job.id(), (short) job.status().code(), job.attempts(), job.rawText(),
+                job.parsedIngredients(), job.parsedNutrition(), job.confidence(),
+                job.errorCode(), job.errorMessage(), job.updatedAt());
+        } else {
+            jpa.save(toJpa(job));
+        }
         return job;
+    }
+
+    @Override
+    @Transactional
+    public int supersedePrevious(UUID draftId, String photoType, UUID newJobId) {
+        if (draftId == null) return 0;
+        return jpa.supersedePrevious(draftId, photoType, newJobId, Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public int markOrphans() {
+        return jpa.markOrphans(Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public void markPublished(UUID id) {
+        jpa.markPublished(id, Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public void recordPublishFailure(UUID id, String error) {
+        jpa.recordPublishFailure(id, error == null ? "publish failed" : error);
+    }
+
+    @Override
+    public List<OcrJob> findRepublishable() {
+        return jpa.findTop50ByActiveTrueAndStatusAndPublishedAtIsNullOrderByCreatedAtAsc(
+            (short) OcrStatus.QUEUED.code()).stream().map(OcrJobRepositoryAdapter::toDomain).toList();
+    }
+
+    @Override
+    public long countActiveQueued() {
+        return jpa.countByActiveTrueAndStatus((short) OcrStatus.QUEUED.code());
+    }
+
+    @Override
+    public Optional<Instant> oldestQueuedCreatedAt() {
+        return jpa.findTopByActiveTrueAndStatusOrderByCreatedAtAsc((short) OcrStatus.QUEUED.code())
+            .map(OcrJobJpaEntity::getCreatedAt);
     }
 
     @Override

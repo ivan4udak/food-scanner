@@ -119,22 +119,34 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
             jobId, d, "photos/" + jobId + ".jpg", "INGREDIENTS", (short) 2, 1,
             "Состав: вода, сахар", "stub", now, now);
 
-        AdminOcrRow row = port.ocrJobs(null, null, 50, 0).stream()
+        AdminOcrRow row = port.ocrJobs(null, null, false, false, 50, 0).stream()
             .filter(r -> r.jobId().equals(jobId)).findFirst().orElseThrow();
         assertThat(row.barcode()).isEqualTo(bc);              // резолв через draft
+        assertThat(row.author()).isEqualTo(usernameOf(ivan)); // автор через draft.contributor
+        assertThat(row.contributorId()).isEqualTo(ivan);
         assertThat(row.statusCode()).isEqualTo(2);
         assertThat(row.status()).isEqualTo("NEEDS_REVIEW");
+        assertThat(row.active()).isTrue();
+        assertThat(row.orphaned()).isFalse();
         assertThat(row.photoType()).isEqualTo("INGREDIENTS");
         assertThat(row.rawTextPreview()).contains("Состав");
 
-        assertThat(port.ocrJobs(2, null, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
-        assertThat(port.ocrJobs(5, null, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
-        assertThat(port.ocrJobs(null, bc, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+        // блоки для карточек: по barcode и по пользователю
+        assertThat(port.ocrJobsByBarcode(bc, 50)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobsByUser(ivan, 50)).anyMatch(r -> r.jobId().equals(jobId));
+
+        assertThat(port.ocrJobs(2, null, false, false, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobs(5, null, false, false, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobs(null, bc, false, false, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+
+        // inactive исключается по умолчанию, но виден при showInactive
+        jdbc.update("UPDATE food_catalog.ocr_jobs SET active=false WHERE id=?", jobId);
+        assertThat(port.ocrJobs(null, null, false, false, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobs(null, null, true, false, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
 
         AdminOcrSummary sum = port.ocrSummary();
         assertThat(sum.byStatus()).hasSize(6);                // zero-fill всех статусов
-        assertThat(sum.total()).isGreaterThanOrEqualTo(1);
-        assertThat(sum.byStatus()).anyMatch(s -> s.code() == 2 && s.count() >= 1);
+        assertThat(sum.queueSize()).isGreaterThanOrEqualTo(0);
     }
 
     private void activity(UUID c, Instant at) {

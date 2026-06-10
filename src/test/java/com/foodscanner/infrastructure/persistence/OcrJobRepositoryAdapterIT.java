@@ -41,4 +41,32 @@ class OcrJobRepositoryAdapterIT extends AbstractRepositoryIT {
         assertThat(counts.get(OcrStatus.QUEUED)).isGreaterThanOrEqualTo(2L);
         assertThat(counts.get(OcrStatus.SUCCESS)).isZero(); // zero-fill
     }
+
+    @Test
+    void lifecycleSupersedeOrphanPublishRepublish() {
+        UUID draft = UUID.randomUUID(); // нет реального черновика → кандидат на orphan
+        long base = repo.countActiveQueued();
+
+        OcrJob j1 = repo.save(OcrJob.queued(draft, "p/1.jpg", "INGREDIENTS"));
+        OcrJob j2 = repo.save(OcrJob.queued(draft, "p/2.jpg", "INGREDIENTS"));
+        assertThat(repo.countActiveQueued()).isEqualTo(base + 2);
+
+        // только последняя (j2) активна для (draft, INGREDIENTS)
+        repo.supersedePrevious(draft, "INGREDIENTS", j2.id());
+        assertThat(repo.countActiveQueued()).isEqualTo(base + 1);
+
+        // неопубликованные активные QUEUED — кандидаты republish: j2 да, j1 (inactive) нет
+        assertThat(repo.findRepublishable()).anyMatch(j -> j.id().equals(j2.id()));
+        assertThat(repo.findRepublishable()).noneMatch(j -> j.id().equals(j1.id()));
+
+        // публикация убирает j2 из кандидатов
+        repo.markPublished(j2.id());
+        assertThat(repo.findRepublishable()).noneMatch(j -> j.id().equals(j2.id()));
+
+        // orphan: черновик не существует → активная j2 без entry становится orphaned/inactive
+        int orphaned = repo.markOrphans();
+        assertThat(orphaned).isGreaterThanOrEqualTo(1);
+        assertThat(repo.countActiveQueued()).isEqualTo(base);
+        assertThat(repo.oldestQueuedCreatedAt()).isNotNull(); // не бросает
+    }
 }

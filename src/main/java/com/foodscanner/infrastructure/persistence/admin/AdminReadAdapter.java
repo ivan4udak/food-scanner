@@ -286,27 +286,37 @@ public class AdminReadAdapter implements AdminReadPort {
 
     // ── OCR ──────────────────────────────────────────────────
     private static final String OCR_SELECT = """
-        SELECT oj.id, COALESCE(d.barcode, e.barcode) AS barcode, oj.draft_id, oj.catalog_entry_id,
-               oj.photo_type, oj.storage_key, oj.status, oj.attempts, oj.updated_at,
-               oj.error_code, oj.error_message, left(oj.raw_text, 200) AS raw_text_preview
+        SELECT oj.id, COALESCE(d.barcode, e.barcode) AS barcode,
+               COALESCE(d.contributor_id, e.contributor_id) AS contributor_id,
+               COALESCE(cd.username, ce.username) AS author,
+               oj.draft_id, oj.catalog_entry_id, oj.photo_type, oj.storage_key, oj.status, oj.attempts,
+               oj.active, oj.orphaned, oj.updated_at, oj.error_code, oj.error_message,
+               left(oj.raw_text, 200) AS raw_text_preview
         FROM food_catalog.ocr_jobs oj
         LEFT JOIN food_catalog.catalog_drafts d ON d.id = oj.draft_id
         LEFT JOIN food_catalog.catalog_entries e ON e.id = oj.catalog_entry_id
+        LEFT JOIN food_catalog.contributors cd ON cd.id = d.contributor_id
+        LEFT JOIN food_catalog.contributors ce ON ce.id = e.contributor_id
         """;
     private static final RowMapper<AdminOcrRow> OCR_MAPPER = (rs, n) -> {
         int code = rs.getInt("status");
         return new AdminOcrRow(
-            uuid(rs, "id"), str(rs, "barcode"), uuid(rs, "draft_id"), uuid(rs, "catalog_entry_id"),
+            uuid(rs, "id"), str(rs, "barcode"), uuid(rs, "contributor_id"), str(rs, "author"),
+            uuid(rs, "draft_id"), uuid(rs, "catalog_entry_id"),
             str(rs, "photo_type"), str(rs, "storage_key"), code, OcrStatus.fromCode(code).name(),
-            rs.getInt("attempts"), inst(rs, "updated_at"),
-            str(rs, "error_code"), str(rs, "error_message"), str(rs, "raw_text_preview"));
+            rs.getInt("attempts"), rs.getBoolean("active"), rs.getBoolean("orphaned"),
+            inst(rs, "updated_at"), str(rs, "error_code"), str(rs, "error_message"),
+            str(rs, "raw_text_preview"));
     };
 
     @Override
-    public List<AdminOcrRow> ocrJobs(Integer status, String barcode, int limit, int offset) {
+    public List<AdminOcrRow> ocrJobs(Integer status, String barcode, boolean includeInactive,
+                                     boolean includeOrphaned, int limit, int offset) {
         StringBuilder sql = new StringBuilder(OCR_SELECT);
         List<Object> args = new ArrayList<>();
         List<String> where = new ArrayList<>();
+        if (!includeInactive) where.add("oj.active = true");
+        if (!includeOrphaned) where.add("oj.orphaned = false");
         if (status != null) {
             where.add("oj.status = ?");
             args.add(status);
@@ -324,8 +334,11 @@ public class AdminReadAdapter implements AdminReadPort {
 
     @Override
     public AdminOcrSummary ocrSummary() {
+        // считаем активные не-orphan задачи (актуальная очередь/состояние)
         Map<Integer, Long> counts = new HashMap<>();
-        jdbc.query("SELECT status, count(*) AS cnt FROM food_catalog.ocr_jobs GROUP BY status",
+        jdbc.query("""
+            SELECT status, count(*) AS cnt FROM food_catalog.ocr_jobs
+            WHERE active = true AND orphaned = false GROUP BY status""",
             (rs, n) -> counts.put(rs.getInt("status"), rs.getLong("cnt")));
         long total = 0;
         List<AdminOcrSummary.StatusCount> byStatus = new ArrayList<>();
@@ -334,7 +347,25 @@ public class AdminReadAdapter implements AdminReadPort {
             total += c;
             byStatus.add(new AdminOcrSummary.StatusCount(s.code(), s.name(), c));
         }
-        return new AdminOcrSummary(total, byStatus);
+        long queueSize = counts.getOrDefault(OcrStatus.QUEUED.code(), 0L);
+        Long oldestEpoch = jdbc.queryForObject("""
+            SELECT EXTRACT(EPOCH FROM (now() - min(created_at)))::bigint
+            FROM food_catalog.ocr_jobs WHERE active = true AND orphaned = false AND status = 0""",
+            Long.class);
+        long oldestAge = oldestEpoch == null ? 0 : Math.max(0, oldestEpoch);
+        return new AdminOcrSummary(total, queueSize, oldestAge, byStatus);
+    }
+
+    @Override
+    public List<AdminOcrRow> ocrJobsByBarcode(String barcode, int limit) {
+        return jdbc.query(OCR_SELECT + " WHERE COALESCE(d.barcode, e.barcode) = ?"
+            + " ORDER BY oj.updated_at DESC LIMIT ?", OCR_MAPPER, barcode, limit);
+    }
+
+    @Override
+    public List<AdminOcrRow> ocrJobsByUser(UUID contributorId, int limit) {
+        return jdbc.query(OCR_SELECT + " WHERE COALESCE(d.contributor_id, e.contributor_id) = ?"
+            + " ORDER BY oj.updated_at DESC LIMIT ?", OCR_MAPPER, contributorId, limit);
     }
 
     // ── helpers ──────────────────────────────────────────────

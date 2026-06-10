@@ -116,14 +116,16 @@ public class AdminReadController {
         return admin.trace(correlationId);
     }
 
-    /** Список OCR-задач (фильтры status/barcode опциональны), свежие сверху. */
+    /** Список OCR-задач (фильтры опциональны), свежие сверху. По умолчанию только active & не orphaned. */
     @GetMapping("/ocr")
     public List<AdminOcrRow> ocr(
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "barcode", required = false) String barcode,
+            @RequestParam(name = "showInactive", defaultValue = "false") boolean showInactive,
+            @RequestParam(name = "showOrphaned", defaultValue = "false") boolean showOrphaned,
             @RequestParam(name = "limit", defaultValue = "100") int limit,
             @RequestParam(name = "offset", defaultValue = "0") int offset) {
-        return admin.ocr(status, blankToNull(barcode), limit, offset);
+        return admin.ocr(status, blankToNull(barcode), showInactive, showOrphaned, limit, offset);
     }
 
     /** Сводка OCR-задач по статусам (для шапки страницы). */

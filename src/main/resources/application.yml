@@ -100,6 +100,12 @@ ocr:
   exchange:      ${OCR_EXCHANGE:ocr}
   jobs-queue:    ${OCR_JOBS_QUEUE:ocr.jobs}
   results-queue: ${OCR_RESULTS_QUEUE:ocr.results}
+  # v1.10.4 backpressure: повторная публикация зависших QUEUED (работает только при amqp.enabled)
+  republish:
+    interval-ms:      ${OCR_REPUBLISH_INTERVAL_MS:60000}
+    initial-delay-ms: ${OCR_REPUBLISH_INITIAL_DELAY_MS:30000}
+  metrics:
+    refresh-ms: ${OCR_METRICS_REFRESH_MS:15000}
 
 # ── Сервер ──────────────────────────────────────────────────────────
 server:

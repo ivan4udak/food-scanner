@@ -35,6 +35,24 @@ class EnqueueOcrServiceTest {
     }
 
     @Test
+    void supersedesPreviousAndMarksPublishedWhenBrokerUp() {
+        UUID draft = UUID.randomUUID();
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(publisher.publish(any())).thenReturn(true);
+        service.execute(draft, "p.jpg", "INGREDIENTS");
+        verify(repo).supersedePrevious(eq(draft), eq("INGREDIENTS"), any());
+        verify(repo).markPublished(any());
+    }
+
+    @Test
+    void leavesQueuedWhenBrokerDown() {
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(publisher.publish(any())).thenReturn(false);
+        service.execute(UUID.randomUUID(), "p.jpg", "NUTRITION");
+        verify(repo, never()).markPublished(any());
+    }
+
+    @Test
     void skipsNonTextPhotos() {
         service.execute(UUID.randomUUID(), "photos/h.jpg", "FRONT");
         service.execute(UUID.randomUUID(), "photos/h.jpg", "BARCODE");
@@ -43,6 +61,7 @@ class EnqueueOcrServiceTest {
 
     @Test
     void caseInsensitive() {
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         service.execute(UUID.randomUUID(), "k", "nutrition");
         verify(repo).save(any());
     }

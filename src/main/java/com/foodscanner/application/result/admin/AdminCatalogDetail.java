@@ -15,7 +15,8 @@ public record AdminCatalogDetail(
         String author,
         Instant createdAt,
         List<Photo> photos,
-        List<AdminClientLog> relatedLogs
+        List<AdminClientLog> relatedLogs,
+        List<AdminOcrRow> ocrJobs
 ) {
     public record Photo(UUID id, String type, String storageKey, Instant capturedAt) {}
 }

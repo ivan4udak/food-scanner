@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminUser, adminUserLogs, setUserRole } from '@/api/admin';
 import { useAuthStore } from '@/store/authStore';
 import { LogTable } from '@/features/admin/LogTable';
+import { OcrJobsTable } from '@/features/admin/OcrJobsTable';
 import { dt } from '@/features/admin/fmt';
 
 const ROLES = ['USER', 'ADMIN', 'SUPER_ADMIN'];
@@ -25,7 +26,7 @@ export function AdminUserDetailPage() {
 
   if (user.isLoading) return <p className="muted center">Загрузка…</p>;
   if (user.isError || !user.data) return <p className="error center">Пользователь не найден.</p>;
-  const { user: u, sessions, recentScans } = user.data;
+  const { user: u, sessions, recentScans, ocrJobs } = user.data;
   const selectedRole = roleDraft || u.role;
 
   return (
@@ -82,6 +83,11 @@ export function AdminUserDetailPage() {
           </table>
           </div>
         )}
+      </div>
+
+      <div className="card">
+        <h2>OCR ({ocrJobs.length})</h2>
+        <OcrJobsTable jobs={ocrJobs} />
       </div>
 
       <div className="card">
