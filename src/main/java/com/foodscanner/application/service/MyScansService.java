@@ -4,8 +4,10 @@ import com.foodscanner.application.port.MeReadPort;
 import com.foodscanner.application.port.MeReadPort.PhotoData;
 import com.foodscanner.application.port.MeReadPort.ScanData;
 import com.foodscanner.application.result.me.MeScanDetail;
+import com.foodscanner.application.result.me.MeScanOcr;
 import com.foodscanner.application.result.me.MeScanRow;
 import com.foodscanner.application.usecase.MyScansUseCase;
+import com.foodscanner.domain.model.ocr.OcrStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,8 +37,10 @@ public class MyScansService implements MyScansUseCase {
         return port.scan(contributorId, barcode).map(s -> {
             List<MeScanDetail.Photo> photos = port.photos(contributorId, barcode).stream()
                 .map(MyScansService::toPhoto).toList();
+            List<MeScanOcr> ocr = port.ocrForScan(s.draftId(), s.catalogEntryId()).stream()
+                .map(MyScansService::toOcr).toList();
             return new MeScanDetail(s.barcode(), s.catalogEntryId(),
-                s.firstScannedAt(), s.completedAt(), photos, null);
+                s.firstScannedAt(), s.completedAt(), photos, ocr, null);
         });
     }
 
@@ -49,6 +53,11 @@ public class MyScansService implements MyScansUseCase {
     private static String status(ScanData s) {
         if (s.catalogEntryId() != null) return "COMPLETED";
         return "OPEN".equalsIgnoreCase(s.status()) ? "DRAFT_OPEN" : s.status();
+    }
+
+    private static MeScanOcr toOcr(MeReadPort.OcrData o) {
+        return new MeScanOcr(o.photoType(), o.statusCode(), OcrStatus.fromCode(o.statusCode()).name(),
+            o.confidence(), o.updatedAt(), o.errorCode(), o.errorMessage(), o.rawTextPreview());
     }
 
     private static MeScanDetail.Photo toPhoto(PhotoData p) {

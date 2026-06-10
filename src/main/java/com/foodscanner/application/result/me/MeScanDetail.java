@@ -15,6 +15,7 @@ public record MeScanDetail(
         Instant firstScannedAt,
         Instant completedAt,
         List<Photo> photos,
+        List<MeScanOcr> ocr,
         String ocrStatus
 ) {
     public record Photo(
