@@ -42,4 +42,6 @@ public interface AdminReadUseCase {
                           boolean includeOrphaned, int limit, int offset);
 
     AdminOcrSummary ocrSummary();
+
+    Optional<AdminOcrDetail> ocrDetail(UUID jobId);
 }

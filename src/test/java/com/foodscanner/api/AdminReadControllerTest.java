@@ -136,6 +136,28 @@ class AdminReadControllerTest {
     }
 
     @Test
+    @DisplayName("GET /admin/ocr/{jobId} — полная карточка с rawText")
+    void ocrDetail() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(admin.ocrDetail(id)).thenReturn(Optional.of(new AdminOcrDetail(
+            id, "460", UUID.randomUUID(), "ivan", UUID.randomUUID(), null, "INGREDIENTS", "photos/x.jpg",
+            4, "SUCCESS", 1, true, false, 0.92, Instant.now(), Instant.now(), null, null,
+            "Состав: вода, сахар, соль", "вода;сахар;соль", null, Instant.now(), 1, null, null, null)));
+        mockMvc.perform(get("/api/v1/admin/ocr/" + id))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("SUCCESS"))
+            .andExpect(jsonPath("$.rawText").value("Состав: вода, сахар, соль"))
+            .andExpect(jsonPath("$.confidence").value(0.92));
+    }
+
+    @Test
+    @DisplayName("GET /admin/ocr/{jobId} — 404 если нет")
+    void ocrDetailNotFound() throws Exception {
+        when(admin.ocrDetail(any())).thenReturn(Optional.empty());
+        mockMvc.perform(get("/api/v1/admin/ocr/" + UUID.randomUUID())).andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("GET /admin/ocr/summary — сводка по статусам + очередь")
     void ocrSummary() throws Exception {
         when(admin.ocrSummary()).thenReturn(new AdminOcrSummary(8, 1, 42, List.of(

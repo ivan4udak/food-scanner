@@ -67,6 +67,8 @@ export function OcrJobsTable({ jobs, showBarcode = true, showUser = false }: {
                 {j.errorMessage ?? j.errorCode ?? (j.rawTextPreview ? j.rawTextPreview.slice(0, 30) : '—')}
               </td>
               <td>
+                <button className="chip" title="Детали задачи"
+                        onClick={() => navigate(`/admin/ocr/${j.jobId}`)}>детали</button>
                 {canReprocess(j.statusCode) && (
                   <button className="chip" disabled={reprocess.isPending}
                           title="Переотправить фото в OCR"

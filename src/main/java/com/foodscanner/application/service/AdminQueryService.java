@@ -131,6 +131,11 @@ public class AdminQueryService implements AdminReadUseCase {
         return port.ocrSummary();
     }
 
+    @Override
+    public Optional<AdminOcrDetail> ocrDetail(UUID jobId) {
+        return port.ocrById(jobId);
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static Instant todayStart() {
         return LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);

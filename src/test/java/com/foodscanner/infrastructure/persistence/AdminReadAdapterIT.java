@@ -147,6 +147,14 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         AdminOcrSummary sum = port.ocrSummary();
         assertThat(sum.byStatus()).hasSize(6);                // zero-fill всех статусов
         assertThat(sum.queueSize()).isGreaterThanOrEqualTo(0);
+
+        // полная карточка по id: полный rawText, резолв barcode/автора
+        AdminOcrDetail detail = port.ocrById(jobId).orElseThrow();
+        assertThat(detail.rawText()).isEqualTo("Состав: вода, сахар");
+        assertThat(detail.barcode()).isEqualTo(bc);
+        assertThat(detail.author()).isEqualTo(usernameOf(ivan));
+        assertThat(detail.statusCode()).isEqualTo(2);
+        assertThat(port.ocrById(UUID.randomUUID())).isEmpty();
     }
 
     private void activity(UUID c, Instant at) {

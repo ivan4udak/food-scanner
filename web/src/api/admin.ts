@@ -110,6 +110,14 @@ export const adminOcr = (
 ) => get<AdminOcrRow[]>('/admin/ocr', { status, barcode, showInactive, showOrphaned, limit, offset });
 export const adminOcrSummary = () => get<AdminOcrSummary>('/admin/ocr/summary');
 
+export interface AdminOcrDetail extends AdminOcrRow {
+  confidence: number | null; createdAt: string | null;
+  rawText: string | null; parsedIngredients: string | null; parsedNutrition: string | null;
+  publishedAt: string | null; publishAttempts: number; lastPublishError: string | null;
+  supersededAt: string | null; supersededBy: string | null;
+}
+export const adminOcrDetail = (jobId: string) => get<AdminOcrDetail>(`/admin/ocr/${jobId}`);
+
 /** Переотправить фото в OCR (для статусов 3/5). → id новой задачи. */
 export const adminReprocessOcr = async (jobId: string): Promise<string> =>
   (await api.post(`/admin/ocr/${jobId}/reprocess`)).data?.jobId;

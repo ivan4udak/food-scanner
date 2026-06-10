@@ -134,6 +134,12 @@ public class AdminReadController {
         return admin.ocrSummary();
     }
 
+    /** Полная карточка OCR-задачи (полный rawText/parsed + lifecycle). */
+    @GetMapping("/ocr/{jobId}")
+    public ResponseEntity<AdminOcrDetail> ocrDetail(@PathVariable UUID jobId) {
+        return admin.ocrDetail(jobId).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;

@@ -12,7 +12,7 @@ Backend Spring Boot 3 / Java 21 / Postgres / Flyway / MinIO / JWT, DDD + Ports&A
 ## Версионирование (СТРОГО)
 Источник истины: `VERSION` (корень) = `web/package.json` = `web/src/version.ts` = верх `CHANGELOG.md`. Git-теги заморожены на v1.4.0 — НЕ ориентир.
 Перед бампом проверить все 4 источника, взять максимум, **никогда не переиспользовать версию**. PATCH=фикс, MINOR=фича/API.
-**Текущая: 1.10.7.** Следующая фикс → 1.10.8.
+**Текущая: 1.10.8.** Следующая фикс → 1.10.9 (или MINOR 1.11.0 для движка).
 
 ## Git author policy
 Коммиты только от владельца (`Volk <m-ore@list.ru>`). НЕ добавлять Co-Authored-By: Claude / Generated with Claude / любые AI-пометки. Перед коммитом сверять `git config user.name/email`.
@@ -36,13 +36,14 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
   - v1.10.5 ✅ OCR readiness в «Мои сканы»: `ocr[]` в `/me/scans/{barcode}` + клиентский блок «Распознавание» (QUEUED=«Ожидает», polling до финала).
   - v1.10.6 ✅ долг закрыт: photoCount черновика (CASE вместо COALESCE) + failsafe → `*IT` (22) теперь в `mvn verify` (герметичны: `@MockBean PhotoStorage`).
   - v1.10.7 ✅ OCR reprocess: `POST /admin/ocr/{jobId}/reprocess` (статусы 3/5 → новая QUEUED + supersede + publish) + кнопка «↻ Переотправить».
-  - Дальше (план пользователя): OCR result visibility (полный rawText/копирование), **v1.11.0 реальный движок EasyOCR** (raw text; парсинг состава/КБЖУ — позже).
+  - v1.10.8 ✅ OCR result visibility: `GET /admin/ocr/{jobId}` + страница `/admin/ocr/:jobId` (полный rawText/копирование, фото, клик-связи, reprocess).
+  - Дальше: **v1.11.0 реальный движок EasyOCR** (OcrEngine port + EasyOcrEngine, MinIO download, preprocessing, timeout, concurrency, rawText/confidence, PHOTO_UNREADABLE/ERROR; парсинг состава/КБЖУ — позже). Архитектура подготовлена.
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.10.7 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
-Ожидает: продвинуть 1.8.1–1.10.7 в main по подтверждению. **stable/production не трогать.**
+staging(test)=1.10.8 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
+Ожидает: продвинуть 1.8.1–1.10.8 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы
 Низкая многословность. Читать только связанные файлы, не пересканировать дерево, не дублировать абстракции, держать границы DDD, минимум правок, TDD. Формат ответа: PLAN / CHANGES / TESTS / RESULT.

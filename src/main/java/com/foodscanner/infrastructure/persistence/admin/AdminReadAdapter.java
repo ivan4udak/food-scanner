@@ -368,6 +368,36 @@ public class AdminReadAdapter implements AdminReadPort {
             + " ORDER BY oj.updated_at DESC LIMIT ?", OCR_MAPPER, contributorId, limit);
     }
 
+    @Override
+    public Optional<AdminOcrDetail> ocrById(UUID jobId) {
+        String sql = """
+            SELECT oj.id, COALESCE(d.barcode, e.barcode) AS barcode,
+                   COALESCE(d.contributor_id, e.contributor_id) AS contributor_id,
+                   COALESCE(cd.username, ce.username) AS author,
+                   oj.draft_id, oj.catalog_entry_id, oj.photo_type, oj.storage_key, oj.status, oj.attempts,
+                   oj.active, oj.orphaned, oj.confidence, oj.created_at, oj.updated_at,
+                   oj.error_code, oj.error_message, oj.raw_text, oj.parsed_ingredients, oj.parsed_nutrition,
+                   oj.published_at, oj.publish_attempts, oj.last_publish_error, oj.superseded_at, oj.superseded_by
+            FROM food_catalog.ocr_jobs oj
+            LEFT JOIN food_catalog.catalog_drafts d ON d.id = oj.draft_id
+            LEFT JOIN food_catalog.catalog_entries e ON e.id = oj.catalog_entry_id
+            LEFT JOIN food_catalog.contributors cd ON cd.id = d.contributor_id
+            LEFT JOIN food_catalog.contributors ce ON ce.id = e.contributor_id
+            WHERE oj.id = ?""";
+        return jdbc.query(sql, (rs, n) -> {
+            int code = rs.getInt("status");
+            return new AdminOcrDetail(
+                uuid(rs, "id"), str(rs, "barcode"), uuid(rs, "contributor_id"), str(rs, "author"),
+                uuid(rs, "draft_id"), uuid(rs, "catalog_entry_id"), str(rs, "photo_type"),
+                str(rs, "storage_key"), code, OcrStatus.fromCode(code).name(), rs.getInt("attempts"),
+                rs.getBoolean("active"), rs.getBoolean("orphaned"), (Double) rs.getObject("confidence"),
+                inst(rs, "created_at"), inst(rs, "updated_at"), str(rs, "error_code"), str(rs, "error_message"),
+                str(rs, "raw_text"), str(rs, "parsed_ingredients"), str(rs, "parsed_nutrition"),
+                inst(rs, "published_at"), rs.getInt("publish_attempts"), str(rs, "last_publish_error"),
+                inst(rs, "superseded_at"), uuid(rs, "superseded_by"));
+        }, jobId).stream().findFirst();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private long count(String sql, Object... args) {
         Long v = jdbc.queryForObject(sql, Long.class, args);
