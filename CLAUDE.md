@@ -26,13 +26,18 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
 ## Дорожная карта (по ТЗ)
 - v1.7 — серверные клиентские логи, телеметрия, correlation-трейс, публичный `/stats`. ✅
 - v1.8 — админка (`/admin`: dashboard/users/logs/catalog/errors/trace), «Мои сканы», роли. ✅ (+1.8.1–1.8.7 доработки)
-- v1.9 — расширенная аналитика, quality score, подготовка протоколов/полей под OCR (nullable ocrStatus уже есть). ⬜
-- v1.10 — OCR как отдельный микросервис (HTTP-контракт + internal job table, статусы 0–5, retry, raw text + parsed ingredients/nutrition). ⬜
+- v1.9 — расширенная аналитика; quality score убран (1.9.1, несправедлив до OCR). ✅
+- v1.10 — OCR-микросервис (RabbitMQ + EasyOCR за портом OcrEngine, статусы 0–5, raw text + parsed ingredients/nutrition).
+  - v1.10.0 ✅ контракт + ocr_jobs + enqueue QUEUED · v1.10.1 ✅ ocr-service + очередь под флагом `OCR_AMQP_ENABLED`.
+  - **Активирован на staging** (заглушка): rabbitmq-staging + ocr-staging, контур upload→QUEUED→publish→ocr→NEEDS_REVIEW(2) доказан. Runbook `docs/OCR_ROLLOUT.md`.
+  - v1.10.2 ✅ observability — Prometheus `ocr_jobs{status,code}` (/actuator/prometheus → Grafana).
+  - Дальше: v1.10.3 admin OCR (/admin/ocr + блок в catalog/users), затем EasyOCR срезами v1.10.4 raw → v1.10.5 ingredients → v1.10.6 nutrition → v1.10.7 retry/DLQ/reprocess.
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.8.7 · stable(main)=1.8.0 · production(release)=без изменений. Ожидает: продвинуть 1.8.1–1.8.7 в main по подтверждению.
+staging(test)=1.10.1 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
+Ожидает: продвинуть 1.8.1–1.10.1 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы
 Низкая многословность. Читать только связанные файлы, не пересканировать дерево, не дублировать абстракции, держать границы DDD, минимум правок, TDD. Формат ответа: PLAN / CHANGES / TESTS / RESULT.

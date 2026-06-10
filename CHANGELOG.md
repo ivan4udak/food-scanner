@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.10.2] — OCR observability: метрика ocr_jobs by status
+- **Prometheus-метрика `ocr_jobs{status,code}`** — количество OCR-задач по каждому статусу
+  (QUEUED/IN_PROGRESS_READABLE/NEEDS_REVIEW/PHOTO_UNREADABLE/SUCCESS/ERROR), zero-fill для
+  пустых. Значения обновляются периодически (один групповой COUNT), gauge читаются из памяти.
+  Видно в `/actuator/prometheus` → Grafana. Работает независимо от `OCR_AMQP_ENABLED`.
+- Порт `OcrJobRepository.countByStatus()` + JPQL-проекция в JPA-адаптере.
+- Backend +2 теста (OcrMetricsTest unit, OcrJobRepositoryAdapterIT countByStatus).
+- Дальше (отдельными срезами): admin OCR (`/admin/ocr`) v1.10.3, затем EasyOCR v1.10.4+.
+
 ## [1.10.1] — OCR-сервис и очередь (скелет, под флагом)
 - **ocr-service/** — отдельный контейнер Python/FastAPI + pika: health, RabbitMQ-консьюмер
   задач, движок-заглушка (→ NEEDS_REVIEW), публикация результата. Образ собирается в CI.
