@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { adminOcr, adminOcrSummary } from '@/api/admin';
 import { OcrJobsTable } from '@/features/admin/OcrJobsTable';
 import { OCR_STATUS_SHORT } from '@/features/admin/ocr';
+import { LastUpdated } from '@/features/admin/LastUpdated';
 
 /** Страница наблюдаемости OCR: сводка по статусам + список задач с фильтрами. */
 export function AdminOcrPage() {
@@ -27,6 +28,7 @@ export function AdminOcrPage() {
   return (
     <div className="card">
       <h2>OCR</h2>
+      <LastUpdated updatedAt={jobs.dataUpdatedAt} isFetching={jobs.isFetching} onRefresh={() => { jobs.refetch(); summary.refetch(); }} />
 
       {summary.data && (
         <p className="sub" style={{ margin: '0 0 8px' }}>
