@@ -25,8 +25,10 @@ public class MeReadAdapter implements MeReadPort {
     private static final String SCAN_SELECT = """
         SELECT d.barcode, d.status, d.id AS draft_id, e.id AS catalog_entry_id,
                d.created_at AS first_scanned_at, e.created_at AS completed_at,
-               COALESCE((SELECT count(*) FROM food_catalog.catalog_entry_photos p WHERE p.entry_id = e.id),
-                        (SELECT count(*) FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)) AS photo_count
+               CASE WHEN e.id IS NULL
+                    THEN (SELECT count(*) FROM food_catalog.draft_photos dp WHERE dp.draft_id = d.id)
+                    ELSE (SELECT count(*) FROM food_catalog.catalog_entry_photos p WHERE p.entry_id = e.id)
+               END AS photo_count
         FROM food_catalog.catalog_drafts d
         LEFT JOIN food_catalog.catalog_entries e ON e.draft_id = d.id
         WHERE d.contributor_id = ?
