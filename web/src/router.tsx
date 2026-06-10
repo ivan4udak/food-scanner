@@ -17,6 +17,7 @@ import { AdminUserDetailPage } from '@/features/admin/AdminUserDetailPage';
 import { AdminLogsPage } from '@/features/admin/AdminLogsPage';
 import { AdminCatalogPage } from '@/features/admin/AdminCatalogPage';
 import { AdminCatalogDetailPage } from '@/features/admin/AdminCatalogDetailPage';
+import { AdminOcrPage } from '@/features/admin/AdminOcrPage';
 import { AdminErrorsPage } from '@/features/admin/AdminErrorsPage';
 import { AdminTracePage } from '@/features/admin/AdminTracePage';
 import { AdminUserByNamePage } from '@/features/admin/AdminUserByNamePage';
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
           { path: 'logs', element: <AdminLogsPage /> },
           { path: 'catalog', element: <AdminCatalogPage /> },
           { path: 'catalog/:barcode', element: <AdminCatalogDetailPage /> },
+          { path: 'ocr', element: <AdminOcrPage /> },
           { path: 'errors', element: <AdminErrorsPage /> },
           { path: 'trace/:correlationId', element: <AdminTracePage /> },
         ],

@@ -3,6 +3,7 @@ package com.foodscanner.infrastructure.persistence.admin;
 import com.foodscanner.application.port.AdminReadPort;
 import com.foodscanner.application.query.AdminLogFilter;
 import com.foodscanner.application.result.admin.*;
+import com.foodscanner.domain.model.ocr.OcrStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -12,7 +13,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -279,6 +282,59 @@ public class AdminReadAdapter implements AdminReadPort {
             (rs, n) -> new AdminCatalogDetail.Photo(
                 uuid(rs, "id"), str(rs, "type"), str(rs, "storage_key"), inst(rs, "created_at")),
             catalogEntryId);
+    }
+
+    // ── OCR ──────────────────────────────────────────────────
+    private static final String OCR_SELECT = """
+        SELECT oj.id, COALESCE(d.barcode, e.barcode) AS barcode, oj.draft_id, oj.catalog_entry_id,
+               oj.photo_type, oj.storage_key, oj.status, oj.attempts, oj.updated_at,
+               oj.error_code, oj.error_message, left(oj.raw_text, 200) AS raw_text_preview
+        FROM food_catalog.ocr_jobs oj
+        LEFT JOIN food_catalog.catalog_drafts d ON d.id = oj.draft_id
+        LEFT JOIN food_catalog.catalog_entries e ON e.id = oj.catalog_entry_id
+        """;
+    private static final RowMapper<AdminOcrRow> OCR_MAPPER = (rs, n) -> {
+        int code = rs.getInt("status");
+        return new AdminOcrRow(
+            uuid(rs, "id"), str(rs, "barcode"), uuid(rs, "draft_id"), uuid(rs, "catalog_entry_id"),
+            str(rs, "photo_type"), str(rs, "storage_key"), code, OcrStatus.fromCode(code).name(),
+            rs.getInt("attempts"), inst(rs, "updated_at"),
+            str(rs, "error_code"), str(rs, "error_message"), str(rs, "raw_text_preview"));
+    };
+
+    @Override
+    public List<AdminOcrRow> ocrJobs(Integer status, String barcode, int limit, int offset) {
+        StringBuilder sql = new StringBuilder(OCR_SELECT);
+        List<Object> args = new ArrayList<>();
+        List<String> where = new ArrayList<>();
+        if (status != null) {
+            where.add("oj.status = ?");
+            args.add(status);
+        }
+        if (barcode != null && !barcode.isBlank()) {
+            where.add("COALESCE(d.barcode, e.barcode) = ?");
+            args.add(barcode.trim());
+        }
+        if (!where.isEmpty()) sql.append(" WHERE ").append(String.join(" AND ", where));
+        sql.append(" ORDER BY oj.updated_at DESC LIMIT ? OFFSET ?");
+        args.add(limit);
+        args.add(offset);
+        return jdbc.query(sql.toString(), OCR_MAPPER, args.toArray());
+    }
+
+    @Override
+    public AdminOcrSummary ocrSummary() {
+        Map<Integer, Long> counts = new HashMap<>();
+        jdbc.query("SELECT status, count(*) AS cnt FROM food_catalog.ocr_jobs GROUP BY status",
+            (rs, n) -> counts.put(rs.getInt("status"), rs.getLong("cnt")));
+        long total = 0;
+        List<AdminOcrSummary.StatusCount> byStatus = new ArrayList<>();
+        for (OcrStatus s : OcrStatus.values()) {
+            long c = counts.getOrDefault(s.code(), 0L);
+            total += c;
+            byStatus.add(new AdminOcrSummary.StatusCount(s.code(), s.name(), c));
+        }
+        return new AdminOcrSummary(total, byStatus);
     }
 
     // ── helpers ──────────────────────────────────────────────

@@ -105,6 +105,38 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(d.onlineNow()).isGreaterThanOrEqualTo(1);
     }
 
+    @Test
+    void ocrJobsResolveBarcodeFilterAndSummary() {
+        UUID ivan = contributor("ocr_" + UUID.randomUUID());
+        UUID d = draft(ivan);
+        String bc = barcodeStr(d);
+        UUID jobId = UUID.randomUUID();
+        Timestamp now = Timestamp.from(Instant.now());
+        jdbc.update("""
+            INSERT INTO food_catalog.ocr_jobs
+              (id,draft_id,storage_key,photo_type,status,attempts,raw_text,error_message,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            jobId, d, "photos/" + jobId + ".jpg", "INGREDIENTS", (short) 2, 1,
+            "Состав: вода, сахар", "stub", now, now);
+
+        AdminOcrRow row = port.ocrJobs(null, null, 50, 0).stream()
+            .filter(r -> r.jobId().equals(jobId)).findFirst().orElseThrow();
+        assertThat(row.barcode()).isEqualTo(bc);              // резолв через draft
+        assertThat(row.statusCode()).isEqualTo(2);
+        assertThat(row.status()).isEqualTo("NEEDS_REVIEW");
+        assertThat(row.photoType()).isEqualTo("INGREDIENTS");
+        assertThat(row.rawTextPreview()).contains("Состав");
+
+        assertThat(port.ocrJobs(2, null, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobs(5, null, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.ocrJobs(null, bc, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+
+        AdminOcrSummary sum = port.ocrSummary();
+        assertThat(sum.byStatus()).hasSize(6);                // zero-fill всех статусов
+        assertThat(sum.total()).isGreaterThanOrEqualTo(1);
+        assertThat(sum.byStatus()).anyMatch(s -> s.code() == 2 && s.count() >= 1);
+    }
+
     private void activity(UUID c, Instant at) {
         Timestamp ts = Timestamp.from(at);
         jdbc.update("""

@@ -89,6 +89,22 @@ export const adminCatalogDetail = (barcode: string) =>
   get<AdminCatalogDetail>(`/admin/catalog/${encodeURIComponent(barcode)}`);
 export const adminTrace = (correlationId: string) => get<TraceItem[]>(`/admin/trace/${correlationId}`);
 
+export interface AdminOcrRow {
+  jobId: string; barcode: string | null; draftId: string | null; catalogEntryId: string | null;
+  photoType: string; storageKey: string; statusCode: number; status: string; attempts: number;
+  updatedAt: string | null; errorCode: string | null; errorMessage: string | null;
+  rawTextPreview: string | null;
+}
+
+export interface AdminOcrSummary {
+  total: number;
+  byStatus: { code: number; status: string; count: number }[];
+}
+
+export const adminOcr = (status?: number, barcode?: string, limit = 100, offset = 0) =>
+  get<AdminOcrRow[]>('/admin/ocr', { status, barcode, limit, offset });
+export const adminOcrSummary = () => get<AdminOcrSummary>('/admin/ocr/summary');
+
 /** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */
 export async function setUserRole(id: string, role: string): Promise<string> {
   const res = await api.post(`/admin/users/${id}/role`, { role });
