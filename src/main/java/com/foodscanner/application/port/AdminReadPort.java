@@ -45,8 +45,9 @@ public interface AdminReadPort {
 
     List<AdminCatalogDetail.Photo> catalogPhotos(UUID catalogEntryId);
 
-    /** OCR-задачи (фильтры опциональны): свежие сверху. */
-    List<AdminOcrRow> ocrJobs(Integer status, String barcode, int limit, int offset);
+    /** OCR-задачи (фильтры опциональны): свежие сверху. По умолчанию только active & не orphaned. */
+    List<AdminOcrRow> ocrJobs(Integer status, String barcode, boolean includeInactive,
+                             boolean includeOrphaned, int limit, int offset);
 
     /** Сводка OCR-задач по статусам (zero-fill). */
     AdminOcrSummary ocrSummary();

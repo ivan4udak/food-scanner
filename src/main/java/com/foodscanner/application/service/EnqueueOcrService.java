@@ -31,7 +31,13 @@ public class EnqueueOcrService implements EnqueueOcrUseCase {
     @Override
     public void execute(UUID draftId, String storageKey, String photoType) {
         if (photoType == null || !TEXT_TYPES.contains(photoType.toUpperCase())) return;
-        OcrJob job = repository.save(OcrJob.queued(draftId, storageKey, photoType.toUpperCase()));
-        publisher.publish(job);
+        String type = photoType.toUpperCase();
+        OcrJob job = repository.save(OcrJob.queued(draftId, storageKey, type));
+        // только последняя задача для (draft, photoType) активна — прошлые помечаем замещёнными
+        repository.supersedePrevious(draftId, type, job.id());
+        // best-effort: если брокер недоступен, задача остаётся QUEUED — republish опубликует позже
+        if (publisher.publish(job)) {
+            repository.markPublished(job.id());
+        }
     }
 }

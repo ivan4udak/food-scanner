@@ -7,6 +7,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,6 +29,10 @@ public class OcrMetrics {
 
     private final OcrJobRepository repo;
     private final Map<OcrStatus, AtomicLong> gauges = new EnumMap<>(OcrStatus.class);
+    /** Размер активной очереди (active QUEUED) — backpressure-наблюдаемость. */
+    private final AtomicLong queueSize = new AtomicLong(0);
+    /** Возраст старейшей активной QUEUED-задачи в секундах (растёт → worker перегружен/недоступен). */
+    private final AtomicLong queueOldestAgeSeconds = new AtomicLong(0);
 
     public OcrMetrics(OcrJobRepository repo, MeterRegistry registry) {
         this.repo = repo;
@@ -39,6 +45,12 @@ public class OcrMetrics {
                 .tag("code", String.valueOf(s.code()))
                 .register(registry);
         }
+        Gauge.builder("ocr_queue_size", queueSize, AtomicLong::doubleValue)
+            .description("Активные QUEUED OCR-задачи (размер очереди)")
+            .register(registry);
+        Gauge.builder("ocr_queue_oldest_age_seconds", queueOldestAgeSeconds, AtomicLong::doubleValue)
+            .description("Возраст старейшей активной QUEUED OCR-задачи, сек")
+            .register(registry);
         refresh();
     }
 
@@ -47,6 +59,10 @@ public class OcrMetrics {
     public void refresh() {
         try {
             repo.countByStatus().forEach((s, c) -> gauges.get(s).set(c));
+            queueSize.set(repo.countActiveQueued());
+            queueOldestAgeSeconds.set(repo.oldestQueuedCreatedAt()
+                .map(t -> Math.max(0, Duration.between(t, Instant.now()).getSeconds()))
+                .orElse(0L));
         } catch (Exception ignored) {
             // наблюдаемость не должна ронять приложение
         }

@@ -120,29 +120,32 @@ class AdminReadControllerTest {
     }
 
     @Test
-    @DisplayName("GET /admin/ocr — список с фильтром по статусу")
+    @DisplayName("GET /admin/ocr — список с фильтром по статусу (по умолчанию active)")
     void ocr() throws Exception {
-        when(admin.ocr(eq(2), isNull(), anyInt(), anyInt())).thenReturn(List.of(
-            new AdminOcrRow(UUID.randomUUID(), "4680328054884", UUID.randomUUID(), null,
-                "INGREDIENTS", "photos/x.jpg", 2, "NEEDS_REVIEW", 1, Instant.now(),
+        when(admin.ocr(eq(2), isNull(), eq(false), eq(false), anyInt(), anyInt())).thenReturn(List.of(
+            new AdminOcrRow(UUID.randomUUID(), "4680328054884", UUID.randomUUID(), "ivan", UUID.randomUUID(),
+                null, "INGREDIENTS", "photos/x.jpg", 2, "NEEDS_REVIEW", 1, true, false, Instant.now(),
                 null, "stub engine", null)));
         mockMvc.perform(get("/api/v1/admin/ocr").param("status", "2"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].barcode").value("4680328054884"))
             .andExpect(jsonPath("$[0].status").value("NEEDS_REVIEW"))
             .andExpect(jsonPath("$[0].statusCode").value(2))
+            .andExpect(jsonPath("$[0].active").value(true))
             .andExpect(jsonPath("$[0].photoType").value("INGREDIENTS"));
     }
 
     @Test
-    @DisplayName("GET /admin/ocr/summary — сводка по статусам")
+    @DisplayName("GET /admin/ocr/summary — сводка по статусам + очередь")
     void ocrSummary() throws Exception {
-        when(admin.ocrSummary()).thenReturn(new AdminOcrSummary(8, List.of(
+        when(admin.ocrSummary()).thenReturn(new AdminOcrSummary(8, 1, 42, List.of(
             new AdminOcrSummary.StatusCount(0, "QUEUED", 1),
             new AdminOcrSummary.StatusCount(2, "NEEDS_REVIEW", 7))));
         mockMvc.perform(get("/api/v1/admin/ocr/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.total").value(8))
+            .andExpect(jsonPath("$.queueSize").value(1))
+            .andExpect(jsonPath("$.oldestQueuedAgeSeconds").value(42))
             .andExpect(jsonPath("$.byStatus[1].status").value("NEEDS_REVIEW"))
             .andExpect(jsonPath("$.byStatus[1].count").value(7));
     }

@@ -7,5 +7,6 @@ import com.foodscanner.domain.model.ocr.OcrJob;
  * Реализации: RabbitMQ (под флагом) либо No-op (по умолчанию).
  */
 public interface OcrJobPublisher {
-    void publish(OcrJob job);
+    /** @return true, если задача реально опубликована в брокер (false — no-op/ошибка → останется QUEUED). */
+    boolean publish(OcrJob job);
 }

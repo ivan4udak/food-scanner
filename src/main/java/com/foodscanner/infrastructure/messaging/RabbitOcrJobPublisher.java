@@ -29,13 +29,15 @@ public class RabbitOcrJobPublisher implements OcrJobPublisher {
     }
 
     @Override
-    public void publish(OcrJob job) {
+    public boolean publish(OcrJob job) {
         try {
             rabbit.convertAndSend(exchange, "job", new OcrJobMessage(
                 job.id().toString(), job.storageKey(), job.photoType(),
                 job.draftId() != null ? job.draftId().toString() : null, job.attempts() + 1));
+            return true;
         } catch (Exception e) {
             log.warn("OCR job publish failed (job={}): {}", job.id(), e.getMessage());
+            return false;
         }
     }
 }
