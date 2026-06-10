@@ -12,6 +12,19 @@
 ## [Unreleased]
 - —
 
+## [1.10.1] — OCR-сервис и очередь (скелет, под флагом)
+- **ocr-service/** — отдельный контейнер Python/FastAPI + pika: health, RabbitMQ-консьюмер
+  задач, движок-заглушка (→ NEEDS_REVIEW), публикация результата. Образ собирается в CI.
+- **Backend AMQP под флагом `ocr.amqp.enabled` (по умолчанию OFF):** порт `OcrJobPublisher`
+  (NoOp по умолчанию / RabbitMQ при флаге), публикация задачи при enqueue,
+  `@RabbitListener` результатов → `UpdateOcrResultService` (статус/текст/КБЖУ, attempts+1).
+  Без флага брокер не подключается — поведение не меняется.
+- **CI/инфра:** 3-й образ food-scanner-ocr (build-push), `OCR_IMAGE` в deploy; шаблон
+  compose staging с rabbitmq + ocr (для rollout; серверный compose синкается отдельно).
+- Backend 234 теста. **Активация OCR — отдельный rollout** (compose на сервере +
+  OCR_AMQP_ENABLED=true + RabbitMQ env).
+
+
 ## [1.10.0] — OCR foundation: контракт и слой данных
 - **Контракт OCR** (`docs/OCR.md`): статусы 0–5, RabbitMQ-топология, схемы job/result,
   модель данных. Согласованный стек: RabbitMQ + EasyOCR (за портом OcrEngine), тот же сервер.

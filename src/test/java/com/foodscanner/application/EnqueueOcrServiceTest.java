@@ -1,5 +1,6 @@
 package com.foodscanner.application;
 
+import com.foodscanner.application.port.OcrJobPublisher;
 import com.foodscanner.application.service.EnqueueOcrService;
 import com.foodscanner.domain.model.ocr.OcrJob;
 import com.foodscanner.domain.model.ocr.OcrStatus;
@@ -15,11 +16,13 @@ import static org.mockito.Mockito.*;
 class EnqueueOcrServiceTest {
 
     private final OcrJobRepository repo = mock(OcrJobRepository.class);
-    private final EnqueueOcrService service = new EnqueueOcrService(repo);
+    private final OcrJobPublisher publisher = mock(OcrJobPublisher.class);
+    private final EnqueueOcrService service = new EnqueueOcrService(repo, publisher);
 
     @Test
-    void enqueuesForTextPhoto() {
+    void enqueuesForTextPhotoAndPublishes() {
         UUID draft = UUID.randomUUID();
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
         service.execute(draft, "photos/h.jpg", "INGREDIENTS");
 
         ArgumentCaptor<OcrJob> cap = ArgumentCaptor.forClass(OcrJob.class);
@@ -28,6 +31,7 @@ class EnqueueOcrServiceTest {
         assertThat(j.status()).isEqualTo(OcrStatus.QUEUED);
         assertThat(j.photoType()).isEqualTo("INGREDIENTS");
         assertThat(j.draftId()).isEqualTo(draft);
+        verify(publisher).publish(any());
     }
 
     @Test

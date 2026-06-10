@@ -25,6 +25,11 @@ public class OcrJobRepositoryAdapter implements OcrJobRepository {
     }
 
     @Override
+    public java.util.Optional<OcrJob> findById(UUID id) {
+        return jpa.findById(id).map(OcrJobRepositoryAdapter::toDomain);
+    }
+
+    @Override
     public List<OcrJob> findByDraftId(UUID draftId) {
         return jpa.findByDraftId(draftId).stream().map(OcrJobRepositoryAdapter::toDomain).toList();
     }

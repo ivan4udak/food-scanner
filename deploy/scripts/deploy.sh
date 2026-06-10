@@ -18,7 +18,8 @@ source "$SCRIPTS/lib.sh"
 [[ -f "$ENV_DIR/app.env" ]] || die "нет $ENV_DIR/app.env (секреты)"
 
 cd "$ENV_DIR"
-export BACKEND_IMAGE WEB_IMAGE
+: "${OCR_IMAGE:=}"   # опционально — окружения без OCR его не используют
+export BACKEND_IMAGE WEB_IMAGE OCR_IMAGE
 
 log "Деплой $ENVIRONMENT: backend=$BACKEND_IMAGE web=$WEB_IMAGE (sha=$GIT_SHA)"
 

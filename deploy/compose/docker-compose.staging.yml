@@ -61,6 +61,33 @@ services:
       - "127.0.0.1:10690:80"   # прямой доступ для отладки (основной путь — Caddy)
     logging: *default-logging
 
+  # ── OCR (v1.10) — очередь + сервис. Активируется при rollout: образ OCR_IMAGE,
+  #    в app.env: OCR_AMQP_ENABLED=true, SPRING_RABBITMQ_HOST=rabbitmq-staging,
+  #    RABBITMQ_DEFAULT_USER/PASS, RABBIT_URL=amqp://<user>:<pass>@rabbitmq-staging:5672/. ──
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    container_name: rabbitmq-staging
+    restart: unless-stopped
+    env_file: ./app.env
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    logging: *default-logging
+
+  ocr:
+    image: ${OCR_IMAGE}
+    container_name: ocr-staging
+    restart: unless-stopped
+    env_file: ./app.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks: [internal, edge]
+    logging: *default-logging
+
 volumes:
   staging_pgdata:
     name: staging_pgdata

@@ -48,5 +48,5 @@ error_message, created_at, updated_at`.
 ## Этапы
 - **v1.10.0 (этот срез):** контракт + `ocr_jobs` + domain `OcrStatus`/`OcrJob` + репозиторий +
   enqueue (создание QUEUED при загрузке INGREDIENTS/NUTRITION). Без брокера/движка.
-- **v1.10.1:** RabbitMQ + OCR-сервис (FastAPI, заглушка движка) → end-to-end статусы.
+- **v1.10.1 (готово):** RabbitMQ-контракт + ocr-service (FastAPI, заглушка движка) + backend AMQP под флагом. Активация — отдельный rollout.
 - **v1.10.2+:** движок EasyOCR за портом, парсинг состава/КБЖУ, retry/DLQ, отображение статусов.
