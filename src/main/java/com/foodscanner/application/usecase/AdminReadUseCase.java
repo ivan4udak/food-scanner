@@ -37,4 +37,8 @@ public interface AdminReadUseCase {
     Optional<AdminCatalogDetail> catalogDetail(String barcode);
 
     List<TraceItem> trace(UUID correlationId);
+
+    List<AdminOcrRow> ocr(Integer status, String barcode, int limit, int offset);
+
+    AdminOcrSummary ocrSummary();
 }

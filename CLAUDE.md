@@ -31,7 +31,8 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
   - v1.10.0 ✅ контракт + ocr_jobs + enqueue QUEUED · v1.10.1 ✅ ocr-service + очередь под флагом `OCR_AMQP_ENABLED`.
   - **Активирован на staging** (заглушка): rabbitmq-staging + ocr-staging, контур upload→QUEUED→publish→ocr→NEEDS_REVIEW(2) доказан. Runbook `docs/OCR_ROLLOUT.md`.
   - v1.10.2 ✅ observability — Prometheus `ocr_jobs{status,code}` (/actuator/prometheus → Grafana).
-  - Дальше: v1.10.3 admin OCR (/admin/ocr + блок в catalog/users), затем EasyOCR срезами v1.10.4 raw → v1.10.5 ingredients → v1.10.6 nutrition → v1.10.7 retry/DLQ/reprocess.
+  - v1.10.3 ✅ admin OCR — страница `/admin/ocr` (summary-чипы/фильтры/список) + API `/admin/ocr[/summary]`.
+  - Дальше: OCR-блок в catalog/users detail (v1.10.3.x), затем EasyOCR срезами v1.10.4 raw → v1.10.5 ingredients → v1.10.6 nutrition → v1.10.7 retry/DLQ/reprocess.
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 

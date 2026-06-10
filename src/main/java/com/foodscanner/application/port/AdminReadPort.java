@@ -44,4 +44,10 @@ public interface AdminReadPort {
     Optional<AdminCatalogRow> catalogByBarcode(String barcode);
 
     List<AdminCatalogDetail.Photo> catalogPhotos(UUID catalogEntryId);
+
+    /** OCR-задачи (фильтры опциональны): свежие сверху. */
+    List<AdminOcrRow> ocrJobs(Integer status, String barcode, int limit, int offset);
+
+    /** Сводка OCR-задач по статусам (zero-fill). */
+    AdminOcrSummary ocrSummary();
 }

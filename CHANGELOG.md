@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.10.3] — admin OCR: страница /admin/ocr
+- **`/admin/ocr`** — наблюдаемость OCR в админке: сводка по статусам (кликабельные чипы-фильтры),
+  поиск по ШК, список задач (ШК/тип/статус/попытки/обновлено/ошибка/превью rawText).
+- **API:** `GET /admin/ocr?status&barcode&limit&offset` + `GET /admin/ocr/summary`;
+  barcode резолвится через draft/entry, rawText обрезается до 200 символов на чтении.
+- Порт `AdminReadPort.ocrJobs/ocrSummary` (нативный SQL), use-case + контроллер.
+- Тесты: AdminReadControllerTest (+2), AdminReadAdapterIT (резолв barcode/фильтры/summary). Фронт 56 зелёных.
+- Дальше: OCR-блок в `/admin/catalog/{barcode}` и `/admin/users/{id}` (v1.10.3.x), затем EasyOCR v1.10.4+.
+
 ## [1.10.2] — OCR observability: метрика ocr_jobs by status
 - **Prometheus-метрика `ocr_jobs{status,code}`** — количество OCR-задач по каждому статусу
   (QUEUED/IN_PROGRESS_READABLE/NEEDS_REVIEW/PHOTO_UNREADABLE/SUCCESS/ERROR), zero-fill для

@@ -116,6 +116,22 @@ public class AdminReadController {
         return admin.trace(correlationId);
     }
 
+    /** Список OCR-задач (фильтры status/barcode опциональны), свежие сверху. */
+    @GetMapping("/ocr")
+    public List<AdminOcrRow> ocr(
+            @RequestParam(name = "status", required = false) Integer status,
+            @RequestParam(name = "barcode", required = false) String barcode,
+            @RequestParam(name = "limit", defaultValue = "100") int limit,
+            @RequestParam(name = "offset", defaultValue = "0") int offset) {
+        return admin.ocr(status, blankToNull(barcode), limit, offset);
+    }
+
+    /** Сводка OCR-задач по статусам (для шапки страницы). */
+    @GetMapping("/ocr/summary")
+    public AdminOcrSummary ocrSummary() {
+        return admin.ocrSummary();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;
