@@ -30,4 +30,11 @@ public record OcrJob(
         return new OcrJob(UUID.randomUUID(), draftId, null, storageKey, photoType,
             OcrStatus.QUEUED, 0, null, null, null, null, null, null, now, now);
     }
+
+    /** Повторная задача (reprocess) для того же фото: новая QUEUED, сохраняет draft/entry/storageKey/тип. */
+    public static OcrJob requeue(UUID draftId, UUID catalogEntryId, String storageKey, String photoType) {
+        Instant now = Instant.now();
+        return new OcrJob(UUID.randomUUID(), draftId, catalogEntryId, storageKey, photoType,
+            OcrStatus.QUEUED, 0, null, null, null, null, null, null, now, now);
+    }
 }

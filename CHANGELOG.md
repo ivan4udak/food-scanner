@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.10.7] — OCR reprocess (статусы 3/5 → переотправка)
+- **API**: `POST /admin/ocr/{jobId}/reprocess` — для PHOTO_UNREADABLE(3)/ERROR(5) создаёт новую QUEUED-задачу
+  для того же фото (storageKey/photoType/draft/entry), замещает старую (`supersede` по id), публикует.
+  200 `{jobId}` / 404 (нет задачи) / 409 (статус не 3/5).
+- Use-case `ReprocessOcrUseCase`/`ReprocessOcrService`; `OcrJob.requeue`; `OcrJobRepository.supersede(id, by)`.
+- **Админка**: в таблице OCR (страница/каталог/пользователь) у задач 3/5 кнопка «↻ Переотправить» (live-обновление).
+- Тесты: ReprocessOcrServiceTest (3), AdminOcrControllerTest (200/404/409), OcrJobRepositoryAdapterIT.supersedeById;
+  `mvn verify` = surefire + 22 IT зелёные; фронт vitest 63.
+
 ## [1.10.6] — закрытие долга: photoCount черновика + IT в CI-гейте
 - **Fix**: `/me/scans` (список) — `photoCount` черновика считался всегда 0 (COALESCE брал count записи=0
   для черновика без entry). Заменено на `CASE WHEN e.id IS NULL THEN draft_photos ELSE entry_photos`.

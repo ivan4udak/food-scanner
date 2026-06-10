@@ -46,6 +46,12 @@ public class OcrJobRepositoryAdapter implements OcrJobRepository {
 
     @Override
     @Transactional
+    public void supersede(UUID id, UUID supersededBy) {
+        jpa.supersedeById(id, supersededBy, Instant.now());
+    }
+
+    @Override
+    @Transactional
     public int markOrphans() {
         return jpa.markOrphans(Instant.now());
     }

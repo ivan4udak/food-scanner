@@ -69,4 +69,14 @@ class OcrJobRepositoryAdapterIT extends AbstractRepositoryIT {
         assertThat(repo.countActiveQueued()).isEqualTo(base);
         assertThat(repo.oldestQueuedCreatedAt()).isNotNull(); // не бросает
     }
+
+    @Test
+    void supersedeByIdMarksInactive() {
+        long base = repo.countActiveQueued();
+        OcrJob j = repo.save(OcrJob.queued(UUID.randomUUID(), "p/" + UUID.randomUUID() + ".jpg", "NUTRITION"));
+        assertThat(repo.countActiveQueued()).isEqualTo(base + 1);
+
+        repo.supersede(j.id(), UUID.randomUUID()); // reprocess замещает старую по id
+        assertThat(repo.countActiveQueued()).isEqualTo(base);
+    }
 }

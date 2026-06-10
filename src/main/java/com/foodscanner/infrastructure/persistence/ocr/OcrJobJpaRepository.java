@@ -45,6 +45,10 @@ public interface OcrJobJpaRepository extends JpaRepository<OcrJobJpaEntity, UUID
     int supersedePrevious(@Param("draftId") UUID draftId, @Param("photoType") String photoType,
                           @Param("newId") UUID newId, @Param("now") Instant now);
 
+    @Modifying
+    @Query("update OcrJobJpaEntity e set e.active=false, e.supersededAt=:now, e.supersededBy=:by where e.id=:id")
+    int supersedeById(@Param("id") UUID id, @Param("by") UUID by, @Param("now") Instant now);
+
     /** Orphan: активные задачи без catalog_entry и с исчезнувшим черновиком. */
     @Modifying
     @Query(nativeQuery = true, value = """
