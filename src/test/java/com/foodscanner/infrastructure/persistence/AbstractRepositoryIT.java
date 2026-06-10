@@ -1,6 +1,8 @@
 package com.foodscanner.infrastructure.persistence;
 
+import com.foodscanner.application.port.PhotoStorage;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +13,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @Transactional
 public abstract class AbstractRepositoryIT {
+
+    // Хранилище (MinIO) не нужно repository-IT и недоступно в CI — мок, чтобы MinioPhotoStorage
+    // не подключался при старте контекста (init ensure bucket → ConnectException).
+    @MockBean
+    PhotoStorage photoStorage;
 
     static final PostgreSQLContainer<?> POSTGRES;
 
