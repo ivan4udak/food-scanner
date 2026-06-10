@@ -1,7 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import type { AdminOcrRow } from '@/api/admin';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminReprocessOcr, type AdminOcrRow } from '@/api/admin';
 import { dt } from '@/features/admin/fmt';
 import { OCR_STATUS_SHORT, ocrStatusKind } from '@/features/admin/ocr';
+
+// reprocess доступен для PHOTO_UNREADABLE(3) и ERROR(5)
+const canReprocess = (code: number) => code === 3 || code === 5;
 
 const KIND_COLOR: Record<string, string> = {
   gray: '#9aa0a6', green: '#34a853', yellow: '#f9ab00', red: '#ea4335',
@@ -20,6 +24,11 @@ export function OcrJobsTable({ jobs, showBarcode = true, showUser = false }: {
   showUser?: boolean;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const reprocess = useMutation({
+    mutationFn: (jobId: string) => adminReprocessOcr(jobId),
+    onSuccess: () => qc.invalidateQueries(),
+  });
   if (!jobs || jobs.length === 0) return <p className="muted">Нет OCR-задач.</p>;
 
   return (
@@ -29,7 +38,7 @@ export function OcrJobsTable({ jobs, showBarcode = true, showUser = false }: {
           <tr>
             {showBarcode && <th>ШК</th>}
             {showUser && <th>Автор</th>}
-            <th>Тип</th><th>Статус</th><th></th><th>Попыт.</th><th>Обновлено</th><th>Текст / ошибка</th>
+            <th>Тип</th><th>Статус</th><th></th><th>Попыт.</th><th>Обновлено</th><th>Текст / ошибка</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -56,6 +65,15 @@ export function OcrJobsTable({ jobs, showBarcode = true, showUser = false }: {
               <td className="sub">{dt(j.updatedAt)}</td>
               <td className="sub" title={j.rawTextPreview ?? j.errorMessage ?? ''}>
                 {j.errorMessage ?? j.errorCode ?? (j.rawTextPreview ? j.rawTextPreview.slice(0, 30) : '—')}
+              </td>
+              <td>
+                {canReprocess(j.statusCode) && (
+                  <button className="chip" disabled={reprocess.isPending}
+                          title="Переотправить фото в OCR"
+                          onClick={() => reprocess.mutate(j.jobId)}>
+                    ↻ Переотправить
+                  </button>
+                )}
               </td>
             </tr>
           ))}

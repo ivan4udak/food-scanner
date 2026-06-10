@@ -26,6 +26,9 @@ public interface OcrJobRepository {
     /** Пометить прошлые активные задачи (draft, photoType) замещёнными новой → их число. */
     int supersedePrevious(UUID draftId, String photoType, UUID newJobId);
 
+    /** Пометить конкретную задачу замещённой (для reprocess по id, в т.ч. без draftId). */
+    void supersede(UUID id, UUID supersededBy);
+
     /** Пометить orphan активные задачи без catalog_entry с исчезнувшим черновиком → их число. */
     int markOrphans();
 

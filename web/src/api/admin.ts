@@ -110,6 +110,10 @@ export const adminOcr = (
 ) => get<AdminOcrRow[]>('/admin/ocr', { status, barcode, showInactive, showOrphaned, limit, offset });
 export const adminOcrSummary = () => get<AdminOcrSummary>('/admin/ocr/summary');
 
+/** Переотправить фото в OCR (для статусов 3/5). → id новой задачи. */
+export const adminReprocessOcr = async (jobId: string): Promise<string> =>
+  (await api.post(`/admin/ocr/${jobId}/reprocess`)).data?.jobId;
+
 /** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */
 export async function setUserRole(id: string, role: string): Promise<string> {
   const res = await api.post(`/admin/users/${id}/role`, { role });
