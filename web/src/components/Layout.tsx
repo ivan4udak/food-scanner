@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { aboutHref } from '@/lib/nav';
 
 export function Page({ children }: { children: ReactNode }) {
   return <main className="page">{children}</main>;
 }
-
-/** Ключ запоминания страницы, с которой открыли «О приложении» (через ⚙). */
-export const ABOUT_FROM_KEY = 'foodscanner.about.from';
 
 interface TopBarProps {
   title: string;
@@ -23,15 +21,9 @@ export function TopBar({ title, back, right, settings, onBack }: TopBarProps) {
   // Назад — на предыдущую страницу; если истории нет (прямой заход) — на главную.
   const goBack = onBack ?? (() => (window.history.length > 1 ? navigate(-1) : navigate('/')));
 
-  // ⚙ запоминает текущую страницу, чтобы «Назад» из «О приложении» вернул именно сюда.
-  const openSettings = () => {
-    try {
-      sessionStorage.setItem(ABOUT_FROM_KEY, window.location.pathname || '/');
-    } catch {
-      /* ignore */
-    }
-    navigate('/about');
-  };
+  // ⚙ → «О приложении» с returnTo (возврат сделает replace — без цикла /about ↔ страница).
+  const openSettings = () =>
+    navigate(aboutHref(window.location.pathname || '/', window.location.search || ''));
 
   return (
     <div className="topbar">
