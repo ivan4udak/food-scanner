@@ -12,6 +12,19 @@
 ## [Unreleased]
 - —
 
+## [1.12.5] — admin extraction detail and actions
+- `GET /admin/extraction/{jobId}` — полная карточка задачи извлечения + вложенный срез OCR-источника
+  (rawText/length/confidence/photoType/storageKey/error). 404 если нет.
+- `POST /admin/extraction/{jobId}/requeue` — новая QUEUED-задача с тем же ocrJobId/barcode/type;
+  старая остаётся как historical. Разрешено для NEEDS_REVIEW(3)/FAILED(4)/SKIPPED(5), иначе **409**.
+- `POST /admin/extraction/{jobId}/skip` — статус → SKIPPED (lastError="Skipped by admin", processedAt=now);
+  воркер берёт только QUEUED → пропущенную больше не возьмёт. Разрешено для QUEUED(0)/NEEDS_REVIEW(3)/FAILED(4),
+  иначе **409**. IN_PROGRESS(1) — без действий.
+- Порт `ProductExtractionJobRepository.findById/skip`; use-cases `RequeueExtractionUseCase`/`SkipExtractionUseCase`.
+- Страница `/admin/extraction/:jobId` (статус/связи/структурный результат/OCR-источник + кнопки Переотправить/Пропустить),
+  кнопка «детали» в списке. Read-only список из 1.12.4 сохранён.
+- Без реального LLM/Vision, без перезаписи ProductCard. Тесты: controller +5, services +6, adapter IT +1.
+
 ## [1.12.4] — admin extraction visibility
 - Новый admin read-API: `GET /admin/extraction` (фильтры `status`/`type`/`barcode`, свежие сверху)
   + `GET /admin/extraction/summary` (счётчики по статусам 0–5, zero-fill).

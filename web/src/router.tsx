@@ -20,6 +20,7 @@ import { AdminCatalogDetailPage } from '@/features/admin/AdminCatalogDetailPage'
 import { AdminOcrPage } from '@/features/admin/AdminOcrPage';
 import { AdminOcrDetailPage } from '@/features/admin/AdminOcrDetailPage';
 import { AdminExtractionPage } from '@/features/admin/AdminExtractionPage';
+import { AdminExtractionDetailPage } from '@/features/admin/AdminExtractionDetailPage';
 import { AdminErrorsPage } from '@/features/admin/AdminErrorsPage';
 import { AdminTracePage } from '@/features/admin/AdminTracePage';
 import { AdminUserByNamePage } from '@/features/admin/AdminUserByNamePage';
@@ -68,6 +69,7 @@ export const router = createBrowserRouter([
           { path: 'ocr', element: <AdminOcrPage /> },
           { path: 'ocr/:jobId', element: <AdminOcrDetailPage /> },
           { path: 'extraction', element: <AdminExtractionPage /> },
+          { path: 'extraction/:jobId', element: <AdminExtractionDetailPage /> },
           { path: 'errors', element: <AdminErrorsPage /> },
           { path: 'trace/:correlationId', element: <AdminTracePage /> },
         ],

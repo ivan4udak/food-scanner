@@ -197,6 +197,51 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         AdminExtractionSummary sum = port.extractionSummary();
         assertThat(sum.byStatus()).hasSize(6);                 // zero-fill 0..5
         assertThat(sum.total()).isGreaterThanOrEqualTo(1);
+
+        assertThat(port.extractionById(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void extractionByIdReadsJobAndOcrSlice() {
+        UUID ivan = contributor("ext_" + UUID.randomUUID());
+        UUID d = draft(ivan);
+        UUID ocrJobId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        String bc = barcodeStr(d);
+        Timestamp now = Timestamp.from(Instant.now());
+        // OCR-источник с rawText + confidence
+        jdbc.update("""
+            INSERT INTO food_catalog.ocr_jobs
+              (id,draft_id,storage_key,photo_type,status,attempts,raw_text,confidence,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            ocrJobId, d, "photos/" + ocrJobId + ".jpg", "INGREDIENTS", (short) 2, 1,
+            "Состав: вода, сахар", 0.59, now, now);
+        // задача извлечения без структурных полей (null-safe)
+        jdbc.update("""
+            INSERT INTO food_catalog.product_extraction_jobs
+              (id,ocr_job_id,barcode,type,status,attempts,queued_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            jobId, ocrJobId, bc, "TEXT_EXTRACTION", (short) 0, 0, now, now, now);
+
+        AdminExtractionDetail d2 = port.extractionById(jobId).orElseThrow();
+        assertThat(d2.statusCode()).isEqualTo(0);
+        assertThat(d2.status()).isEqualTo("QUEUED");
+        assertThat(d2.type()).isEqualTo("TEXT_EXTRACTION");
+        assertThat(d2.barcode()).isEqualTo(bc);
+        assertThat(d2.startedAt()).isNull();
+        // структурные поля ещё не заполнены — null-safe
+        assertThat(d2.name()).isNull();
+        assertThat(d2.composition()).isNull();
+        assertThat(d2.needsReview()).isNull();
+        // вложенный OCR-срез
+        assertThat(d2.ocr()).isNotNull();
+        assertThat(d2.ocr().jobId()).isEqualTo(ocrJobId);
+        assertThat(d2.ocr().statusCode()).isEqualTo(2);
+        assertThat(d2.ocr().status()).isEqualTo("NEEDS_REVIEW");
+        assertThat(d2.ocr().rawText()).isEqualTo("Состав: вода, сахар");
+        assertThat(d2.ocr().rawTextLength()).isEqualTo("Состав: вода, сахар".length());
+        assertThat(d2.ocr().confidence()).isEqualTo(0.59);
+        assertThat(d2.ocr().photoType()).isEqualTo("INGREDIENTS");
     }
 
     private void activity(UUID c, Instant at) {

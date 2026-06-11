@@ -143,6 +143,27 @@ export const adminExtraction = (
 ) => get<AdminExtractionRow[]>('/admin/extraction', { status, type, barcode, limit, offset });
 export const adminExtractionSummary = () => get<AdminExtractionSummary>('/admin/extraction/summary');
 
+export interface AdminExtractionOcr {
+  jobId: string; photoType: string; statusCode: number; status: string;
+  confidence: number | null; rawText: string | null; rawTextLength: number;
+  storageKey: string; errorCode: string | null; errorMessage: string | null;
+}
+export interface AdminExtractionDetail extends AdminExtractionRow {
+  startedAt: string | null;
+  composition: string | null; nutrition: string | null; confidence: string | null;
+  needsReview: boolean | null;
+  ocr: AdminExtractionOcr | null;
+}
+export const adminExtractionDetail = (jobId: string) =>
+  get<AdminExtractionDetail>(`/admin/extraction/${jobId}`);
+
+/** Requeue extraction (3/4/5 → новая QUEUED). → id новой задачи. */
+export const adminRequeueExtraction = async (jobId: string): Promise<string> =>
+  (await api.post(`/admin/extraction/${jobId}/requeue`)).data?.jobId;
+/** Skip extraction (0/3/4 → SKIPPED). → id той же задачи. */
+export const adminSkipExtraction = async (jobId: string): Promise<string> =>
+  (await api.post(`/admin/extraction/${jobId}/skip`)).data?.jobId;
+
 /** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */
 export async function setUserRole(id: string, role: string): Promise<string> {
   const res = await api.post(`/admin/users/${id}/role`, { role });

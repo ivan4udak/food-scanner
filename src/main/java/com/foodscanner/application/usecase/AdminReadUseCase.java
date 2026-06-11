@@ -49,4 +49,6 @@ public interface AdminReadUseCase {
                                         int limit, int offset);
 
     AdminExtractionSummary extractionSummary();
+
+    Optional<AdminExtractionDetail> extractionDetail(UUID jobId);
 }

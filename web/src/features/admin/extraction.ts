@@ -16,3 +16,10 @@ export const EXTRACTION_TYPE_SHORT: Record<string, string> = {
   TEXT_EXTRACTION: 'текст',
   IMAGE_FALLBACK_EXTRACTION: 'фото',
 };
+
+/** Requeue разрешён для NEEDS_REVIEW(3)/FAILED(4)/SKIPPED(5) — STRUCTURED(2) не трогаем без force. */
+export const canRequeueExtraction = (code: number) => code === 3 || code === 4 || code === 5;
+/** Skip разрешён для QUEUED(0)/NEEDS_REVIEW(3)/FAILED(4); IN_PROGRESS(1) — без действий. */
+export const canSkipExtraction = (code: number) => code === 0 || code === 3 || code === 4;
+/** Активные статусы (для live-refresh деталей): QUEUED/IN_PROGRESS. */
+export const extractionIsActive = (code: number) => code === 0 || code === 1;

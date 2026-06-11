@@ -208,4 +208,33 @@ class AdminReadControllerTest {
             .andExpect(jsonPath("$.byStatus[0].status").value("QUEUED"))
             .andExpect(jsonPath("$.byStatus[0].count").value(3));
     }
+
+    @Test
+    @DisplayName("GET /admin/extraction/{jobId} — карточка + вложенный OCR-срез")
+    void extractionDetail() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID ocrJobId = UUID.randomUUID();
+        when(admin.extractionDetail(id)).thenReturn(Optional.of(new AdminExtractionDetail(
+            id, ocrJobId, "460", "TEXT_EXTRACTION", 3, "NEEDS_REVIEW", "STUB", 1,
+            Instant.now(), null, null, Instant.now(), "low confidence",
+            null, null, null, null, null, null, null,
+            new AdminExtractionDetail.Ocr(ocrJobId, "INGREDIENTS", 2, "NEEDS_REVIEW", 0.59,
+                "Состав: вода, сахар", 18, "photos/x.jpg", null, null))));
+        mockMvc.perform(get("/api/v1/admin/extraction/" + id))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("NEEDS_REVIEW"))
+            .andExpect(jsonPath("$.type").value("TEXT_EXTRACTION"))
+            .andExpect(jsonPath("$.ocrJobId").value(ocrJobId.toString()))
+            .andExpect(jsonPath("$.ocr.status").value("NEEDS_REVIEW"))
+            .andExpect(jsonPath("$.ocr.rawText").value("Состав: вода, сахар"))
+            .andExpect(jsonPath("$.ocr.rawTextLength").value(18))
+            .andExpect(jsonPath("$.ocr.confidence").value(0.59));
+    }
+
+    @Test
+    @DisplayName("GET /admin/extraction/{jobId} — 404 если нет")
+    void extractionDetailNotFound() throws Exception {
+        when(admin.extractionDetail(any())).thenReturn(Optional.empty());
+        mockMvc.perform(get("/api/v1/admin/extraction/" + UUID.randomUUID())).andExpect(status().isNotFound());
+    }
 }

@@ -459,6 +459,40 @@ public class AdminReadAdapter implements AdminReadPort {
         return new AdminExtractionSummary(total, byStatus);
     }
 
+    @Override
+    public Optional<AdminExtractionDetail> extractionById(UUID jobId) {
+        String sql = """
+            SELECT pej.id, pej.ocr_job_id, pej.barcode, pej.type, pej.status, pej.attempts, pej.source,
+                   pej.name, pej.brand, pej.manufacturer, pej.composition, pej.nutrition, pej.confidence,
+                   pej.needs_review, pej.last_error, pej.queued_at, pej.processed_at, pej.updated_at,
+                   oj.id AS ocr_id, oj.photo_type AS ocr_photo_type, oj.status AS ocr_status,
+                   oj.confidence AS ocr_confidence, oj.raw_text AS ocr_raw_text, oj.storage_key AS ocr_storage_key,
+                   oj.error_code AS ocr_error_code, oj.error_message AS ocr_error_message
+            FROM food_catalog.product_extraction_jobs pej
+            LEFT JOIN food_catalog.ocr_jobs oj ON oj.id = pej.ocr_job_id
+            WHERE pej.id = ?""";
+        return jdbc.query(sql, (rs, n) -> {
+            int code = rs.getInt("status");
+            AdminExtractionDetail.Ocr ocr = null;
+            UUID ocrId = uuid(rs, "ocr_id");
+            if (ocrId != null) {
+                int ocrCode = rs.getInt("ocr_status");
+                String raw = str(rs, "ocr_raw_text");
+                ocr = new AdminExtractionDetail.Ocr(
+                    ocrId, str(rs, "ocr_photo_type"), ocrCode, OcrStatus.fromCode(ocrCode).name(),
+                    (Double) rs.getObject("ocr_confidence"), raw, raw == null ? 0 : raw.length(),
+                    str(rs, "ocr_storage_key"), str(rs, "ocr_error_code"), str(rs, "ocr_error_message"));
+            }
+            return new AdminExtractionDetail(
+                uuid(rs, "id"), uuid(rs, "ocr_job_id"), str(rs, "barcode"), str(rs, "type"),
+                code, ExtractionStatus.fromCode(code).name(), str(rs, "source"), rs.getInt("attempts"),
+                inst(rs, "queued_at"), null, inst(rs, "processed_at"), inst(rs, "updated_at"),
+                str(rs, "last_error"), str(rs, "name"), str(rs, "brand"), str(rs, "manufacturer"),
+                str(rs, "composition"), str(rs, "nutrition"), str(rs, "confidence"),
+                (Boolean) rs.getObject("needs_review"), ocr);
+        }, jobId).stream().findFirst();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private long count(String sql, Object... args) {
         Long v = jdbc.queryForObject(sql, Long.class, args);
