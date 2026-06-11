@@ -34,6 +34,11 @@ OCR_JOB_TIMEOUT = float(os.environ.get("OCR_JOB_TIMEOUT_SECONDS", "120"))
 DOWNLOAD_TIMEOUT = float(os.environ.get("OCR_IMAGE_DOWNLOAD_TIMEOUT_SECONDS", "30"))
 # минимальная средняя уверенность, чтобы считать фото читаемым
 OCR_MIN_CONFIDENCE = float(os.environ.get("OCR_MIN_CONFIDENCE", "0.1"))
+# качество распознавания (v1.11.1): пороги детектора + апскейл мелких фото
+OCR_TEXT_THRESHOLD = float(os.environ.get("OCR_TEXT_THRESHOLD", "0.6"))  # ниже дефолта 0.7 → выше recall
+OCR_LOW_TEXT = float(os.environ.get("OCR_LOW_TEXT", "0.3"))              # ниже дефолта 0.4
+OCR_MAG_RATIO = float(os.environ.get("OCR_MAG_RATIO", "1.5"))           # внутренний апскейл мелких фото
+OCR_UPSCALE_BELOW = int(os.environ.get("OCR_UPSCALE_BELOW", "1600"))    # длинная сторона < px → апскейл
 
 # MinIO (то же окружение/bucket, что и backend — берём из app.env)
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://minio:9000")
@@ -86,13 +91,19 @@ class EasyOcrEngine(OcrEngine):
         return self._reader
 
     def recognize(self, image_bytes: bytes) -> dict:
-        from PIL import Image
+        from PIL import Image, ImageOps
         import numpy as np
         try:
-            img = Image.open(io.BytesIO(image_bytes)).convert("L")  # grayscale
+            img = Image.open(io.BytesIO(image_bytes))
+            img = ImageOps.exif_transpose(img)   # учесть ориентацию из EXIF (фото с телефона)
+            img = img.convert("RGB")             # цвет — EasyOCR нормализует сам (лучше grayscale)
         except Exception as e:
             return _result(5, error_code="IMAGE_DECODE_ERROR", error_message=f"decode: {e}")
-        detections = self._reader_instance().readtext(np.array(img), detail=1, paragraph=False)
+        # мелкие фото апскейлим внутренним mag_ratio (детектору проще на мелком тексте)
+        mag = OCR_MAG_RATIO if max(img.size) < OCR_UPSCALE_BELOW else 1.0
+        detections = self._reader_instance().readtext(
+            np.array(img), detail=1, paragraph=False,
+            text_threshold=OCR_TEXT_THRESHOLD, low_text=OCR_LOW_TEXT, mag_ratio=mag)
         texts = [d[1] for d in detections if d[1] and str(d[1]).strip()]
         confs = [float(d[2]) for d in detections if len(d) > 2 and d[2] is not None]
         raw = "\n".join(texts).strip()

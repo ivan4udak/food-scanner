@@ -19,7 +19,7 @@ def _png_bytes():
 class FakeReader:
     def __init__(self, detections):
         self._d = detections
-    def readtext(self, arr, detail=1, paragraph=False):
+    def readtext(self, arr, **kwargs):  # detail/paragraph/text_threshold/low_text/mag_ratio
         return self._d
 
 
