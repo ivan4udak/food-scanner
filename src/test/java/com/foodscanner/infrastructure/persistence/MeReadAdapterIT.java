@@ -78,6 +78,31 @@ class MeReadAdapterIT extends AbstractRepositoryIT {
         assertThat(port.ocrForScan(null, null)).isEmpty();
     }
 
+    @Test
+    void extractionForScanReturnsLatestPerOcrSource() {
+        UUID me = contributor();
+        String bc = "ext" + System.nanoTime();
+        UUID d = draft(me, bc, "OPEN");
+        UUID ocrIng = ocrJobId(d, "INGREDIENTS");
+        UUID ocrNut = ocrJobId(d, "NUTRITION");
+        Instant t0 = Instant.now().minusSeconds(120);
+        // у INGREDIENTS две задачи (historical + свежая от requeue) → берём свежую
+        extractionJob(ocrIng, bc, (short) 5, null, t0);                  // старая SKIPPED
+        extractionJob(ocrIng, bc, (short) 2, "Печенье", t0.plusSeconds(60)); // свежая STRUCTURED
+        extractionJob(ocrNut, bc, (short) 0, null, t0.plusSeconds(30));  // QUEUED
+
+        List<MeReadPort.ExtractionData> ext = port.extractionForScan(d, null);
+        assertThat(ext).hasSize(2);                                     // по одной на источник
+        MeReadPort.ExtractionData ing = ext.stream()
+            .filter(e -> e.photoType().equals("INGREDIENTS")).findFirst().orElseThrow();
+        assertThat(ing.statusCode()).isEqualTo(2);                     // свежая, не SKIPPED
+        assertThat(ing.name()).isEqualTo("Печенье");
+        assertThat(ext).extracting(MeReadPort.ExtractionData::photoType)
+            .containsExactlyInAnyOrder("INGREDIENTS", "NUTRITION");
+
+        assertThat(port.extractionForScan(null, null)).isEmpty();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private void ocrJob(UUID draftId, UUID entryId, String type, short status, boolean active) {
         Timestamp now = Timestamp.from(Instant.now());
@@ -86,6 +111,26 @@ class MeReadAdapterIT extends AbstractRepositoryIT {
               (id,draft_id,catalog_entry_id,storage_key,photo_type,status,attempts,active,created_at,updated_at)
             VALUES (?,?,?,?,?,?,1,?,?,?)""",
             UUID.randomUUID(), draftId, entryId, "photos/" + UUID.randomUUID(), type, status, active, now, now);
+    }
+
+    private UUID ocrJobId(UUID draftId, String type) {
+        UUID id = UUID.randomUUID();
+        Timestamp now = Timestamp.from(Instant.now());
+        jdbc.update("""
+            INSERT INTO food_catalog.ocr_jobs
+              (id,draft_id,storage_key,photo_type,status,attempts,active,created_at,updated_at)
+            VALUES (?,?,?,?,2,1,true,?,?)""",
+            id, draftId, "photos/" + UUID.randomUUID(), type, now, now);
+        return id;
+    }
+
+    private void extractionJob(UUID ocrJobId, String barcode, short status, String name, Instant queuedAt) {
+        Timestamp q = Timestamp.from(queuedAt);
+        jdbc.update("""
+            INSERT INTO food_catalog.product_extraction_jobs
+              (id,ocr_job_id,barcode,type,status,attempts,name,queued_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,0,?,?,?,?)""",
+            UUID.randomUUID(), ocrJobId, barcode, "TEXT_EXTRACTION", status, name, q, q, q);
     }
 
     private UUID contributor() {

@@ -97,6 +97,25 @@ public class MeReadAdapter implements MeReadPort {
         inst(rs, "updated_at"), rs.getString("raw_text_preview"),
         rs.getString("error_code"), rs.getString("error_message"));
 
+    @Override
+    public List<ExtractionData> extractionForScan(UUID draftId, UUID catalogEntryId) {
+        // последняя задача извлечения на каждый OCR-источник (отбрасываем historical от requeue)
+        return jdbc.query("""
+            SELECT photo_type, status, name, brand, manufacturer, updated_at FROM (
+              SELECT DISTINCT ON (pej.ocr_job_id)
+                     oj.photo_type, pej.status, pej.name, pej.brand, pej.manufacturer, pej.updated_at
+              FROM food_catalog.product_extraction_jobs pej
+              JOIN food_catalog.ocr_jobs oj ON oj.id = pej.ocr_job_id
+              WHERE (oj.draft_id = CAST(? AS uuid) OR oj.catalog_entry_id = CAST(? AS uuid))
+              ORDER BY pej.ocr_job_id, pej.queued_at DESC
+            ) t ORDER BY updated_at DESC""",
+            EXTRACTION_MAPPER, draftId, catalogEntryId);
+    }
+
+    private static final RowMapper<ExtractionData> EXTRACTION_MAPPER = (rs, n) -> new ExtractionData(
+        rs.getString("photo_type"), rs.getInt("status"), rs.getString("name"),
+        rs.getString("brand"), rs.getString("manufacturer"), inst(rs, "updated_at"));
+
     // ── helpers ──────────────────────────────────────────────
     private static UUID uuid(ResultSet rs, String col) throws SQLException {
         String s = rs.getString(col);
