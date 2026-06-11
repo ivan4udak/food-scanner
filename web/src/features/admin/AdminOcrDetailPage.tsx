@@ -9,7 +9,7 @@ import { OCR_STATUS_SHORT, ocrStatusKind } from '@/features/admin/ocr';
 
 const KIND_COLOR: Record<string, string> = { gray: '#9aa0a6', green: '#34a853', yellow: '#f9ab00', red: '#ea4335' };
 const isActive = (s: number) => s === 0 || s === 1;
-const canReprocess = (s: number) => s === 3 || s === 5;
+const canReprocess = (s: number) => s === 2 || s === 3 || s === 5;
 
 /** Полная карточка OCR-задачи: статус, полный rawText (копирование), связи, фото, reprocess. */
 export function AdminOcrDetailPage() {

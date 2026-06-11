@@ -12,6 +12,14 @@
 ## [Unreleased]
 - —
 
+## [1.12.2] — OCR reprocess for NEEDS_REVIEW
+- `POST /admin/ocr/{jobId}/reprocess` теперь разрешён и для **NEEDS_REVIEW(2)** (после реального EasyOCR
+  нормальный raw-text получает статус 2 — админ может перечитать фото: плохой текст/обновлён движок/сравнить качество).
+- Статусы **3 PHOTO_UNREADABLE / 5 ERROR** — по-прежнему разрешены; **0/1/4 отклоняются (409)**. Endpoint не менялся.
+- Поведение reprocess без изменений (supersede старой + новая QUEUED + publish best-effort). Старые extraction-задачи
+  не трогаем — новый OCR-результат сам создаст новую по eligibility.
+- Admin UI: «↻ Переотправить» виден для 2/3/5. Тесты: ReprocessOcrService (2/3/5 allow, 0/1/4 reject), фронт.
+
 ## [1.12.1] — Product Extraction: ночной воркер + StubProductExtractor
 - **`ProductExtractor` порт** + **`StubProductExtractor`** (флаг `PRODUCT_EXTRACTOR=stub|text_llm|image_llm`,
   по умолчанию stub → ничего не извлекает → SKIPPED). Реальные LLM/vision — отдельный срез.

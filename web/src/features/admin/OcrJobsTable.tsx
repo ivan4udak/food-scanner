@@ -4,8 +4,8 @@ import { adminReprocessOcr, type AdminOcrRow } from '@/api/admin';
 import { dt } from '@/features/admin/fmt';
 import { OCR_STATUS_SHORT, ocrStatusKind } from '@/features/admin/ocr';
 
-// reprocess доступен для PHOTO_UNREADABLE(3) и ERROR(5)
-const canReprocess = (code: number) => code === 3 || code === 5;
+// reprocess доступен для NEEDS_REVIEW(2), PHOTO_UNREADABLE(3) и ERROR(5)
+const canReprocess = (code: number) => code === 2 || code === 3 || code === 5;
 
 const KIND_COLOR: Record<string, string> = {
   gray: '#9aa0a6', green: '#34a853', yellow: '#f9ab00', red: '#ea4335',

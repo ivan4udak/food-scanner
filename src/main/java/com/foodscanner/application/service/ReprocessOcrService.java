@@ -30,9 +30,12 @@ public class ReprocessOcrService implements ReprocessOcrUseCase {
     public Optional<UUID> execute(UUID jobId) {
         return repository.findById(jobId).map(old -> {
             int code = old.status().code();
-            if (code != OcrStatus.PHOTO_UNREADABLE.code() && code != OcrStatus.ERROR.code()) {
+            boolean reprocessable = code == OcrStatus.NEEDS_REVIEW.code()
+                || code == OcrStatus.PHOTO_UNREADABLE.code()
+                || code == OcrStatus.ERROR.code();
+            if (!reprocessable) {
                 throw new IllegalStateException(
-                    "reprocess только для PHOTO_UNREADABLE(3)/ERROR(5), текущий статус=" + code);
+                    "reprocess только для NEEDS_REVIEW(2)/PHOTO_UNREADABLE(3)/ERROR(5), текущий статус=" + code);
             }
             OcrJob fresh = repository.save(
                 OcrJob.requeue(old.draftId(), old.catalogEntryId(), old.storageKey(), old.photoType()));
