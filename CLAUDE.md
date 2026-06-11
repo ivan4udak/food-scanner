@@ -12,7 +12,7 @@ Backend Spring Boot 3 / Java 21 / Postgres / Flyway / MinIO / JWT, DDD + Ports&A
 ## Версионирование (СТРОГО)
 Источник истины: `VERSION` (корень) = `web/package.json` = `web/src/version.ts` = верх `CHANGELOG.md`. Git-теги заморожены на v1.4.0 — НЕ ориентир.
 Перед бампом проверить все 4 источника, взять максимум, **никогда не переиспользовать версию**. PATCH=фикс, MINOR=фича/API.
-**Текущая: 1.10.8.** Следующая фикс → 1.10.9 (или MINOR 1.11.0 для движка).
+**Текущая: 1.11.0.** Следующая фикс → 1.11.1 (MINOR 1.12.0 для парсинга состава/КБЖУ).
 
 ## Git author policy
 Коммиты только от владельца (`Volk <m-ore@list.ru>`). НЕ добавлять Co-Authored-By: Claude / Generated with Claude / любые AI-пометки. Перед коммитом сверять `git config user.name/email`.
@@ -37,13 +37,14 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
   - v1.10.6 ✅ долг закрыт: photoCount черновика (CASE вместо COALESCE) + failsafe → `*IT` (22) теперь в `mvn verify` (герметичны: `@MockBean PhotoStorage`).
   - v1.10.7 ✅ OCR reprocess: `POST /admin/ocr/{jobId}/reprocess` (статусы 3/5 → новая QUEUED + supersede + publish) + кнопка «↻ Переотправить».
   - v1.10.8 ✅ OCR result visibility: `GET /admin/ocr/{jobId}` + страница `/admin/ocr/:jobId` (полный rawText/копирование, фото, клик-связи, reprocess).
-  - Дальше: **v1.11.0 реальный движок EasyOCR** (OcrEngine port + EasyOcrEngine, MinIO download, preprocessing, timeout, concurrency, rawText/confidence, PHOTO_UNREADABLE/ERROR; парсинг состава/КБЖУ — позже). Архитектура подготовлена.
+- v1.11.0 ✅ **реальный EasyOCR (CPU)** в ocr-service: `OcrEngine` (EasyOcrEngine/StubOcrEngine, `OCR_ENGINE=easyocr|stub`), MinIO download, ru/en, timeout, concurrency=1, lazy-модели, `mem_limit:1800m`. Маппинг raw-only: текст→2, нет/низкая уверенность→3, тех.ошибка→5 (SUCCESS(4) — резерв под парсинг). Деплой только staging.
+  - Дальше: парсинг состава/КБЖУ (→SUCCESS(4)), retry/DLQ.
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.10.8 (OCR активен, заглушка) · stable(main)=1.8.0 · production(release)=без изменений.
-Ожидает: продвинуть 1.8.1–1.10.8 в main по подтверждению. **stable/production не трогать.**
+staging(test)=1.11.0 (OCR активен, реальный EasyOCR) · stable(main)=1.8.0 · production(release)=без изменений.
+Ожидает: продвинуть 1.8.1–1.11.0 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы
 Низкая многословность. Читать только связанные файлы, не пересканировать дерево, не дублировать абстракции, держать границы DDD, минимум правок, TDD. Формат ответа: PLAN / CHANGES / TESTS / RESULT.

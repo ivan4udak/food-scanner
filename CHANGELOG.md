@@ -12,6 +12,20 @@
 ## [Unreleased]
 - —
 
+## [1.11.0] — real OCR: EasyOCR raw text
+- **ocr-service**: реальный движок **EasyOCR (CPU-only torch)** за абстракцией `OcrEngine`
+  (`EasyOcrEngine`/`StubOcrEngine`, выбор по `OCR_ENGINE=easyocr|stub` — мгновенный откат).
+- Скачивание фото из **MinIO** внутри ocr-service по `storageKey` (тот же bucket/креды, что backend; через app.env).
+- Языки **ru,en**; per-job timeout (`OCR_JOB_TIMEOUT_SECONDS=120`), download timeout (`30`);
+  `OCR_WORKER_CONCURRENCY=1` + RabbitMQ prefetch=1; модели EasyOCR — lazy-load на первой задаче.
+- Маппинг статусов (raw-only, без парсинга): текст→**NEEDS_REVIEW(2)**+rawText+confidence;
+  нет текста/низкая уверенность→**PHOTO_UNREADABLE(3)**; MinIO/decode/timeout/исключение→**ERROR(5)**
+  (`MINIO_OBJECT_NOT_FOUND`/`MINIO_DOWNLOAD_ERROR`/`IMAGE_DECODE_ERROR`/`OCR_TIMEOUT`/`OCR_ENGINE_ERROR`).
+  `SUCCESS(4)` НЕ ставится за сырой текст. Контракт `ocr_jobs`/статусы не менялись.
+- Безопасность хоста: `mem_limit: 1800m` только на `ocr-staging` (при OOM умрёт OCR, не stable/production).
+- Тесты: `python -m unittest test_app` (5, status mapping); `compileall` ok. **Деплой только staging.**
+- НЕ в этом релизе: парсинг состава/КБЖУ, scoring, внешние каталоги/маркировка, mass reprocess.
+
 ## [1.10.8] — OCR result visibility: карточка задачи /admin/ocr/{jobId}
 - **API**: `GET /admin/ocr/{jobId}` — полная карточка (полный rawText/parsedIngredients/parsedNutrition,
   confidence, lifecycle active/superseded/orphaned, publish published_at/attempts/last_publish_error). 404 если нет.

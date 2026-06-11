@@ -54,9 +54,30 @@ docker logs backend-staging | grep -iE 'ocr|rabbit|amqp'
 docker logs rabbitmq-staging
 ```
 
+## 3a. Движок: EasyOCR (v1.11.0) vs заглушка
+ocr-service выбирает движок по `OCR_ENGINE` (в app.env / compose env): `easyocr` (по умолчанию) либо `stub`.
+EasyOCR (CPU): скачивает фото из MinIO (тот же `MINIO_*`/bucket, что backend), распознаёт `rawText`+confidence,
+модели качаются лениво на первой задаче (лог `[ocr] lazy-loading EasyOCR models`). Память ограничена `mem_limit: 1800m`.
+Параметры (env, дефолты): `OCR_WORKER_CONCURRENCY=1`, `OCR_LANGS=ru,en`, `OCR_JOB_TIMEOUT_SECONDS=120`,
+`OCR_IMAGE_DOWNLOAD_TIMEOUT_SECONDS=30`.
+
+Статусы результата (raw-only, парсинга нет):
+- текст найден → **NEEDS_REVIEW(2)** + rawText + confidence;
+- текста нет / очень низкая уверенность → **PHOTO_UNREADABLE(3)** (errorCode `PHOTO_UNREADABLE`);
+- MinIO/decode/timeout/исключение → **ERROR(5)** (`MINIO_OBJECT_NOT_FOUND`/`MINIO_DOWNLOAD_ERROR`/`IMAGE_DECODE_ERROR`/`OCR_TIMEOUT`/`OCR_ENGINE_ERROR`).
+`SUCCESS(4)` НЕ ставится за сырой текст — резерв под распарсенный результат.
+
+RAM/CPU: `free -m; docker stats --no-stream ocr-staging`. Проверка результата:
+`docker logs ocr-staging | grep -E "lazy-loading|done status"`; в БД `length(raw_text)`, `confidence`, `status`.
+
 ## 4. Выключение / откат
 ```bash
-# мягко: вернуть флаг
+cd /opt/foodscanner/staging
+# (a) быстрый откат движка на заглушку (без выключения очереди):
+sed -i 's/^OCR_ENGINE=easyocr/OCR_ENGINE=stub/' app.env   # или добавить OCR_ENGINE=stub
+docker compose up -d ocr
+
+# (b) полностью выключить OCR:
 sed -i 's/^OCR_AMQP_ENABLED=true/OCR_AMQP_ENABLED=false/' app.env
 docker compose up -d backend       # backend без AMQP
 docker compose stop ocr rabbitmq   # остановить очередь и сервис
@@ -64,9 +85,10 @@ docker compose stop ocr rabbitmq   # остановить очередь и се
 Данные `ocr_jobs` остаются (для анализа). Полный откат — `docker compose rm -sf ocr rabbitmq`.
 
 ## 5. Известные ограничения (до доработки)
-- `ocr_jobs.draft_id` без FK-cascade: при удалении брошенного черновика (cleanup job)
-  остаются orphan-строки. Безопасно, но мусор — почистить отдельным срезом.
-- Повторная загрузка того же типа фото создаёт новую задачу (старую не отменяет).
-- Заглушка движка всегда → NEEDS_REVIEW (фото не читается). Реальный движок — v1.10.2+.
+- `ocr_jobs.draft_id` без FK-cascade: orphan-строки помечаются `orphaned` в cleanup (v1.10.4).
+- EasyOCR на shared-сервере тяжёл по RAM/CPU; `mem_limit: 1800m` ограждает stable/production от OOM
+  (при превышении Docker убьёт ocr-staging). concurrency=1/prefetch=1 — не берём пачку фото.
+- Парсинг состава/КБЖУ ещё не сделан → текст всегда NEEDS_REVIEW(2), не SUCCESS(4).
+- IN_PROGRESS_READABLE(1) промежуточно не публикуется (одно result-сообщение на задачу).
 
 ## 6. Статусы (см. docs/OCR.md): 0 QUEUED · 1 IN_PROGRESS · 2 NEEDS_REVIEW · 3 UNREADABLE · 4 SUCCESS · 5 ERROR.
