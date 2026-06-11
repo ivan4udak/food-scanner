@@ -12,6 +12,12 @@
 ## [Unreleased]
 - —
 
+## [1.11.1] — OCR quality: preprocessing + тюнинг детектора
+- EasyOcrEngine: EXIF-ориентация (`ImageOps.exif_transpose`), цвет RGB вместо grayscale,
+  внутренний апскейл мелких фото (`mag_ratio`, длинная сторона < `OCR_UPSCALE_BELOW`),
+  пониженные пороги детектора (`OCR_TEXT_THRESHOLD=0.6`, `OCR_LOW_TEXT=0.3`) → выше recall.
+- Все параметры через env (дефолты безопасные). Только ocr-service; статусы/контракт не менялись.
+
 ## [1.11.0] — real OCR: EasyOCR raw text
 - **ocr-service**: реальный движок **EasyOCR (CPU-only torch)** за абстракцией `OcrEngine`
   (`EasyOcrEngine`/`StubOcrEngine`, выбор по `OCR_ENGINE=easyocr|stub` — мгновенный откат).
