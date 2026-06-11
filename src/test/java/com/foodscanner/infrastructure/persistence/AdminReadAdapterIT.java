@@ -161,6 +161,44 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(port.ocrById(UUID.randomUUID())).isEmpty();
     }
 
+    @Test
+    void extractionJobsListFilterAndSummary() {
+        UUID jobId = UUID.randomUUID();
+        UUID ocrJobId = UUID.randomUUID();
+        String bc = "460" + (System.nanoTime() % 1_000_000_000L);
+        Timestamp now = Timestamp.from(Instant.now());
+        jdbc.update("""
+            INSERT INTO food_catalog.product_extraction_jobs
+              (id,ocr_job_id,barcode,type,status,attempts,source,name,brand,manufacturer,
+               last_error,queued_at,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            jobId, ocrJobId, bc, "TEXT_EXTRACTION", (short) 3, 2, "STUB",
+            "Печенье", "BrandX", "ООО Завод", "low confidence", now, now, now);
+
+        AdminExtractionRow row = port.extractionJobs(null, null, null, 50, 0).stream()
+            .filter(r -> r.jobId().equals(jobId)).findFirst().orElseThrow();
+        assertThat(row.ocrJobId()).isEqualTo(ocrJobId);
+        assertThat(row.barcode()).isEqualTo(bc);
+        assertThat(row.type()).isEqualTo("TEXT_EXTRACTION");
+        assertThat(row.statusCode()).isEqualTo(3);
+        assertThat(row.status()).isEqualTo("NEEDS_REVIEW");
+        assertThat(row.attempts()).isEqualTo(2);
+        assertThat(row.name()).isEqualTo("Печенье");
+        assertThat(row.lastError()).isEqualTo("low confidence");
+
+        // фильтры
+        assertThat(port.extractionJobs(3, null, null, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.extractionJobs(0, null, null, 50, 0)).noneMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.extractionJobs(null, "TEXT_EXTRACTION", null, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.extractionJobs(null, "IMAGE_FALLBACK_EXTRACTION", null, 50, 0))
+            .noneMatch(r -> r.jobId().equals(jobId));
+        assertThat(port.extractionJobs(null, null, bc, 50, 0)).anyMatch(r -> r.jobId().equals(jobId));
+
+        AdminExtractionSummary sum = port.extractionSummary();
+        assertThat(sum.byStatus()).hasSize(6);                 // zero-fill 0..5
+        assertThat(sum.total()).isGreaterThanOrEqualTo(1);
+    }
+
     private void activity(UUID c, Instant at) {
         Timestamp ts = Timestamp.from(at);
         jdbc.update("""

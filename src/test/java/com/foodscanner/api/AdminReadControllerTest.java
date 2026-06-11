@@ -175,4 +175,37 @@ class AdminReadControllerTest {
             .andExpect(jsonPath("$.byStatus[1].status").value("NEEDS_REVIEW"))
             .andExpect(jsonPath("$.byStatus[1].count").value(7));
     }
+
+    @Test
+    @DisplayName("GET /admin/extraction — список с фильтром по статусу/типу")
+    void extraction() throws Exception {
+        UUID jobId = UUID.randomUUID();
+        UUID ocrJobId = UUID.randomUUID();
+        when(admin.extraction(eq(3), eq("TEXT_EXTRACTION"), isNull(), anyInt(), anyInt())).thenReturn(List.of(
+            new AdminExtractionRow(jobId, ocrJobId, "4680328054884", "TEXT_EXTRACTION", 3, "NEEDS_REVIEW",
+                2, "STUB", "Печенье", "BrandX", "ООО Завод", "low confidence",
+                Instant.now(), Instant.now(), Instant.now())));
+        mockMvc.perform(get("/api/v1/admin/extraction").param("status", "3").param("type", "TEXT_EXTRACTION"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].barcode").value("4680328054884"))
+            .andExpect(jsonPath("$[0].type").value("TEXT_EXTRACTION"))
+            .andExpect(jsonPath("$[0].status").value("NEEDS_REVIEW"))
+            .andExpect(jsonPath("$[0].statusCode").value(3))
+            .andExpect(jsonPath("$[0].attempts").value(2))
+            .andExpect(jsonPath("$[0].ocrJobId").value(ocrJobId.toString()))
+            .andExpect(jsonPath("$[0].name").value("Печенье"));
+    }
+
+    @Test
+    @DisplayName("GET /admin/extraction/summary — сводка по статусам (zero-fill 0..5)")
+    void extractionSummary() throws Exception {
+        when(admin.extractionSummary()).thenReturn(new AdminExtractionSummary(5, List.of(
+            new AdminExtractionSummary.StatusCount(0, "QUEUED", 3),
+            new AdminExtractionSummary.StatusCount(5, "SKIPPED", 2))));
+        mockMvc.perform(get("/api/v1/admin/extraction/summary"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.total").value(5))
+            .andExpect(jsonPath("$.byStatus[0].status").value("QUEUED"))
+            .andExpect(jsonPath("$.byStatus[0].count").value(3));
+    }
 }

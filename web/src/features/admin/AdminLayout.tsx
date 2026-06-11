@@ -9,6 +9,7 @@ const TABS = [
   { to: '/admin/logs', label: 'Логи' },
   { to: '/admin/catalog', label: 'Каталог' },
   { to: '/admin/ocr', label: 'OCR' },
+  { to: '/admin/extraction', label: 'Извлечение' },
   { to: '/admin/errors', label: 'Ошибки' },
 ];
 

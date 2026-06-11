@@ -3,6 +3,7 @@ package com.foodscanner.infrastructure.persistence.admin;
 import com.foodscanner.application.port.AdminReadPort;
 import com.foodscanner.application.query.AdminLogFilter;
 import com.foodscanner.application.result.admin.*;
+import com.foodscanner.domain.model.extraction.ExtractionStatus;
 import com.foodscanner.domain.model.ocr.OcrStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -399,6 +400,63 @@ public class AdminReadAdapter implements AdminReadPort {
                 inst(rs, "published_at"), rs.getInt("publish_attempts"), str(rs, "last_publish_error"),
                 inst(rs, "superseded_at"), uuid(rs, "superseded_by"));
         }, jobId).stream().findFirst();
+    }
+
+    // ── product extraction ───────────────────────────────────
+    private static final String EXTRACTION_SELECT = """
+        SELECT pej.id, pej.ocr_job_id, pej.barcode, pej.type, pej.status, pej.attempts,
+               pej.source, pej.name, pej.brand, pej.manufacturer, pej.last_error,
+               pej.queued_at, pej.processed_at, pej.updated_at
+        FROM food_catalog.product_extraction_jobs pej
+        """;
+    private static final RowMapper<AdminExtractionRow> EXTRACTION_MAPPER = (rs, n) -> {
+        int code = rs.getInt("status");
+        return new AdminExtractionRow(
+            uuid(rs, "id"), uuid(rs, "ocr_job_id"), str(rs, "barcode"), str(rs, "type"),
+            code, ExtractionStatus.fromCode(code).name(), rs.getInt("attempts"),
+            str(rs, "source"), str(rs, "name"), str(rs, "brand"), str(rs, "manufacturer"),
+            str(rs, "last_error"), inst(rs, "queued_at"), inst(rs, "processed_at"),
+            inst(rs, "updated_at"));
+    };
+
+    @Override
+    public List<AdminExtractionRow> extractionJobs(Integer status, String type, String barcode,
+                                                   int limit, int offset) {
+        StringBuilder sql = new StringBuilder(EXTRACTION_SELECT);
+        List<Object> args = new ArrayList<>();
+        List<String> where = new ArrayList<>();
+        if (status != null) {
+            where.add("pej.status = ?");
+            args.add(status);
+        }
+        if (type != null && !type.isBlank()) {
+            where.add("pej.type = ?");
+            args.add(type.trim());
+        }
+        if (barcode != null && !barcode.isBlank()) {
+            where.add("pej.barcode = ?");
+            args.add(barcode.trim());
+        }
+        if (!where.isEmpty()) sql.append(" WHERE ").append(String.join(" AND ", where));
+        sql.append(" ORDER BY pej.queued_at DESC LIMIT ? OFFSET ?");
+        args.add(limit);
+        args.add(offset);
+        return jdbc.query(sql.toString(), EXTRACTION_MAPPER, args.toArray());
+    }
+
+    @Override
+    public AdminExtractionSummary extractionSummary() {
+        Map<Integer, Long> counts = new HashMap<>();
+        jdbc.query("SELECT status, count(*) AS cnt FROM food_catalog.product_extraction_jobs GROUP BY status",
+            (rs, n) -> counts.put(rs.getInt("status"), rs.getLong("cnt")));
+        long total = 0;
+        List<AdminExtractionSummary.StatusCount> byStatus = new ArrayList<>();
+        for (ExtractionStatus s : ExtractionStatus.values()) {
+            long c = counts.getOrDefault(s.code(), 0L);
+            total += c;
+            byStatus.add(new AdminExtractionSummary.StatusCount(s.code(), s.name(), c));
+        }
+        return new AdminExtractionSummary(total, byStatus);
     }
 
     // ── helpers ──────────────────────────────────────────────

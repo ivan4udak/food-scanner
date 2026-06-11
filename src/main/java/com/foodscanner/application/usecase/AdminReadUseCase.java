@@ -44,4 +44,9 @@ public interface AdminReadUseCase {
     AdminOcrSummary ocrSummary();
 
     Optional<AdminOcrDetail> ocrDetail(UUID jobId);
+
+    List<AdminExtractionRow> extraction(Integer status, String type, String barcode,
+                                        int limit, int offset);
+
+    AdminExtractionSummary extractionSummary();
 }

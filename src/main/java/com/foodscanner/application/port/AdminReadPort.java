@@ -60,4 +60,11 @@ public interface AdminReadPort {
 
     /** OCR-задачи пользователя (автор draft/entry), свежие сверху — для карточки пользователя. */
     List<AdminOcrRow> ocrJobsByUser(UUID contributorId, int limit);
+
+    /** Задачи структурного извлечения (фильтры опциональны): свежие сверху. */
+    List<AdminExtractionRow> extractionJobs(Integer status, String type, String barcode,
+                                            int limit, int offset);
+
+    /** Сводка задач извлечения по статусам (zero-fill). */
+    AdminExtractionSummary extractionSummary();
 }

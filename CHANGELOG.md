@@ -12,6 +12,16 @@
 ## [Unreleased]
 - —
 
+## [1.12.4] — admin extraction visibility
+- Новый admin read-API: `GET /admin/extraction` (фильтры `status`/`type`/`barcode`, свежие сверху)
+  + `GET /admin/extraction/summary` (счётчики по статусам 0–5, zero-fill).
+- Порт `AdminReadPort.extractionJobs/extractionSummary` + адаптер (native SQL по `product_extraction_jobs`),
+  use-case `AdminReadUseCase.extraction/extractionSummary`, маппинг кода статуса → имя через `ExtractionStatus`.
+- Страница `/admin/extraction`: чипы-сводка (клик фильтрует) + фильтр по типу (текст/фото) +
+  список (ШК→каталог, кнопка OCR→задача-источник, поля name/brand/manufacturer, source, attempts, last_error).
+  Вкладка «Извлечение» в admin-навигации.
+- Read-only (reprocess/skip — следующим срезом). Тесты: `AdminReadControllerTest` (+2), `AdminReadAdapterIT` (+1).
+
 ## [1.12.3] — deploy disk hygiene for OCR images
 - `deploy.sh` вызывает `ensure_disk_space` **перед** `docker compose pull`: лог `df`/`docker system df`,
   при свободном <`MIN_FREE_DISK_GB` (деф. 5) — безопасная очистка `docker image/builder/container prune`.

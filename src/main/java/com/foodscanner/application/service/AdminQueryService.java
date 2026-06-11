@@ -136,6 +136,17 @@ public class AdminQueryService implements AdminReadUseCase {
         return port.ocrById(jobId);
     }
 
+    @Override
+    public List<AdminExtractionRow> extraction(Integer status, String type, String barcode,
+                                               int limit, int offset) {
+        return port.extractionJobs(status, type, barcode, clampLimit(limit), Math.max(0, offset));
+    }
+
+    @Override
+    public AdminExtractionSummary extractionSummary() {
+        return port.extractionSummary();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static Instant todayStart() {
         return LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);

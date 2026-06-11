@@ -140,6 +140,23 @@ public class AdminReadController {
         return admin.ocrDetail(jobId).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Список задач структурного извлечения (фильтры опциональны), свежие сверху. */
+    @GetMapping("/extraction")
+    public List<AdminExtractionRow> extraction(
+            @RequestParam(name = "status", required = false) Integer status,
+            @RequestParam(name = "type", required = false) String type,
+            @RequestParam(name = "barcode", required = false) String barcode,
+            @RequestParam(name = "limit", defaultValue = "100") int limit,
+            @RequestParam(name = "offset", defaultValue = "0") int offset) {
+        return admin.extraction(status, blankToNull(type), blankToNull(barcode), limit, offset);
+    }
+
+    /** Сводка задач извлечения по статусам (для шапки страницы). */
+    @GetMapping("/extraction/summary")
+    public AdminExtractionSummary extractionSummary() {
+        return admin.extractionSummary();
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;
