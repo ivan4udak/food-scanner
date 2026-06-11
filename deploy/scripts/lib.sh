@@ -79,3 +79,24 @@ notify_rollback_fail() {
 # Чистка диска: удаляет неиспользуемые образы старше 48ч (маленький диск сервера).
 # Running-образы и недавние (для быстрого отката) сохраняются.
 prune_images() { docker image prune -af --filter "until=48h" >/dev/null 2>&1 || true; }
+
+# Свободно ГБ на корне (целое, floor).
+free_disk_gb() { df -P / | awk 'NR==2 {printf "%d", $4/1024/1024}'; }
+
+# Гигиена диска ПЕРЕД pull тяжёлых образов (OCR/torch ~2-4ГБ/SHA быстро забивают 30ГБ → backend
+# crash-loop «No space left on device»). Безопасно: НЕ трогаем volumes (Postgres/MinIO) и running-образы.
+# При нехватке после очистки — прерываем деплой ДО старта (не оставляем частичный деплой).
+ensure_disk_space() {
+  local min="${MIN_FREE_DISK_GB:-5}"
+  log "Диск до очистки: $(df -h / | awk 'NR==2 {print $4" свободно из "$2" ("$5")"}')"
+  docker system df 2>/dev/null | sed 's/^/  /' || true
+  if [[ "$(free_disk_gb)" -lt "$min" ]]; then
+    log "Свободно <${min}ГБ — безопасная очистка неиспользуемых образов/кэша/контейнеров (volumes НЕ трогаем)…"
+    docker image prune -af      >/dev/null 2>&1 || true
+    docker builder prune -af    >/dev/null 2>&1 || true
+    docker container prune -f   >/dev/null 2>&1 || true
+    log "Диск после очистки: $(df -h / | awk 'NR==2 {print $4" свободно из "$2" ("$5")"}')"
+  fi
+  local avail; avail="$(free_disk_gb)"
+  [[ "$avail" -ge "$min" ]] || die "недостаточно места: свободно ${avail}ГБ < ${min}ГБ — деплой прерван до старта (не оставляем частичный деплой). Увеличьте диск или почистите вручную."
+}

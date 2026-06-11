@@ -12,6 +12,14 @@
 ## [Unreleased]
 - —
 
+## [1.12.3] — deploy disk hygiene for OCR images
+- `deploy.sh` вызывает `ensure_disk_space` **перед** `docker compose pull`: лог `df`/`docker system df`,
+  при свободном <`MIN_FREE_DISK_GB` (деф. 5) — безопасная очистка `docker image/builder/container prune`.
+- **volumes НЕ трогаются** (Postgres/MinIO в безопасности); running-образы (stable/production) сохраняются.
+- При нехватке места после очистки — деплой прерывается до старта (без частичного деплоя), чёткое сообщение.
+- Чинит crash-loop backend из v1.12.2 (диск 100% от тяжёлых EasyOCR/torch образов → No space left on device).
+- Runbook (`docs/OCR_ROLLOUT.md` §0) обновлён. bash -n OK; staging only.
+
 ## [1.12.2] — OCR reprocess for NEEDS_REVIEW
 - `POST /admin/ocr/{jobId}/reprocess` теперь разрешён и для **NEEDS_REVIEW(2)** (после реального EasyOCR
   нормальный raw-text получает статус 2 — админ может перечитать фото: плохой текст/обновлён движок/сравнить качество).

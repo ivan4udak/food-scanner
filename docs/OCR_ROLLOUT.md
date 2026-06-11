@@ -6,12 +6,18 @@
 Контур: upload INGREDIENTS/NUTRITION → `ocr_jobs` QUEUED → publish (RabbitMQ `ocr.jobs`)
 → ocr-service (заглушка → NEEDS_REVIEW) → `ocr.results` → backend listener → статус в БД.
 
-## 0. Проверка ресурсов (сервер 2 ядра/огранич. RAM)
+## 0. Проверка ресурсов (сервер 2 ядра/огранич. RAM, диск 30 ГБ)
 ```bash
-free -m; docker stats --no-stream
+free -m; df -h /; docker system df; docker stats --no-stream
 ```
-RabbitMQ (~150–250 МБ) + ocr-service (заглушка ~50–80 МБ). Если свободно <300 МБ —
-**оставить OCR disabled**, зафиксировать причину, вернуться при апгрейде сервера.
+RabbitMQ (~150–250 МБ) + ocr-service. Если свободно RAM <300 МБ — **оставить OCR disabled**.
+
+**Диск (v1.12.3):** реальный EasyOCR-образ тяжёлый (~2–4 ГБ на git SHA) и быстро забивает 30 ГБ →
+backend `No space left on device` → crash-loop. `deploy.sh` теперь вызывает `ensure_disk_space` ПЕРЕД
+`docker compose pull`: логирует `df`/`docker system df`, при свободном <`MIN_FREE_DISK_GB` (деф. 5)
+делает **безопасную очистку** (`docker image/builder/container prune` — **volumes Postgres/MinIO НЕ трогаются**,
+running-образы сохраняются), при нехватке после очистки — прерывает деплой до старта (без частичного деплоя).
+Ручная очистка при необходимости: `docker image prune -af` (НЕ `system prune --volumes`).
 
 ## 1. Включение (staging)
 1. Синхронизировать серверный `/opt/foodscanner/staging/docker-compose.yml` с

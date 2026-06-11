@@ -29,6 +29,7 @@ PREV_SHA="$(release_field "$PREV_LINE" 2 2>/dev/null || true)"
 PREV_BACKEND="$(release_field "$PREV_LINE" 3 2>/dev/null || true)"
 PREV_WEB="$(release_field "$PREV_LINE" 4 2>/dev/null || true)"
 
+ensure_disk_space          # гигиена диска до pull тяжёлых образов (OCR/torch); fail-early при нехватке
 docker compose pull
 docker compose up -d --remove-orphans
 

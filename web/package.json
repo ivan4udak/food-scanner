@@ -1,6 +1,6 @@
 {
   "name": "food-scanner-pwa",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "private": true,
   "type": "module",
   "description": "Food Scanner — installable PWA frontend (replaces the SwiftUI iOS client). Integrates the existing /api/v1 backend without changes.",
