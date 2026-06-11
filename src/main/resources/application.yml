@@ -113,6 +113,19 @@ product:
     enabled:              ${PRODUCT_EXTRACTION_ENABLED:true}
     min-raw-text-length:  ${EXTRACTOR_MIN_RAW_TEXT_LENGTH:100}
     min-ocr-confidence:   ${EXTRACTOR_MIN_OCR_CONFIDENCE:0.35}
+  # v1.12.1: движок извлечения (пока только stub) + ночной воркер
+  extractor:
+    engine: ${PRODUCT_EXTRACTOR:stub}   # stub | text_llm | image_llm (последние — позже)
+    worker:
+      enabled:                 ${PRODUCT_EXTRACTOR_WORKER_ENABLED:true}
+      window-start:            ${PRODUCT_EXTRACTOR_WINDOW_START:00:00}
+      window-end:              ${PRODUCT_EXTRACTOR_WINDOW_END:06:00}
+      timezone:                ${PRODUCT_EXTRACTOR_TIMEZONE:Europe/Moscow}
+      concurrency:             ${PRODUCT_EXTRACTOR_CONCURRENCY:1}
+      max-jobs-per-window:     ${PRODUCT_EXTRACTOR_MAX_JOBS_PER_WINDOW:50}
+      max-minutes-per-window:  ${PRODUCT_EXTRACTOR_MAX_MINUTES_PER_WINDOW:240}
+      interval-ms:             ${PRODUCT_EXTRACTOR_INTERVAL_MS:300000}
+      initial-delay-ms:        ${PRODUCT_EXTRACTOR_INITIAL_DELAY_MS:60000}
 
 # ── Сервер ──────────────────────────────────────────────────────────
 server:
