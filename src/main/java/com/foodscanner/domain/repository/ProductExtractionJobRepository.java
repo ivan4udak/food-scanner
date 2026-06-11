@@ -4,7 +4,9 @@ import com.foodscanner.domain.model.extraction.ExtractionResult;
 import com.foodscanner.domain.model.extraction.ExtractionStatus;
 import com.foodscanner.domain.model.extraction.ProductExtractionJob;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,4 +33,13 @@ public interface ProductExtractionJobRepository {
 
     /** Пропустить задачу админом → SKIPPED (processedAt=now, lastError=reason). */
     void skip(UUID id, String reason);
+
+    /** Количество задач по каждому статусу (для метрик; без zero-fill). */
+    Map<ExtractionStatus, Long> countByStatus();
+
+    /** Размер очереди — количество QUEUED задач. */
+    long countQueued();
+
+    /** queued_at старейшей QUEUED задачи (возраст очереди) — пусто, если очередь пуста. */
+    Optional<Instant> oldestQueuedAt();
 }

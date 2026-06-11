@@ -12,6 +12,14 @@
 ## [Unreleased]
 - —
 
+## [1.12.7] — extraction observability (Prometheus)
+- Метрики `product_extraction_jobs{status,code}` (gauge по каждому статусу 0–5, zero-fill) +
+  `product_extraction_queue_size` + `product_extraction_queue_oldest_age_seconds` — в /actuator/prometheus → Grafana.
+- `ExtractionMetrics` (@Scheduled refresh, по образцу `OcrMetrics`); порт `ProductExtractionJobRepository`:
+  `countByStatus`/`countQueued`/`oldestQueuedAt` (JPA group-by + min(queued_at)). Сбой метрики не валит приложение.
+- Помогает заметить, что ночной воркер не рассасывает очередь (растёт queue age). Backend-only, без LLM/Vision.
+- Тесты: `ExtractionMetricsTest` (gauge+zero-fill+очередь), adapter IT +1 (count/queue/skip).
+
 ## [1.12.6] — client extraction UX («Мои сканы»)
 - `GET /me/scans/{barcode}` теперь отдаёт `extraction[]` — последняя задача извлечения на каждый
   OCR-источник (DISTINCT ON ocr_job_id по queued_at, исторические от requeue отброшены):

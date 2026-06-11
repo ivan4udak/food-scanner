@@ -10,7 +10,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,6 +70,26 @@ public class ProductExtractionJobRepositoryAdapter implements ProductExtractionJ
     @Transactional
     public void skip(UUID id, String reason) {
         jpa.markSkipped(id, (short) ExtractionStatus.SKIPPED.code(), reason, Instant.now());
+    }
+
+    @Override
+    public Map<ExtractionStatus, Long> countByStatus() {
+        Map<ExtractionStatus, Long> counts = new EnumMap<>(ExtractionStatus.class);
+        for (Object[] row : jpa.countGroupedByStatus()) {
+            int code = ((Number) row[0]).intValue();
+            counts.put(ExtractionStatus.fromCode(code), ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    @Override
+    public long countQueued() {
+        return jpa.countByStatus((short) ExtractionStatus.QUEUED.code());
+    }
+
+    @Override
+    public Optional<Instant> oldestQueuedAt() {
+        return Optional.ofNullable(jpa.oldestQueuedAt((short) ExtractionStatus.QUEUED.code()));
     }
 
     private static ProductExtractionJob toDomain(ProductExtractionJobJpaEntity e) {
