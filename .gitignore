@@ -69,3 +69,7 @@ logs/
 ios/**/xcuserdata/
 ios/**/*.xcuserstate
 ios/**/project.xcworkspace/contents.xcworkspacedata
+
+# Python
+__pycache__/
+*.pyc
