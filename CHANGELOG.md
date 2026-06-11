@@ -12,6 +12,17 @@
 ## [Unreleased]
 - —
 
+## [1.12.0] — Product Extraction foundation: очередь задач + eligibility (без LLM/воркера)
+- **V17**: таблица `product_extraction_jobs` (тип TEXT_EXTRACTION/IMAGE_FALLBACK_EXTRACTION, статусы 0–5
+  QUEUED/IN_PROGRESS/STRUCTURED/NEEDS_REVIEW/FAILED/SKIPPED, поля результата name/brand/manufacturer/composition/nutrition/confidence — nullable).
+- **Разделение OCR и Extraction**: после применения OCR-результата создаётся задача извлечения по
+  доменной `ExtractionEligibilityPolicy`: PHOTO_UNREADABLE/ERROR → IMAGE_FALLBACK; достаточно текста
+  (len≥`EXTRACTOR_MIN_RAW_TEXT_LENGTH`=100) и уверенность ≥`EXTRACTOR_MIN_OCR_CONFIDENCE`=0.35 → TEXT_EXTRACTION;
+  иначе IMAGE_FALLBACK; нетерминальные/SUCCESS → пропуск. Флаг `PRODUCT_EXTRACTION_ENABLED`.
+- DDD: domain (ExtractionStatus/Type, ProductExtractionJob, policy), порт+адаптер, use-case, wired в UpdateOcrResultService.
+- **Не делалось** (след. срезы): ночной воркер+окно+runtime-safety, ProductExtractor порт+stub адаптер, admin/UX, реальный LLM/vision. OCR pipeline/публичный API не тронуты.
+- Тесты: policy (6), EnqueueProductExtractionService (4), UpdateOcrResultService (enqueue), ProductExtractionJobRepositoryAdapterIT; mvn verify = surefire + 23 IT.
+
 ## [1.11.3] — фундамент структурного извлечения (поля, без LLM)
 - **V16**: `ocr_jobs` += `parsed_name/parsed_brand/parsed_manufacturer` (nullable, без backfill/constraints).
   composition→`parsed_ingredients`, КБЖУ→`parsed_nutrition` (уже были).
