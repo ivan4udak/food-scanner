@@ -124,6 +124,25 @@ export const adminOcrDetail = (jobId: string) => get<AdminOcrDetail>(`/admin/ocr
 export const adminReprocessOcr = async (jobId: string): Promise<string> =>
   (await api.post(`/admin/ocr/${jobId}/reprocess`)).data?.jobId;
 
+// ── Product extraction (структурное извлечение) ──
+export interface AdminExtractionRow {
+  jobId: string; ocrJobId: string; barcode: string | null; type: string;
+  statusCode: number; status: string; attempts: number; source: string | null;
+  name: string | null; brand: string | null; manufacturer: string | null;
+  lastError: string | null;
+  queuedAt: string | null; processedAt: string | null; updatedAt: string | null;
+}
+
+export interface AdminExtractionSummary {
+  total: number;
+  byStatus: { code: number; status: string; count: number }[];
+}
+
+export const adminExtraction = (
+  status?: number, type?: string, barcode?: string, limit = 200, offset = 0,
+) => get<AdminExtractionRow[]>('/admin/extraction', { status, type, barcode, limit, offset });
+export const adminExtractionSummary = () => get<AdminExtractionSummary>('/admin/extraction/summary');
+
 /** Смена роли пользователя (только SUPER_ADMIN). → новая роль. */
 export async function setUserRole(id: string, role: string): Promise<string> {
   const res = await api.post(`/admin/users/${id}/role`, { role });
