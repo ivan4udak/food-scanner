@@ -154,6 +154,10 @@ class AdminReadAdapterIT extends AbstractRepositoryIT {
         assertThat(detail.barcode()).isEqualTo(bc);
         assertThat(detail.author()).isEqualTo(usernameOf(ivan));
         assertThat(detail.statusCode()).isEqualTo(2);
+        // v1.11.3: структурные поля ещё не извлекаются → null-safe
+        assertThat(detail.parsedName()).isNull();
+        assertThat(detail.parsedBrand()).isNull();
+        assertThat(detail.parsedManufacturer()).isNull();
         assertThat(port.ocrById(UUID.randomUUID())).isEmpty();
     }
 
