@@ -66,14 +66,17 @@ export function AdminExtractionPage() {
       </div>
 
       {jobs.isLoading && <p className="muted center">Загрузка…</p>}
-      {jobs.data && <ExtractionJobsTable jobs={jobs.data} onOpenOcr={(id) => navigate(`/admin/ocr/${id}`)}
+      {jobs.data && <ExtractionJobsTable jobs={jobs.data}
+                                         onOpenDetail={(id) => navigate(`/admin/extraction/${id}`)}
+                                         onOpenOcr={(id) => navigate(`/admin/ocr/${id}`)}
                                          onOpenCatalog={(bc) => navigate(`/admin/catalog/${encodeURIComponent(bc)}`)} />}
     </div>
   );
 }
 
-function ExtractionJobsTable({ jobs, onOpenOcr, onOpenCatalog }: {
+function ExtractionJobsTable({ jobs, onOpenDetail, onOpenOcr, onOpenCatalog }: {
   jobs: AdminExtractionRow[];
+  onOpenDetail: (jobId: string) => void;
   onOpenOcr: (ocrJobId: string) => void;
   onOpenCatalog: (barcode: string) => void;
 }) {
@@ -105,6 +108,8 @@ function ExtractionJobsTable({ jobs, onOpenOcr, onOpenCatalog }: {
                 <td className="sub">{dt(j.updatedAt)}</td>
                 <td className="sub" title={j.lastError ?? ''}>{j.lastError ? j.lastError.slice(0, 30) : '—'}</td>
                 <td>
+                  <button className="chip" title="Детали задачи"
+                          onClick={() => onOpenDetail(j.jobId)}>детали</button>
                   <button className="chip" title="OCR-задача источника"
                           onClick={() => onOpenOcr(j.ocrJobId)}>OCR</button>
                 </td>

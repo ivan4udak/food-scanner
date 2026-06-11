@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Слой: infrastructure. Адаптер ProductExtractionJobRepository → JPA. */
@@ -30,6 +31,11 @@ public class ProductExtractionJobRepositoryAdapter implements ProductExtractionJ
             job.id(), job.ocrJobId(), job.barcode(), job.type().name(), (short) job.status().code(),
             job.attempts(), job.queuedAt(), job.createdAt(), job.updatedAt()));
         return job;
+    }
+
+    @Override
+    public Optional<ProductExtractionJob> findById(UUID id) {
+        return jpa.findById(id).map(ProductExtractionJobRepositoryAdapter::toDomain);
     }
 
     @Override
@@ -56,6 +62,12 @@ public class ProductExtractionJobRepositoryAdapter implements ProductExtractionJ
     @Transactional
     public void markFailed(UUID id, String error) {
         jpa.markFailed(id, (short) ExtractionStatus.FAILED.code(), error, Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public void skip(UUID id, String reason) {
+        jpa.markSkipped(id, (short) ExtractionStatus.SKIPPED.code(), reason, Instant.now());
     }
 
     private static ProductExtractionJob toDomain(ProductExtractionJobJpaEntity e) {

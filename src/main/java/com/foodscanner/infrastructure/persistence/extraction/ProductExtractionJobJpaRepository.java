@@ -34,4 +34,8 @@ public interface ProductExtractionJobJpaRepository extends JpaRepository<Product
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update ProductExtractionJobJpaEntity e set e.status=:status, e.lastError=:error, e.processedAt=:now, e.updatedAt=:now where e.id=:id")
     int markFailed(@Param("id") UUID id, @Param("status") short status, @Param("error") String error, @Param("now") Instant now);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update ProductExtractionJobJpaEntity e set e.status=:status, e.lastError=:reason, e.processedAt=:now, e.updatedAt=:now where e.id=:id")
+    int markSkipped(@Param("id") UUID id, @Param("status") short status, @Param("reason") String reason, @Param("now") Instant now);
 }

@@ -157,6 +157,13 @@ public class AdminReadController {
         return admin.extractionSummary();
     }
 
+    /** Полная карточка задачи извлечения (+ срез OCR-источника). */
+    @GetMapping("/extraction/{jobId}")
+    public ResponseEntity<AdminExtractionDetail> extractionDetail(@PathVariable UUID jobId) {
+        return admin.extractionDetail(jobId).map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;

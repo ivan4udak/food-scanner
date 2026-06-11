@@ -147,6 +147,11 @@ public class AdminQueryService implements AdminReadUseCase {
         return port.extractionSummary();
     }
 
+    @Override
+    public Optional<AdminExtractionDetail> extractionDetail(UUID jobId) {
+        return port.extractionById(jobId);
+    }
+
     // ── helpers ──────────────────────────────────────────────
     private static Instant todayStart() {
         return LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);

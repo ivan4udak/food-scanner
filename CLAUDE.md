@@ -12,7 +12,7 @@ Backend Spring Boot 3 / Java 21 / Postgres / Flyway / MinIO / JWT, DDD + Ports&A
 ## Версионирование (СТРОГО)
 Источник истины: `VERSION` (корень) = `web/package.json` = `web/src/version.ts` = верх `CHANGELOG.md`. Git-теги заморожены на v1.4.0 — НЕ ориентир.
 Перед бампом проверить все 4 источника, взять максимум, **никогда не переиспользовать версию**. PATCH=фикс, MINOR=фича/API.
-**Текущая: 1.12.3.** Следующая фикс → 1.12.4 (или v1.12.x admin extraction visibility).
+**Текущая: 1.12.5.** Следующая фикс → 1.12.6 (или v1.12.x client extraction UX).
 
 ## Git author policy
 Коммиты только от владельца (`Volk <m-ore@list.ru>`). НЕ добавлять Co-Authored-By: Claude / Generated with Claude / любые AI-пометки. Перед коммитом сверять `git config user.name/email`.
@@ -42,14 +42,17 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
 - v1.11.3 ✅ фундамент структурного извлечения (поля parsed_name/brand/manufacturer + admin visibility, без LLM).
 - v1.12.0 ✅ **Product Extraction foundation**: таблица `product_extraction_jobs` (типы TEXT/IMAGE_FALLBACK, статусы 0–5), `ExtractionEligibilityPolicy` (PHOTO_UNREADABLE/ERROR→image fallback; текст≥100 & conf≥0.35→text), создание задачи после OCR. OCR (сырой текст) и Extraction (понимание) разделены.
   - v1.12.1 ✅ Night worker + StubProductExtractor (ночное окно, concurrency=1, лимиты, runtime-safety; stub→SKIPPED).
-  - v1.12.2 — Admin extraction visibility. ⬜ · v1.12.3 — Client extraction UX. ⬜
+  - v1.12.2 ✅ OCR reprocess разрешён для NEEDS_REVIEW(2). · v1.12.3 ✅ deploy disk-hygiene (prune перед pull тяжёлых OCR-образов).
+  - v1.12.4 ✅ Admin extraction visibility: `/admin/extraction` (список+summary, фильтры status/type/barcode, live-refresh).
+  - v1.12.5 ✅ Admin extraction detail+actions: `GET /admin/extraction/{jobId}` (+OCR-срез) + `POST .../requeue` (3/4/5→QUEUED) + `POST .../skip` (0/3/4→SKIPPED); страница `/admin/extraction/:jobId`. 409 на запрещённый статус.
+  - v1.12.x — Client extraction UX. ⬜
   - Реальные LLM/vision адаптеры — после решения, где хостить модель.
 - **v1.13.0 — Честный ЗНАК integration** ⬜ (перенесён с v1.12.0, т.к. та занята Product Extraction). Требования: НЕ хранить сырой уникальный QR/DataMatrix как identity товара; извлекать **GTIN** и использовать его как canonical product identity; разные marking codes одного товара → одна ProductCard; использовать данные маркировочной экосистемы где доступны; FRONT photo всегда обязательна; не заставлять делать лишние фото при наличии trusted data; отдельный срез после extraction foundation. (Сейчас НЕ реализовывать.)
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.12.3 (deploy disk-hygiene) · stable(main)=1.8.0 · production(release)=без изменений.
+staging(test)=1.12.5 (admin extraction detail+actions) · stable(main)=1.8.0 · production(release)=без изменений.
 Ожидает: продвинуть 1.8.1–1.12.3 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы

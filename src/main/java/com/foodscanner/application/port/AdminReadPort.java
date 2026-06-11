@@ -67,4 +67,7 @@ public interface AdminReadPort {
 
     /** Сводка задач извлечения по статусам (zero-fill). */
     AdminExtractionSummary extractionSummary();
+
+    /** Полная карточка задачи извлечения по id (+ срез OCR-источника). */
+    Optional<AdminExtractionDetail> extractionById(UUID jobId);
 }

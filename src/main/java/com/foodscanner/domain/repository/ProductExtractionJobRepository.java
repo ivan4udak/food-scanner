@@ -5,6 +5,7 @@ import com.foodscanner.domain.model.extraction.ExtractionStatus;
 import com.foodscanner.domain.model.extraction.ProductExtractionJob;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -12,6 +13,9 @@ import java.util.UUID;
  */
 public interface ProductExtractionJobRepository {
     ProductExtractionJob save(ProductExtractionJob job);
+
+    /** Задача по id (для админ-действий requeue/skip). */
+    Optional<ProductExtractionJob> findById(UUID id);
 
     /** Старейшие QUEUED задачи (для ночного воркера). */
     List<ProductExtractionJob> findQueued(int limit);
@@ -24,4 +28,7 @@ public interface ProductExtractionJobRepository {
 
     /** Техническая ошибка → FAILED. */
     void markFailed(UUID id, String error);
+
+    /** Пропустить задачу админом → SKIPPED (processedAt=now, lastError=reason). */
+    void skip(UUID id, String reason);
 }
