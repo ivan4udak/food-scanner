@@ -12,6 +12,16 @@
 ## [Unreleased]
 - —
 
+## [1.12.1] — Product Extraction: ночной воркер + StubProductExtractor
+- **`ProductExtractor` порт** + **`StubProductExtractor`** (флаг `PRODUCT_EXTRACTOR=stub|text_llm|image_llm`,
+  по умолчанию stub → ничего не извлекает → SKIPPED). Реальные LLM/vision — отдельный срез.
+- **`ProductExtractionWorker`** (`@Scheduled`): обработка только в ночном окне (`ProcessingWindow`, через полночь),
+  **concurrency=1** (AtomicBoolean-гард), лимиты на окно (max-jobs/max-minutes), runtime-safety (heap<90% иначе пропуск).
+  QUEUED→IN_PROGRESS→STRUCTURED/NEEDS_REVIEW/SKIPPED, FAILED при исключении. Вне окна/при перегрузке — задачи остаются QUEUED.
+- Repo: `findQueued/markInProgress/applyResult/markFailed` (@Modifying, clearAutomatically). Config `product.extractor.*`.
+- Roadmap: **Честный ЗНАК перенесён на v1.13.0** (v1.12.0 уже занята Product Extraction). НЕ реализуется сейчас.
+- Тесты: ProcessingWindow (3, вкл. overnight), ProductExtractionWorker (4: skipped/structured/failed/disabled), repo IT (lifecycle). mvn verify = surefire + 24 IT. Без LLM/cloud/Честного ЗНАКа; staging only.
+
 ## [1.12.0] — Product Extraction foundation: очередь задач + eligibility (без LLM/воркера)
 - **V17**: таблица `product_extraction_jobs` (тип TEXT_EXTRACTION/IMAGE_FALLBACK_EXTRACTION, статусы 0–5
   QUEUED/IN_PROGRESS/STRUCTURED/NEEDS_REVIEW/FAILED/SKIPPED, поля результата name/brand/manufacturer/composition/nutrition/confidence — nullable).
