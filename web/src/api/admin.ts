@@ -112,7 +112,9 @@ export const adminOcrSummary = () => get<AdminOcrSummary>('/admin/ocr/summary');
 
 export interface AdminOcrDetail extends AdminOcrRow {
   confidence: number | null; createdAt: string | null;
-  rawText: string | null; parsedIngredients: string | null; parsedNutrition: string | null;
+  rawText: string | null;
+  parsedName: string | null; parsedBrand: string | null; parsedManufacturer: string | null;
+  parsedIngredients: string | null; parsedNutrition: string | null;
   publishedAt: string | null; publishAttempts: number; lastPublishError: string | null;
   supersededAt: string | null; supersededBy: string | null;
 }

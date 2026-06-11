@@ -142,11 +142,15 @@ class AdminReadControllerTest {
         when(admin.ocrDetail(id)).thenReturn(Optional.of(new AdminOcrDetail(
             id, "460", UUID.randomUUID(), "ivan", UUID.randomUUID(), null, "INGREDIENTS", "photos/x.jpg",
             4, "SUCCESS", 1, true, false, 0.92, Instant.now(), Instant.now(), null, null,
-            "Состав: вода, сахар, соль", "вода;сахар;соль", null, Instant.now(), 1, null, null, null)));
+            "Состав: вода, сахар, соль", "Печенье", "BrandX", "ООО Завод",
+            "вода;сахар;соль", null, Instant.now(), 1, null, null, null)));
         mockMvc.perform(get("/api/v1/admin/ocr/" + id))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("SUCCESS"))
             .andExpect(jsonPath("$.rawText").value("Состав: вода, сахар, соль"))
+            .andExpect(jsonPath("$.parsedName").value("Печенье"))
+            .andExpect(jsonPath("$.parsedBrand").value("BrandX"))
+            .andExpect(jsonPath("$.parsedManufacturer").value("ООО Завод"))
             .andExpect(jsonPath("$.confidence").value(0.92));
     }
 

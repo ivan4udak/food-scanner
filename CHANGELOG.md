@@ -12,6 +12,15 @@
 ## [Unreleased]
 - —
 
+## [1.11.3] — фундамент структурного извлечения (поля, без LLM)
+- **V16**: `ocr_jobs` += `parsed_name/parsed_brand/parsed_manufacturer` (nullable, без backfill/constraints).
+  composition→`parsed_ingredients`, КБЖУ→`parsed_nutrition` (уже были).
+- **API**: `GET /admin/ocr/{jobId}` отдаёт `parsedName/parsedBrand/parsedManufacturer` (null для старых job).
+- **Админка**: в `/admin/ocr/:jobId` блок «Структурные данные» (название/бренд/производитель/состав/КБЖУ),
+  пустой — аккуратно «Пока не извлечено». Остальные блоки (rawText/фото/reprocess/связи) без изменений.
+- **Не делалось**: LLM/extractor, ocr-service, OCR pipeline, write-path, парсинг, semantics статусов. Только чтение/видимость.
+- Дальше: ProductExtractor (порт + адаптер) + write-path — отдельным срезом (с решением, где хостить модель).
+
 ## [1.11.2] — откат тюнинга OCR (регресс), оставлен EXIF-фикс
 - v1.11.1 тюнинг (RGB + пониженные пороги `text_threshold/low_text` + `mag_ratio`) на проверке **ухудшил**
   распознавание (то же фото: 1780→1193 симв, conf 0.60→0.47), нечитаемое не восстановил. Откатили к

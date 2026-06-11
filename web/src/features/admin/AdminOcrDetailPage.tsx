@@ -75,6 +75,19 @@ export function AdminOcrDetailPage() {
       </div>
 
       <div className="card">
+        <h2>Структурные данные</h2>
+        {(j.parsedName || j.parsedBrand || j.parsedManufacturer || j.parsedIngredients || j.parsedNutrition)
+          ? (<>
+              {j.parsedName && <div className="row"><span>Название</span><span className="value">{j.parsedName}</span></div>}
+              {j.parsedBrand && <div className="row"><span>Бренд</span><span className="value">{j.parsedBrand}</span></div>}
+              {j.parsedManufacturer && <div className="row"><span>Производитель</span><span className="value">{j.parsedManufacturer}</span></div>}
+              {j.parsedIngredients && <div className="row"><span>Состав</span><span className="value">{j.parsedIngredients}</span></div>}
+              {j.parsedNutrition && <div className="row"><span>КБЖУ</span><span className="value">{j.parsedNutrition}</span></div>}
+            </>)
+          : <p className="muted">Пока не извлечено (структурное извлечение — следующий срез).</p>}
+      </div>
+
+      <div className="card">
         <h2>Распознанный текст</h2>
         {j.rawText
           ? (<>
@@ -84,12 +97,6 @@ export function AdminOcrDetailPage() {
               <pre className="logview" style={{ whiteSpace: 'pre-wrap' }}>{j.rawText}</pre>
             </>)
           : <p className="muted">Нет текста (заглушка движка либо фото нечитаемо).</p>}
-        {j.parsedIngredients && (
-          <div className="row"><span>Состав (parsed)</span><span className="value">{j.parsedIngredients}</span></div>
-        )}
-        {j.parsedNutrition && (
-          <div className="row"><span>КБЖУ (parsed)</span><span className="value">{j.parsedNutrition}</span></div>
-        )}
       </div>
 
       <div className="card">
