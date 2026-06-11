@@ -44,11 +44,29 @@ class ReprocessOcrServiceTest {
     }
 
     @Test
-    void rejectsNonReprocessableStatus() {
-        UUID id = UUID.randomUUID();
-        when(repo.findById(id)).thenReturn(Optional.of(job(id, OcrStatus.NEEDS_REVIEW)));
-        assertThatThrownBy(() -> service.execute(id)).isInstanceOf(IllegalStateException.class);
-        verify(repo, never()).save(any());
+    void allowsNeedsReviewUnreadableAndError() {
+        for (OcrStatus s : new OcrStatus[]{OcrStatus.NEEDS_REVIEW, OcrStatus.PHOTO_UNREADABLE, OcrStatus.ERROR}) {
+            OcrJobRepository r = mock(OcrJobRepository.class);
+            OcrJobPublisher p = mock(OcrJobPublisher.class);
+            UUID id = UUID.randomUUID();
+            when(r.findById(id)).thenReturn(Optional.of(job(id, s)));
+            when(r.save(any())).thenAnswer(i -> i.getArgument(0));
+            assertThat(new ReprocessOcrService(r, p).execute(id)).isPresent();
+            verify(r).save(any());
+            verify(r).supersede(eq(id), any());
+        }
+    }
+
+    @Test
+    void rejectsQueuedInProgressAndSuccess() {
+        for (OcrStatus s : new OcrStatus[]{OcrStatus.QUEUED, OcrStatus.IN_PROGRESS_READABLE, OcrStatus.SUCCESS}) {
+            OcrJobRepository r = mock(OcrJobRepository.class);
+            UUID id = UUID.randomUUID();
+            when(r.findById(id)).thenReturn(Optional.of(job(id, s)));
+            assertThatThrownBy(() -> new ReprocessOcrService(r, publisher).execute(id))
+                .isInstanceOf(IllegalStateException.class);
+            verify(r, never()).save(any());
+        }
     }
 
     @Test
