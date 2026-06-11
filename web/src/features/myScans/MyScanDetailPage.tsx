@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getMyScanDetail, type MyScanOcr } from '@/api/me';
+import { getMyScanDetail, type MyScanOcr, type MyScanExtraction } from '@/api/me';
 import { AuthedImage } from '@/components/AuthedImage';
 import { PhotoLightbox } from '@/components/PhotoLightbox';
 import { Page, TopBar } from '@/components/Layout';
@@ -22,17 +22,34 @@ const OCR_COLOR: Record<number, string> = {
 };
 const isActiveOcr = (s: number) => s === 0 || s === 1;
 
-/** Детали скана: фото + OCR-статусы (polling до финала). */
+// Извлечение данных о продукте (структурное). Показываем только содержательные/активные
+// статусы; SKIPPED(5)/FAILED(4) — пока шум (движок-заглушка), их не показываем пользователю.
+const EXTRACTION_LABEL: Record<number, string> = {
+  0: 'Обрабатывается…', 1: 'Обрабатывается…', 2: 'Готово', 3: 'На проверке',
+};
+const EXTRACTION_COLOR: Record<number, string> = {
+  0: '#9aa0a6', 1: '#9aa0a6', 2: '#34a853', 3: '#f9ab00',
+};
+const isActiveExtraction = (s: number) => s === 0 || s === 1;
+const isShownExtraction = (s: number) => s === 0 || s === 1 || s === 2 || s === 3;
+
+/** Детали скана: фото + OCR-статусы + извлечённые данные (polling до финала). */
 export function MyScanDetailPage() {
   const { barcode = '' } = useParams();
   const [zoom, setZoom] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ['my-scan', barcode],
     queryFn: () => getMyScanDetail(barcode),
-    // пока есть незавершённые OCR (QUEUED/IN_PROGRESS) — опрашиваем; иначе останавливаемся
-    refetchInterval: (query) =>
-      (query.state.data?.ocr ?? []).some((o: MyScanOcr) => isActiveOcr(o.statusCode)) ? 5000 : false,
+    // пока есть незавершённые OCR или извлечение (QUEUED/IN_PROGRESS) — опрашиваем; иначе стоп
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      const ocrActive = (d?.ocr ?? []).some((o: MyScanOcr) => isActiveOcr(o.statusCode));
+      const extActive = (d?.extraction ?? []).some((e: MyScanExtraction) => isActiveExtraction(e.statusCode));
+      return ocrActive || extActive ? 5000 : false;
+    },
   });
+
+  const shownExtraction = (q.data?.extraction ?? []).filter((e) => isShownExtraction(e.statusCode));
 
   return (
     <Page>
@@ -78,6 +95,29 @@ export function MyScanDetailPage() {
                     }} />
                     {OCR_LABEL[o.statusCode] ?? o.status}
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {shownExtraction.length > 0 && (
+            <div className="card">
+              <h2>Данные о продукте</h2>
+              {shownExtraction.map((e) => (
+                <div key={e.photoType}>
+                  <div className="row">
+                    <span>{e.photoType}</span>
+                    <span className="value">
+                      <span style={{
+                        display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+                        background: EXTRACTION_COLOR[e.statusCode] ?? '#9aa0a6', marginRight: 6,
+                      }} />
+                      {EXTRACTION_LABEL[e.statusCode] ?? e.status}
+                    </span>
+                  </div>
+                  {e.name && <div className="row"><span>Название</span><span className="value">{e.name}</span></div>}
+                  {e.brand && <div className="row"><span>Бренд</span><span className="value">{e.brand}</span></div>}
+                  {e.manufacturer && <div className="row"><span>Производитель</span><span className="value">{e.manufacturer}</span></div>}
                 </div>
               ))}
             </div>

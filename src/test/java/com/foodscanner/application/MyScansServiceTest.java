@@ -73,6 +73,31 @@ class MyScansServiceTest {
     }
 
     @Test
+    void detailIncludesExtractionWithStatusName() {
+        when(port.scan(ME, "460")).thenReturn(Optional.of(
+            new ScanData("460", "COMPLETED", null, UUID.randomUUID(), Instant.now(), Instant.now(), 1)));
+        when(port.photos(ME, "460")).thenReturn(List.of());
+        when(port.extractionForScan(any(), any())).thenReturn(List.of(
+            new MeReadPort.ExtractionData("INGREDIENTS", 2, "Печенье", "BrandX", "ООО Завод", Instant.now())));
+
+        MeScanDetail detail = service.detail(ME, "460").orElseThrow();
+
+        assertThat(detail.extraction()).hasSize(1);
+        assertThat(detail.extraction().get(0).photoType()).isEqualTo("INGREDIENTS");
+        assertThat(detail.extraction().get(0).statusCode()).isEqualTo(2);
+        assertThat(detail.extraction().get(0).status()).isEqualTo("STRUCTURED");
+        assertThat(detail.extraction().get(0).name()).isEqualTo("Печенье");
+    }
+
+    @Test
+    void detailExtractionEmptyWhenNone() {
+        when(port.scan(ME, "460")).thenReturn(Optional.of(
+            new ScanData("460", "COMPLETED", null, UUID.randomUUID(), Instant.now(), Instant.now(), 1)));
+        when(port.photos(ME, "460")).thenReturn(List.of());
+        assertThat(service.detail(ME, "460").orElseThrow().extraction()).isEmpty();
+    }
+
+    @Test
     void detailEmptyWhenNotOwnedOrMissing() {
         when(port.scan(eq(ME), any())).thenReturn(Optional.empty());
         assertThat(service.detail(ME, "000")).isEmpty();

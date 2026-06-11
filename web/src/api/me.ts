@@ -22,6 +22,7 @@ export interface MyScanDetail {
   completedAt: string | null;
   photos: MyScanPhoto[];
   ocr: MyScanOcr[];
+  extraction: MyScanExtraction[];
   ocrStatus: string | null;
 }
 
@@ -29,6 +30,12 @@ export interface MyScanOcr {
   photoType: string; statusCode: number; status: string; confidence: number | null;
   updatedAt: string | null; errorCode: string | null; errorMessage: string | null;
   rawTextPreview: string | null;
+}
+
+export interface MyScanExtraction {
+  photoType: string; statusCode: number; status: string;
+  name: string | null; brand: string | null; manufacturer: string | null;
+  updatedAt: string | null;
 }
 
 export const getMyScans = async (): Promise<MyScanRow[]> => (await api.get('/me/scans')).data;

@@ -4,9 +4,11 @@ import com.foodscanner.application.port.MeReadPort;
 import com.foodscanner.application.port.MeReadPort.PhotoData;
 import com.foodscanner.application.port.MeReadPort.ScanData;
 import com.foodscanner.application.result.me.MeScanDetail;
+import com.foodscanner.application.result.me.MeScanExtraction;
 import com.foodscanner.application.result.me.MeScanOcr;
 import com.foodscanner.application.result.me.MeScanRow;
 import com.foodscanner.application.usecase.MyScansUseCase;
+import com.foodscanner.domain.model.extraction.ExtractionStatus;
 import com.foodscanner.domain.model.ocr.OcrStatus;
 import org.springframework.stereotype.Service;
 
@@ -39,8 +41,10 @@ public class MyScansService implements MyScansUseCase {
                 .map(MyScansService::toPhoto).toList();
             List<MeScanOcr> ocr = port.ocrForScan(s.draftId(), s.catalogEntryId()).stream()
                 .map(MyScansService::toOcr).toList();
+            List<MeScanExtraction> extraction = port.extractionForScan(s.draftId(), s.catalogEntryId()).stream()
+                .map(MyScansService::toExtraction).toList();
             return new MeScanDetail(s.barcode(), s.catalogEntryId(),
-                s.firstScannedAt(), s.completedAt(), photos, ocr, null);
+                s.firstScannedAt(), s.completedAt(), photos, ocr, extraction, null);
         });
     }
 
@@ -58,6 +62,12 @@ public class MyScansService implements MyScansUseCase {
     private static MeScanOcr toOcr(MeReadPort.OcrData o) {
         return new MeScanOcr(o.photoType(), o.statusCode(), OcrStatus.fromCode(o.statusCode()).name(),
             o.confidence(), o.updatedAt(), o.errorCode(), o.errorMessage(), o.rawTextPreview());
+    }
+
+    private static MeScanExtraction toExtraction(MeReadPort.ExtractionData e) {
+        return new MeScanExtraction(e.photoType(), e.statusCode(),
+            ExtractionStatus.fromCode(e.statusCode()).name(),
+            e.name(), e.brand(), e.manufacturer(), e.updatedAt());
     }
 
     private static MeScanDetail.Photo toPhoto(PhotoData p) {

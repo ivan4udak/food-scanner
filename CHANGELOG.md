@@ -12,6 +12,16 @@
 ## [Unreleased]
 - —
 
+## [1.12.6] — client extraction UX («Мои сканы»)
+- `GET /me/scans/{barcode}` теперь отдаёт `extraction[]` — последняя задача извлечения на каждый
+  OCR-источник (DISTINCT ON ocr_job_id по queued_at, исторические от requeue отброшены):
+  photoType/statusCode/status/name/brand/manufacturer/updatedAt. Только свои данные.
+- Порт `MeReadPort.extractionForScan` + native SQL (JOIN ocr_jobs ради photoType); маппинг статуса через `ExtractionStatus`.
+- Клиент: блок «Данные о продукте» в деталях скана — показываем только содержательные/активные статусы
+  (QUEUED/IN_PROGRESS/STRUCTURED/NEEDS_REVIEW; SKIPPED/FAILED скрыты как шум заглушки),
+  поля name/brand/manufacturer при наличии, polling 5s пока извлечение активно (как у OCR-блока).
+- Без изменения write-path/каталога, без реального LLM/Vision. Тесты: service +2, adapter IT +1, controller обновлён.
+
 ## [1.12.5] — admin extraction detail and actions
 - `GET /admin/extraction/{jobId}` — полная карточка задачи извлечения + вложенный срез OCR-источника
   (rawText/length/confidence/photoType/storageKey/error). 404 если нет.

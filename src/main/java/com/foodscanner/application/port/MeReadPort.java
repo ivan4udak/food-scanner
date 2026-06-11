@@ -20,6 +20,9 @@ public interface MeReadPort {
     record OcrData(String photoType, int statusCode, Double confidence, Instant updatedAt,
                    String rawTextPreview, String errorCode, String errorMessage) {}
 
+    record ExtractionData(String photoType, int statusCode, String name, String brand,
+                          String manufacturer, Instant updatedAt) {}
+
     List<ScanData> scans(UUID contributorId);
 
     Optional<ScanData> scan(UUID contributorId, String barcode);
@@ -29,4 +32,7 @@ public interface MeReadPort {
 
     /** Активные OCR-задачи скана (по draft/entry). Владение проверяется вызывающим (scan()). */
     List<OcrData> ocrForScan(UUID draftId, UUID catalogEntryId);
+
+    /** Последняя задача извлечения на каждый OCR-источник скана (по draft/entry). Владение — у вызывающего. */
+    List<ExtractionData> extractionForScan(UUID draftId, UUID catalogEntryId);
 }
