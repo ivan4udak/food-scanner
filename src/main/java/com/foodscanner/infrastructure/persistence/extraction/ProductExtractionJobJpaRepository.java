@@ -38,4 +38,12 @@ public interface ProductExtractionJobJpaRepository extends JpaRepository<Product
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update ProductExtractionJobJpaEntity e set e.status=:status, e.lastError=:reason, e.processedAt=:now, e.updatedAt=:now where e.id=:id")
     int markSkipped(@Param("id") UUID id, @Param("status") short status, @Param("reason") String reason, @Param("now") Instant now);
+
+    @Query("select e.status, count(e) from ProductExtractionJobJpaEntity e group by e.status")
+    List<Object[]> countGroupedByStatus();
+
+    long countByStatus(short status);
+
+    @Query("select min(e.queuedAt) from ProductExtractionJobJpaEntity e where e.status = :status")
+    Instant oldestQueuedAt(@Param("status") short status);
 }
