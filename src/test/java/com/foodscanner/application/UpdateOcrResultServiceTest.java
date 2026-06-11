@@ -1,6 +1,7 @@
 package com.foodscanner.application;
 
 import com.foodscanner.application.service.UpdateOcrResultService;
+import com.foodscanner.application.usecase.EnqueueProductExtractionUseCase;
 import com.foodscanner.domain.model.ocr.OcrJob;
 import com.foodscanner.domain.model.ocr.OcrStatus;
 import com.foodscanner.domain.repository.OcrJobRepository;
@@ -11,12 +12,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class UpdateOcrResultServiceTest {
 
     private final OcrJobRepository repo = mock(OcrJobRepository.class);
-    private final UpdateOcrResultService service = new UpdateOcrResultService(repo);
+    private final EnqueueProductExtractionUseCase enqueue = mock(EnqueueProductExtractionUseCase.class);
+    private final UpdateOcrResultService service = new UpdateOcrResultService(repo, enqueue);
 
     @Test
     void appliesResultPreservingIdentity() {
@@ -33,6 +36,8 @@ class UpdateOcrResultServiceTest {
         assertThat(saved.status()).isEqualTo(OcrStatus.SUCCESS);
         assertThat(saved.rawText()).isEqualTo("raw");
         assertThat(saved.attempts()).isEqualTo(1);
+        // после применения OCR-результата ставится задача извлечения
+        verify(enqueue).onOcrResult(eq(job.id()), eq(OcrStatus.SUCCESS), eq("raw"), eq(0.9), isNull());
     }
 
     @Test

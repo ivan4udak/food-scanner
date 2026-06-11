@@ -12,7 +12,7 @@ Backend Spring Boot 3 / Java 21 / Postgres / Flyway / MinIO / JWT, DDD + Ports&A
 ## Версионирование (СТРОГО)
 Источник истины: `VERSION` (корень) = `web/package.json` = `web/src/version.ts` = верх `CHANGELOG.md`. Git-теги заморожены на v1.4.0 — НЕ ориентир.
 Перед бампом проверить все 4 источника, взять максимум, **никогда не переиспользовать версию**. PATCH=фикс, MINOR=фича/API.
-**Текущая: 1.11.3.** Следующая фикс → 1.11.4 (MINOR 1.12.0 для LLM-извлечения).
+**Текущая: 1.12.0.** Следующая фикс → 1.12.1 (Product Extraction: воркер/админка/LLM — отдельными срезами).
 
 ## Git author policy
 Коммиты только от владельца (`Volk <m-ore@list.ru>`). НЕ добавлять Co-Authored-By: Claude / Generated with Claude / любые AI-пометки. Перед коммитом сверять `git config user.name/email`.
@@ -39,12 +39,14 @@ USER / ADMIN / SUPER_ADMIN. Логины из `ADMIN_SUPER_USERNAMES` (деф. `
   - v1.10.8 ✅ OCR result visibility: `GET /admin/ocr/{jobId}` + страница `/admin/ocr/:jobId` (полный rawText/копирование, фото, клик-связи, reprocess).
 - v1.11.0 ✅ **реальный EasyOCR (CPU)** в ocr-service: `OcrEngine` (EasyOcrEngine/StubOcrEngine, `OCR_ENGINE=easyocr|stub`), MinIO download, ru/en, timeout, concurrency=1, lazy-модели, `mem_limit:1800m`. Маппинг raw-only: текст→2, нет/низкая уверенность→3, тех.ошибка→5 (SUCCESS(4) — резерв под парсинг). Деплой только staging.
   - Дальше: парсинг состава/КБЖУ (→SUCCESS(4)), retry/DLQ.
+- v1.11.3 ✅ фундамент структурного извлечения (поля parsed_name/brand/manufacturer + admin visibility, без LLM).
+- v1.12.0 ✅ **Product Extraction foundation**: таблица `product_extraction_jobs` (типы TEXT/IMAGE_FALLBACK, статусы 0–5), `ExtractionEligibilityPolicy` (PHOTO_UNREADABLE/ERROR→image fallback; текст≥100 & conf≥0.35→text), создание задачи после OCR. OCR (сырой текст) и Extraction (понимание) разделены. Воркер(ночное окно)/admin/LLM — отдельными срезами.
 - v2.0 — анализ пользы/вреда продукта. ⬜
 OCR-код НЕ писать до v1.10; протоколы готовить заранее.
 
 ## Статус веток
-staging(test)=1.11.3 (OCR активен, реальный EasyOCR) · stable(main)=1.8.0 · production(release)=без изменений.
-Ожидает: продвинуть 1.8.1–1.11.3 в main по подтверждению. **stable/production не трогать.**
+staging(test)=1.12.0 (OCR + Product Extraction foundation) · stable(main)=1.8.0 · production(release)=без изменений.
+Ожидает: продвинуть 1.8.1–1.12.0 в main по подтверждению. **stable/production не трогать.**
 
 ## Режим работы
 Низкая многословность. Читать только связанные файлы, не пересканировать дерево, не дублировать абстракции, держать границы DDD, минимум правок, TDD. Формат ответа: PLAN / CHANGES / TESTS / RESULT.
