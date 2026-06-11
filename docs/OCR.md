@@ -49,4 +49,9 @@ error_message, created_at, updated_at`.
 - **v1.10.0 (этот срез):** контракт + `ocr_jobs` + domain `OcrStatus`/`OcrJob` + репозиторий +
   enqueue (создание QUEUED при загрузке INGREDIENTS/NUTRITION). Без брокера/движка.
 - **v1.10.1 (готово):** RabbitMQ-контракт + ocr-service (FastAPI, заглушка движка) + backend AMQP под флагом. Активация — отдельный rollout.
-- **v1.10.2+:** движок EasyOCR за портом, парсинг состава/КБЖУ, retry/DLQ, отображение статусов.
+- **v1.10.2–1.10.8 (готово):** observability, admin OCR (список/карточка `/admin/ocr/{jobId}`), lifecycle/backpressure, reprocess 3/5, readiness в «Мои сканы».
+- **v1.11.0 (готово):** реальный движок **EasyOCR (CPU)** за абстракцией `OcrEngine` (`OCR_ENGINE=easyocr|stub`):
+  скачивание фото из MinIO, raw text + confidence, ru/en, per-job timeout, concurrency=1. Маппинг (raw-only):
+  текст→NEEDS_REVIEW(2), нет текста/низкая уверенность→PHOTO_UNREADABLE(3), тех.ошибка/timeout→ERROR(5).
+  `SUCCESS(4)` — резерв под распарсенный результат. Runbook: `docs/OCR_ROLLOUT.md`.
+- **Дальше:** парсинг состава/КБЖУ (→ SUCCESS(4)), retry/DLQ.

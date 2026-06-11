@@ -81,7 +81,15 @@ services:
     image: ${OCR_IMAGE}
     container_name: ocr-staging
     restart: unless-stopped
-    env_file: ./app.env
+    env_file: ./app.env   # MINIO_* / RABBIT_* — те же, что у backend (одно хранилище/брокер)
+    environment:
+      OCR_ENGINE: ${OCR_ENGINE:-easyocr}
+      OCR_WORKER_CONCURRENCY: ${OCR_WORKER_CONCURRENCY:-1}
+      OCR_LANGS: ${OCR_LANGS:-ru,en}
+      OCR_JOB_TIMEOUT_SECONDS: ${OCR_JOB_TIMEOUT_SECONDS:-120}
+      OCR_IMAGE_DOWNLOAD_TIMEOUT_SECONDS: ${OCR_IMAGE_DOWNLOAD_TIMEOUT_SECONDS:-30}
+    # лимит памяти: при OOM Docker убьёт ocr-staging, не задев stable/production на этом же хосте
+    mem_limit: 1800m
     depends_on:
       rabbitmq:
         condition: service_healthy
